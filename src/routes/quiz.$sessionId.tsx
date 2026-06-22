@@ -98,7 +98,7 @@ function QuizPage() {
   }
 
   function finish() {
-    navigate({ to: "/sessions" });
+    navigate({ to: "/quiz/$sessionId/results", params: { sessionId } });
   }
 
   return (
