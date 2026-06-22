@@ -24,7 +24,7 @@ const paymentHistory = [
 function SubscriptionPage() {
   const subscription = useAuthStore((s) => s.subscription);
   const isActive = subscription?.status === "ACTIVE";
-  const isTrial = subscription?.status === "TRIAL";
+  const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
 
   // Demo expiry: 87 days from now
   const expires = new Date();
