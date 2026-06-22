@@ -1,7 +1,238 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Stub } from "@/components/layout/Stub";
+import { useMemo, useState } from "react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Brain, Target, TrendingUp, Trophy } from "lucide-react";
+import { recentSessions, questionBanks } from "@/data/banks";
+import { bellCurvePoints, buildAnalytics } from "@/lib/analytics";
+import { scoreColor } from "@/lib/quiz-results";
 
 export const Route = createFileRoute("/_app/analytics")({
-  head: () => ({ meta: [{ title: "Analytics — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
-  component: () => <Stub title="Analytics" body="Detailed performance breakdown by subject, system, and topic — bell curves and percentile included." />,
+  head: () => ({
+    meta: [
+      { title: "Analytics — Medinovaqbank" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: AnalyticsPage,
 });
+
+function AnalyticsPage() {
+  const [bank, setBank] = useState("All");
+  const [range, setRange] = useState<"7" | "30" | "90" | "all">("30");
+  const data = useMemo(() => buildAnalytics(recentSessions), []);
+  const bell = useMemo(() => bellCurvePoints(data.cohort.mean, data.cohort.stddev), [data]);
+
+  return (
+    <div className="mx-auto max-w-7xl">
+      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">My Performance Analytics</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Track accuracy, percentile, and progress across your study history.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={bank}
+            onChange={(e) => setBank(e.target.value)}
+            className="h-9 rounded-lg border border-border bg-surface px-2.5 text-sm font-medium text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+          >
+            <option value="All">All Banks</option>
+            {questionBanks.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={range}
+            onChange={(e) => setRange(e.target.value as typeof range)}
+            className="h-9 rounded-lg border border-border bg-surface px-2.5 text-sm font-medium text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+          >
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="all">All time</option>
+          </select>
+        </div>
+      </header>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Average Score" value={`${data.averagePct}%`} icon={<Target className="h-4 w-4" />} accent="text-accent" />
+        <StatCard label="Questions Answered" value={data.totalAnswered.toLocaleString()} icon={<Brain className="h-4 w-4" />} />
+        <StatCard label="Correct" value={data.totalCorrect.toLocaleString()} icon={<TrendingUp className="h-4 w-4" />} accent="text-success" />
+        <StatCard label="Best Subject" value={data.bestSubject.name} sub={`${data.bestSubject.pct}%`} icon={<Trophy className="h-4 w-4" />} accent="text-warning" />
+      </div>
+
+      {/* Bell curve */}
+      <section className="mt-6 rounded-2xl border border-border bg-surface p-6">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight text-foreground">Your Percentile Ranking</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              You're in the <span className="font-bold text-accent">top {100 - data.percentile}%</span> of all test-takers.
+            </p>
+          </div>
+          <div className="text-right text-xs text-muted-foreground">
+            <span className="font-mono">You: <span className="font-bold text-foreground">{data.yourPct}%</span></span>
+            <span className="mx-2">·</span>
+            <span className="font-mono">Avg: <span className="font-bold text-foreground">{data.cohort.mean}%</span></span>
+            <span className="mx-2">·</span>
+            <span className="font-mono">σ ±{data.cohort.stddev}%</span>
+          </div>
+        </div>
+
+        <div className="mt-4 h-72 w-full">
+          <ResponsiveContainer>
+            <AreaChart data={bell} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="bell" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.5} />
+                  <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="x" type="number" domain={[20, 110]} tickFormatter={(v) => `${v}%`} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <YAxis hide />
+              <Tooltip formatter={(v: number) => v.toFixed(3)} labelFormatter={(l) => `${l}%`} />
+              <Area type="monotone" dataKey="y" stroke="hsl(var(--accent))" fill="url(#bell)" strokeWidth={2} />
+              <ReferenceLine
+                x={data.yourPct}
+                stroke="hsl(var(--accent))"
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                label={{ value: "You are here", position: "top", fill: "hsl(var(--accent))", fontSize: 11, fontWeight: 700 }}
+              />
+              <ReferenceLine x={data.cohort.mean} stroke="hsl(var(--muted-foreground))" strokeDasharray="2 4" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Rank: <span className="font-bold text-foreground">{data.percentile}th percentile</span> out of {data.cohort.size.toLocaleString()} test-takers
+        </p>
+      </section>
+
+      {/* Subject breakdown + Difficulty */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <section className="rounded-2xl border border-border bg-surface p-6 lg:col-span-2">
+          <h2 className="text-lg font-bold tracking-tight text-foreground">Subject Performance</h2>
+          <div className="mt-4 h-80 w-full">
+            <ResponsiveContainer>
+              <BarChart data={data.bySubject} layout="vertical" margin={{ left: 20, right: 24 }}>
+                <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
+                <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} width={140} />
+                <Tooltip formatter={(v: number) => `${v}%`} />
+                <Bar dataKey="pct" radius={[0, 6, 6, 0]} fill="hsl(var(--accent))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-border bg-surface p-6">
+          <h2 className="text-lg font-bold tracking-tight text-foreground">Difficulty Breakdown</h2>
+          <div className="mt-4 space-y-3">
+            {data.byDifficulty.map((d) => {
+              const c = scoreColor(d.pct);
+              return (
+                <div key={d.name} className={`flex items-center gap-4 rounded-xl border border-border p-4 ${c.bg}`}>
+                  <CircleProgress pct={d.pct} colorClass={c.text} ringClass={c.ring} />
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{d.name}</p>
+                    <p className={`text-2xl font-bold tabular-nums ${c.text}`}>{d.pct}%</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      {/* Progress over time */}
+      <section className="mt-6 rounded-2xl border border-border bg-surface p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight text-foreground">Progress Over Time</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Last {data.trend.length} sessions</p>
+          </div>
+        </div>
+        <div className="mt-4 h-64 w-full">
+          <ResponsiveContainer>
+            <LineChart data={data.trend} margin={{ top: 10, right: 24, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke="hsl(var(--border))" />
+              <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <Tooltip formatter={(v: number) => `${v}%`} />
+              <Line type="monotone" dataKey="pct" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 4 }} />
+              <ReferenceLine y={data.averagePct} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: `Avg ${data.averagePct}%`, fontSize: 10, fill: "hsl(var(--muted-foreground))", position: "right" }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+  icon,
+  accent = "text-foreground",
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  icon: React.ReactNode;
+  accent?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <span className={`flex h-7 w-7 items-center justify-center rounded-lg bg-surface-alt ${accent}`}>{icon}</span>
+      </div>
+      <p className={`mt-3 text-2xl font-bold tracking-tight ${accent}`}>{value}</p>
+      {sub && <p className="mt-1 text-xs font-semibold text-muted-foreground">{sub}</p>}
+    </div>
+  );
+}
+
+function CircleProgress({ pct, colorClass, ringClass }: { pct: number; colorClass: string; ringClass: string }) {
+  const r = 22;
+  const c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+  return (
+    <div className="relative h-14 w-14 flex-shrink-0">
+      <svg viewBox="0 0 56 56" className="h-full w-full -rotate-90">
+        <circle cx="28" cy="28" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
+        <circle
+          cx="28"
+          cy="28"
+          r={r}
+          fill="none"
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          className={ringClass}
+        />
+      </svg>
+      <span className={`absolute inset-0 grid place-items-center text-xs font-bold tabular-nums ${colorClass}`}>{pct}</span>
+    </div>
+  );
+}

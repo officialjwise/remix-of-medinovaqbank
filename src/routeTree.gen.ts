@@ -25,6 +25,8 @@ import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBanksRouteImport } from './routes/_app.banks'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as QuizConfigureBankIdRouteImport } from './routes/quiz.configure.$bankId'
+import { Route as QuizSessionIdReviewRouteImport } from './routes/quiz.$sessionId.review'
+import { Route as QuizSessionIdResultsRouteImport } from './routes/quiz.$sessionId.results'
 
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
@@ -105,6 +107,16 @@ const QuizConfigureBankIdRoute = QuizConfigureBankIdRouteImport.update({
   path: '/quiz/configure/$bankId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QuizSessionIdReviewRoute = QuizSessionIdReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => QuizSessionIdRoute,
+} as any)
+const QuizSessionIdResultsRoute = QuizSessionIdResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
+  getParentRoute: () => QuizSessionIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -120,7 +132,9 @@ export interface FileRoutesByFullPath {
   '/subscription': typeof AppSubscriptionRoute
   '/admin/login': typeof AdminLoginRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/quiz/$sessionId': typeof QuizSessionIdRoute
+  '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
+  '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
 }
 export interface FileRoutesByTo {
@@ -137,7 +151,9 @@ export interface FileRoutesByTo {
   '/subscription': typeof AppSubscriptionRoute
   '/admin/login': typeof AdminLoginRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/quiz/$sessionId': typeof QuizSessionIdRoute
+  '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
+  '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
 }
 export interface FileRoutesById {
@@ -156,7 +172,9 @@ export interface FileRoutesById {
   '/_app/subscription': typeof AppSubscriptionRoute
   '/admin/login': typeof AdminLoginRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/quiz/$sessionId': typeof QuizSessionIdRoute
+  '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
+  '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
 }
 export interface FileRouteTypes {
@@ -176,6 +194,8 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/quiz/$sessionId/results'
+    | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -193,6 +213,8 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/quiz/$sessionId/results'
+    | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
   id:
     | '__root__'
@@ -211,6 +233,8 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/quiz/$sessionId/results'
+    | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
   fileRoutesById: FileRoutesById
 }
@@ -222,7 +246,7 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
-  QuizSessionIdRoute: typeof QuizSessionIdRoute
+  QuizSessionIdRoute: typeof QuizSessionIdRouteWithChildren
   QuizConfigureBankIdRoute: typeof QuizConfigureBankIdRoute
 }
 
@@ -340,6 +364,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuizConfigureBankIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/quiz/$sessionId/review': {
+      id: '/quiz/$sessionId/review'
+      path: '/review'
+      fullPath: '/quiz/$sessionId/review'
+      preLoaderRoute: typeof QuizSessionIdReviewRouteImport
+      parentRoute: typeof QuizSessionIdRoute
+    }
+    '/quiz/$sessionId/results': {
+      id: '/quiz/$sessionId/results'
+      path: '/results'
+      fullPath: '/quiz/$sessionId/results'
+      preLoaderRoute: typeof QuizSessionIdResultsRouteImport
+      parentRoute: typeof QuizSessionIdRoute
+    }
   }
 }
 
@@ -365,6 +403,20 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface QuizSessionIdRouteChildren {
+  QuizSessionIdResultsRoute: typeof QuizSessionIdResultsRoute
+  QuizSessionIdReviewRoute: typeof QuizSessionIdReviewRoute
+}
+
+const QuizSessionIdRouteChildren: QuizSessionIdRouteChildren = {
+  QuizSessionIdResultsRoute: QuizSessionIdResultsRoute,
+  QuizSessionIdReviewRoute: QuizSessionIdReviewRoute,
+}
+
+const QuizSessionIdRouteWithChildren = QuizSessionIdRoute._addFileChildren(
+  QuizSessionIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
@@ -373,7 +425,7 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   AdminLoginRoute: AdminLoginRoute,
   AuthCallbackRoute: AuthCallbackRoute,
-  QuizSessionIdRoute: QuizSessionIdRoute,
+  QuizSessionIdRoute: QuizSessionIdRouteWithChildren,
   QuizConfigureBankIdRoute: QuizConfigureBankIdRoute,
 }
 export const routeTree = rootRouteImport
