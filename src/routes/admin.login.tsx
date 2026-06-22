@@ -37,7 +37,7 @@ function AdminLoginPage() {
       const { accessToken, user } = await authApi.adminLogin(email, password);
       localStorage.setItem("accessToken", accessToken);
       login(accessToken, user);
-      navigate({ to: "/" });
+      navigate({ to: "/admin/dashboard" });
     } catch {
       setError("Invalid administrator credentials.");
     } finally {
@@ -49,7 +49,7 @@ function AdminLoginPage() {
     const { accessToken, user } = await authApi.adminGoogleCallback("mock");
     localStorage.setItem("accessToken", accessToken);
     login(accessToken, user);
-    navigate({ to: "/" });
+    navigate({ to: "/admin/dashboard" });
   }
 
   return (
