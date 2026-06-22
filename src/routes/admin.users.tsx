@@ -111,9 +111,7 @@ function AdminUsers() {
               </span>
             </span>
             <span className="text-xs text-muted-foreground">{u.joined}</span>
-            <button className="ml-auto rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground" aria-label="Actions">
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
+            <UserActionsMenu user={u} />
           </div>
         ))}
         {rows.length === 0 && (
