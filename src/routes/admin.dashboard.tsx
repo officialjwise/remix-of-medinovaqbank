@@ -1,13 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Activity,
   Area,
   AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   Cell,
@@ -17,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  Activity,
   ArrowDownRight,
   ArrowUpRight,
   Bell,
