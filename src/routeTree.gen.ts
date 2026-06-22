@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -45,6 +46,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -70,34 +76,34 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
-  getParentRoute: () => rootRouteImport,
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
-  id: '/admin/subscriptions',
-  path: '/admin/subscriptions',
-  getParentRoute: () => rootRouteImport,
+  id: '/subscriptions',
+  path: '/subscriptions',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/admin/login',
-  path: '/admin/login',
-  getParentRoute: () => rootRouteImport,
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
-  id: '/admin/dashboard',
-  path: '/admin/dashboard',
-  getParentRoute: () => rootRouteImport,
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminBanksRoute = AdminBanksRouteImport.update({
-  id: '/admin/banks',
-  path: '/admin/banks',
-  getParentRoute: () => rootRouteImport,
+  id: '/banks',
+  path: '/banks',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
-  id: '/admin/analytics',
-  path: '/admin/analytics',
-  getParentRoute: () => rootRouteImport,
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AppSubscriptionRoute = AppSubscriptionRouteImport.update({
   id: '/subscription',
@@ -150,19 +156,20 @@ const QuizSessionIdResultsRoute = QuizSessionIdResultsRouteImport.update({
   getParentRoute: () => QuizSessionIdRoute,
 } as any)
 const AdminSettingsSystemRoute = AdminSettingsSystemRouteImport.update({
-  id: '/admin/settings/system',
-  path: '/admin/settings/system',
-  getParentRoute: () => rootRouteImport,
+  id: '/settings/system',
+  path: '/settings/system',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsPricingRoute = AdminSettingsPricingRouteImport.update({
-  id: '/admin/settings/pricing',
-  path: '/admin/settings/pricing',
-  getParentRoute: () => rootRouteImport,
+  id: '/settings/pricing',
+  path: '/settings/pricing',
+  getParentRoute: () => AdminRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/analytics': typeof AppAnalyticsRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/analytics': typeof AppAnalyticsRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/_app/analytics': typeof AppAnalyticsRoute
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/admin'
     | '/login'
     | '/pricing'
     | '/analytics'
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/admin'
     | '/login'
     | '/pricing'
     | '/analytics'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/about'
+    | '/admin'
     | '/login'
     | '/pricing'
     | '/_app/analytics'
@@ -326,18 +338,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRouteWithChildren
   LoginRoute: typeof LoginRoute
   PricingRoute: typeof PricingRoute
-  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
-  AdminBanksRoute: typeof AdminBanksRoute
-  AdminDashboardRoute: typeof AdminDashboardRoute
-  AdminLoginRoute: typeof AdminLoginRoute
-  AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
-  AdminUsersRoute: typeof AdminUsersRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   QuizSessionIdRoute: typeof QuizSessionIdRouteWithChildren
-  AdminSettingsPricingRoute: typeof AdminSettingsPricingRoute
-  AdminSettingsSystemRoute: typeof AdminSettingsSystemRoute
   QuizConfigureBankIdRoute: typeof QuizConfigureBankIdRoute
 }
 
@@ -355,6 +360,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -394,45 +406,45 @@ declare module '@tanstack/react-router' {
     }
     '/admin/users': {
       id: '/admin/users'
-      path: '/admin/users'
+      path: '/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/subscriptions': {
       id: '/admin/subscriptions'
-      path: '/admin/subscriptions'
+      path: '/subscriptions'
       fullPath: '/admin/subscriptions'
       preLoaderRoute: typeof AdminSubscriptionsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/login': {
       id: '/admin/login'
-      path: '/admin/login'
+      path: '/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/dashboard': {
       id: '/admin/dashboard'
-      path: '/admin/dashboard'
+      path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/banks': {
       id: '/admin/banks'
-      path: '/admin/banks'
+      path: '/banks'
       fullPath: '/admin/banks'
       preLoaderRoute: typeof AdminBanksRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/analytics': {
       id: '/admin/analytics'
-      path: '/admin/analytics'
+      path: '/analytics'
       fullPath: '/admin/analytics'
       preLoaderRoute: typeof AdminAnalyticsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/_app/subscription': {
       id: '/_app/subscription'
@@ -506,17 +518,17 @@ declare module '@tanstack/react-router' {
     }
     '/admin/settings/system': {
       id: '/admin/settings/system'
-      path: '/admin/settings/system'
+      path: '/settings/system'
       fullPath: '/admin/settings/system'
       preLoaderRoute: typeof AdminSettingsSystemRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/settings/pricing': {
       id: '/admin/settings/pricing'
-      path: '/admin/settings/pricing'
+      path: '/settings/pricing'
       fullPath: '/admin/settings/pricing'
       preLoaderRoute: typeof AdminSettingsPricingRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
   }
 }
@@ -543,6 +555,30 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface AdminRouteChildren {
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminBanksRoute: typeof AdminBanksRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminSettingsPricingRoute: typeof AdminSettingsPricingRoute
+  AdminSettingsSystemRoute: typeof AdminSettingsSystemRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminBanksRoute: AdminBanksRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminSubscriptionsRoute: AdminSubscriptionsRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminSettingsPricingRoute: AdminSettingsPricingRoute,
+  AdminSettingsSystemRoute: AdminSettingsSystemRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface QuizSessionIdRouteChildren {
   QuizSessionIdResultsRoute: typeof QuizSessionIdResultsRoute
   QuizSessionIdReviewRoute: typeof QuizSessionIdReviewRoute
@@ -561,18 +597,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AboutRoute: AboutRoute,
+  AdminRoute: AdminRouteWithChildren,
   LoginRoute: LoginRoute,
   PricingRoute: PricingRoute,
-  AdminAnalyticsRoute: AdminAnalyticsRoute,
-  AdminBanksRoute: AdminBanksRoute,
-  AdminDashboardRoute: AdminDashboardRoute,
-  AdminLoginRoute: AdminLoginRoute,
-  AdminSubscriptionsRoute: AdminSubscriptionsRoute,
-  AdminUsersRoute: AdminUsersRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   QuizSessionIdRoute: QuizSessionIdRouteWithChildren,
-  AdminSettingsPricingRoute: AdminSettingsPricingRoute,
-  AdminSettingsSystemRoute: AdminSettingsSystemRoute,
   QuizConfigureBankIdRoute: QuizConfigureBankIdRoute,
 }
 export const routeTree = rootRouteImport
