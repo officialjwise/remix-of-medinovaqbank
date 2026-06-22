@@ -16,8 +16,13 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AppSubscriptionRouteImport } from './routes/_app.subscription'
+import { Route as AppSessionsRouteImport } from './routes/_app.sessions'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppLeaderboardRouteImport } from './routes/_app.leaderboard'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBanksRouteImport } from './routes/_app.banks'
+import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
@@ -53,6 +58,26 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/admin/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSubscriptionRoute = AppSubscriptionRouteImport.update({
+  id: '/subscription',
+  path: '/subscription',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSessionsRoute = AppSessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLeaderboardRoute = AppLeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -63,14 +88,24 @@ const AppBanksRoute = AppBanksRouteImport.update({
   path: '/banks',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
+  '/analytics': typeof AppAnalyticsRoute
   '/banks': typeof AppBanksRoute
   '/dashboard': typeof AppDashboardRoute
+  '/leaderboard': typeof AppLeaderboardRoute
+  '/profile': typeof AppProfileRoute
+  '/sessions': typeof AppSessionsRoute
+  '/subscription': typeof AppSubscriptionRoute
   '/admin/login': typeof AdminLoginRoute
   '/auth/callback': typeof AuthCallbackRoute
 }
@@ -79,8 +114,13 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
+  '/analytics': typeof AppAnalyticsRoute
   '/banks': typeof AppBanksRoute
   '/dashboard': typeof AppDashboardRoute
+  '/leaderboard': typeof AppLeaderboardRoute
+  '/profile': typeof AppProfileRoute
+  '/sessions': typeof AppSessionsRoute
+  '/subscription': typeof AppSubscriptionRoute
   '/admin/login': typeof AdminLoginRoute
   '/auth/callback': typeof AuthCallbackRoute
 }
@@ -91,8 +131,13 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
+  '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/banks': typeof AppBanksRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/leaderboard': typeof AppLeaderboardRoute
+  '/_app/profile': typeof AppProfileRoute
+  '/_app/sessions': typeof AppSessionsRoute
+  '/_app/subscription': typeof AppSubscriptionRoute
   '/admin/login': typeof AdminLoginRoute
   '/auth/callback': typeof AuthCallbackRoute
 }
@@ -103,8 +148,13 @@ export interface FileRouteTypes {
     | '/about'
     | '/login'
     | '/pricing'
+    | '/analytics'
     | '/banks'
     | '/dashboard'
+    | '/leaderboard'
+    | '/profile'
+    | '/sessions'
+    | '/subscription'
     | '/admin/login'
     | '/auth/callback'
   fileRoutesByTo: FileRoutesByTo
@@ -113,8 +163,13 @@ export interface FileRouteTypes {
     | '/about'
     | '/login'
     | '/pricing'
+    | '/analytics'
     | '/banks'
     | '/dashboard'
+    | '/leaderboard'
+    | '/profile'
+    | '/sessions'
+    | '/subscription'
     | '/admin/login'
     | '/auth/callback'
   id:
@@ -124,8 +179,13 @@ export interface FileRouteTypes {
     | '/about'
     | '/login'
     | '/pricing'
+    | '/_app/analytics'
     | '/_app/banks'
     | '/_app/dashboard'
+    | '/_app/leaderboard'
+    | '/_app/profile'
+    | '/_app/sessions'
+    | '/_app/subscription'
     | '/admin/login'
     | '/auth/callback'
   fileRoutesById: FileRoutesById
@@ -191,6 +251,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/subscription': {
+      id: '/_app/subscription'
+      path: '/subscription'
+      fullPath: '/subscription'
+      preLoaderRoute: typeof AppSubscriptionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sessions': {
+      id: '/_app/sessions'
+      path: '/sessions'
+      fullPath: '/sessions'
+      preLoaderRoute: typeof AppSessionsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/leaderboard': {
+      id: '/_app/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof AppLeaderboardRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -205,17 +293,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBanksRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/analytics': {
+      id: '/_app/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AppAnalyticsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppBanksRoute: typeof AppBanksRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppLeaderboardRoute: typeof AppLeaderboardRoute
+  AppProfileRoute: typeof AppProfileRoute
+  AppSessionsRoute: typeof AppSessionsRoute
+  AppSubscriptionRoute: typeof AppSubscriptionRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAnalyticsRoute: AppAnalyticsRoute,
   AppBanksRoute: AppBanksRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppLeaderboardRoute: AppLeaderboardRoute,
+  AppProfileRoute: AppProfileRoute,
+  AppSessionsRoute: AppSessionsRoute,
+  AppSubscriptionRoute: AppSubscriptionRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
