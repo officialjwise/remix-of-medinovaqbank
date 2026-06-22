@@ -38,23 +38,20 @@ function LoginPage() {
 
       <AuthDivider />
 
-      <Link
-        to="/admin/login"
-        className="block text-sm font-medium text-accent hover:underline"
-      >
-        Are you an admin? Sign in here →
-      </Link>
+      <div className="flex items-center justify-between text-sm">
+        <Link to="/admin/login" className="font-medium text-accent hover:underline">
+          Admin sign in →
+        </Link>
+        <Link to="/forgot-password" className="font-medium text-muted-foreground hover:text-foreground">
+          Forgot password?
+        </Link>
+      </div>
 
       <p className="mt-10 text-xs leading-relaxed text-muted-foreground">
         By signing in, you agree to our{" "}
-        <a href="#" className="font-medium text-foreground hover:underline">
-          Terms of Service
-        </a>{" "}
+        <Link to="/terms" className="font-medium text-foreground hover:underline">Terms of Service</Link>{" "}
         and{" "}
-        <a href="#" className="font-medium text-foreground hover:underline">
-          Privacy Policy
-        </a>
-        .
+        <Link to="/privacy" className="font-medium text-foreground hover:underline">Privacy Policy</Link>.
       </p>
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
         New to Medinovaqbank? Sign up with Google above — first 10 questions are

@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
+  Bell,
   CreditCard,
   Home,
   Library,
@@ -21,6 +22,7 @@ const nav = [
   { to: "/sessions", label: "My Sessions", icon: ScrollText },
   { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/profile", label: "Profile", icon: UserIcon },
   { to: "/subscription", label: "Subscription", icon: CreditCard },
 ] as const;
@@ -31,6 +33,7 @@ const titleMap: Record<string, string> = {
   "/sessions": "My Sessions",
   "/leaderboard": "Leaderboard",
   "/analytics": "Analytics",
+  "/notifications": "Notifications",
   "/profile": "Profile",
   "/subscription": "Subscription",
 };
