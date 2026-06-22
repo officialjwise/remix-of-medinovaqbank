@@ -310,16 +310,15 @@ function QuizPage() {
                         disabled={!selected}
                         className="inline-flex h-10 items-center justify-center rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {index === total - 1 ? "Finish" : "Next"}
+                        {isLast ? "Finish Session" : "Next"}
                       </button>
                     )}
                     <button
                       type="button"
-                      onClick={() => go(1)}
-                      disabled={index === total - 1}
-                      className="text-sm font-semibold text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      onClick={() => (isLast ? finish() : go(1))}
+                      className="text-sm font-semibold text-muted-foreground hover:text-foreground"
                     >
-                      Skip Question
+                      {isLast ? "Skip & finish" : "Skip Question"}
                     </button>
                   </div>
                 )}
