@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 export function PublicFooter() {
   return (
     <footer className="border-t border-border bg-surface">
-      <div className="container-page grid gap-10 py-14 md:grid-cols-4">
+      <div className="container-page grid gap-10 py-14 md:grid-cols-5">
         <div className="md:col-span-2">
           <p className="text-lg font-bold tracking-tight">
             Medinova<span className="text-accent">qbank</span>
@@ -24,11 +24,20 @@ export function PublicFooter() {
         </div>
 
         <div>
+          <p className="text-sm font-semibold text-foreground">Support</p>
+          <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+            <li><Link to="/help" className="hover:text-foreground">Help center</Link></li>
+            <li><Link to="/faq" className="hover:text-foreground">FAQ</Link></li>
+            <li><Link to="/contact" className="hover:text-foreground">Contact</Link></li>
+          </ul>
+        </div>
+
+        <div>
           <p className="text-sm font-semibold text-foreground">Legal</p>
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-            <li><a className="hover:text-foreground" href="#">Terms of service</a></li>
-            <li><a className="hover:text-foreground" href="#">Privacy policy</a></li>
-            <li><a className="hover:text-foreground" href="#">Refund policy</a></li>
+            <li><Link to="/terms" className="hover:text-foreground">Terms of service</Link></li>
+            <li><Link to="/privacy" className="hover:text-foreground">Privacy policy</Link></li>
+            <li><Link to="/refund" className="hover:text-foreground">Refund policy</Link></li>
           </ul>
         </div>
       </div>
