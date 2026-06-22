@@ -36,6 +36,7 @@ function QuizPage() {
   const selectAnswer = useSessionStore((s) => s.selectAnswer);
   const submitAnswer = useSessionStore((s) => s.submitAnswer);
   const toggleBookmark = useSessionStore((s) => s.toggleBookmark);
+  const finishSession = useSessionStore((s) => s.finishSession);
 
   const [index, setIndex] = useState(0);
   const [navOpen, setNavOpen] = useState(true);
@@ -75,6 +76,7 @@ function QuizPage() {
   const answeredCount = session.questionIds.filter((id) => session.submitted[id]).length;
   const progressPct = Math.round((answeredCount / total) * 100);
   const remaining = session.durationSec ? Math.max(0, session.durationSec - elapsed) : null;
+  const isLast = index === total - 1;
 
   function go(delta: number) {
     setIndex((i) => Math.min(total - 1, Math.max(0, i + delta)));
@@ -85,20 +87,30 @@ function QuizPage() {
     submitAnswer(sessionId, qid);
   }
 
-  function handleNextOrSubmit() {
-    if (session.mode === "QUIZ") {
-      // Quiz mode: lock answer in and move on
-      if (selected && !isSubmitted) submitAnswer(sessionId, qid);
-      if (index < total - 1) go(1);
-    } else {
-      // Tutor mode: if not submitted, submit; else advance
-      if (!isSubmitted) handleSubmit();
-      else if (index < total - 1) go(1);
-    }
+  function finish() {
+    finishSession(sessionId);
+    navigate({ to: "/quiz/$sessionId/results", params: { sessionId } });
   }
 
-  function finish() {
-    navigate({ to: "/quiz/$sessionId/results", params: { sessionId } });
+  function handleNextOrSubmit() {
+    if (session.mode === "QUIZ") {
+      if (selected && !isSubmitted) submitAnswer(sessionId, qid);
+      if (isLast) {
+        finish();
+        return;
+      }
+      go(1);
+    } else {
+      if (!isSubmitted) {
+        handleSubmit();
+        return;
+      }
+      if (isLast) {
+        finish();
+        return;
+      }
+      go(1);
+    }
   }
 
   return (
