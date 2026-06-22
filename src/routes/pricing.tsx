@@ -86,6 +86,12 @@ function PricingPage() {
       </section>
 
       <PublicFooter />
+
+      <PaystackCheckoutModal
+        plan={checkoutPlan}
+        open={checkoutPlan !== null}
+        onClose={() => setCheckoutPlan(null)}
+      />
     </div>
   );
 }
