@@ -105,7 +105,7 @@ function DashboardPage() {
           {greeting()}, Dr. {firstName} 👋
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          {inProgress
+          {liveInProgress || inProgress
             ? "You have a session in progress. Pick up where you left off."
             : "You haven't started a session today. Keep your streak going!"}
         </p>
@@ -127,7 +127,16 @@ function DashboardPage() {
       </section>
 
       {/* Continue learning */}
-      {inProgress && <ContinueCard session={inProgress} />}
+      {liveInProgress ? (
+        <LiveContinueCard
+          bankName={liveInProgress.bankName}
+          answered={liveInProgress.questionIds.filter((id) => liveInProgress.submitted[id]).length}
+          total={liveInProgress.questionIds.length}
+          onResume={resumeLive}
+        />
+      ) : inProgress ? (
+        <ContinueCard session={inProgress} onResume={() => startBank(inProgress.bankId ?? questionBanks[0].id, "QUIZ")} />
+      ) : null}
 
       {/* Quick start */}
       <section>
