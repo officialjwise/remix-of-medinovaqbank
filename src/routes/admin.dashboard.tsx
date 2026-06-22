@@ -1,86 +1,334 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { CreditCard, Library, TrendingUp, Users } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Pie,
+  PieChart,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  Bell,
+  CreditCard,
+  Library,
+  Plus,
+  TrendingUp,
+  Users,
+  Zap,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Admin · Dashboard — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
   component: AdminDashboard,
 });
 
-const signups = [
-  { d: "Mon", v: 24 }, { d: "Tue", v: 31 }, { d: "Wed", v: 28 }, { d: "Thu", v: 42 },
-  { d: "Fri", v: 38 }, { d: "Sat", v: 47 }, { d: "Sun", v: 53 },
+const growth = [
+  { d: "Wk 1", users: 240, revenue: 8200 },
+  { d: "Wk 2", users: 310, revenue: 9400 },
+  { d: "Wk 3", users: 410, revenue: 11200 },
+  { d: "Wk 4", users: 528, revenue: 12800 },
+  { d: "Wk 5", users: 612, revenue: 14100 },
+  { d: "Wk 6", users: 740, revenue: 16800 },
+  { d: "Wk 7", users: 882, revenue: 19200 },
+  { d: "Wk 8", users: 1024, revenue: 21900 },
 ];
-const revenue = [
-  { d: "Wk 1", v: 8200 }, { d: "Wk 2", v: 9400 }, { d: "Wk 3", v: 11200 },
-  { d: "Wk 4", v: 12800 }, { d: "Wk 5", v: 14100 },
+
+const planSplit = [
+  { name: "Monthly", value: 312, fill: "#0E7C7B" },
+  { name: "3 Months", value: 248, fill: "#14A6A0" },
+  { name: "6 Months", value: 421, fill: "#2BC97F" },
+  { name: "12 Months", value: 273, fill: "#7BE0B0" },
 ];
+
+const subjectScores = [
+  { s: "Cardio", v: 82 },
+  { s: "Pulmo", v: 78 },
+  { s: "Endo", v: 71 },
+  { s: "Renal", v: 76 },
+  { s: "Surg", v: 69 },
+  { s: "OB/GYN", v: 74 },
+  { s: "Paeds", v: 80 },
+  { s: "Pharm", v: 85 },
+];
+
+const recentActivity = [
+  { tone: "success" as const, t: "2m ago", e: "New 12-month subscription", who: "Akua Mensah · GHS 799" },
+  { tone: "info" as const, t: "8m ago", e: "Bank published", who: "Cardiology Essentials v2 · 120 questions" },
+  { tone: "warn" as const, t: "21m ago", e: "Question flagged", who: "Q-RCA-STEMI by 3 users · review queued" },
+  { tone: "success" as const, t: "1h ago", e: "AI explanations cached", who: "1,240 questions pre-warmed" },
+  { tone: "info" as const, t: "3h ago", e: "Admin login", who: "kofi.admin · 41.66.x.x" },
+];
+
+const toneStyles = {
+  success: "bg-success-light text-success",
+  info: "bg-accent-light text-[#0E7C7B]",
+  warn: "bg-warning-light text-warning",
+};
 
 function AdminDashboard() {
   return (
     <div>
-      <h2 className="text-2xl font-bold tracking-tight text-foreground">Platform Overview</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Real-time metrics across users, content, and revenue.
-      </p>
+      {/* Hero / greeting band */}
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#06302E] via-[#0E7C7B] to-[#1A9F7A] p-6 text-white shadow-[0_24px_60px_-20px_rgb(14_124_123_/_0.4)]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#2BC97F] opacity-30 blur-3xl"
+        />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#7BE0B0]">Platform overview</p>
+            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Welcome back, Administrator</h2>
+            <p className="mt-2 max-w-xl text-sm text-white/80">
+              Real-time metrics across users, content, and revenue. Last sync: just now.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/admin/banks"
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-white px-4 text-sm font-bold text-[#0E7C7B] shadow"
+            >
+              <Plus className="h-4 w-4" /> New bank
+            </Link>
+            <Link
+              to="/admin/reports"
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-4 text-sm font-semibold backdrop-blur"
+            >
+              <Bell className="h-4 w-4" /> Reports
+            </Link>
+          </div>
+        </div>
+      </section>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Total Users" value="3,482" trend="+12% MoM" icon={<Users className="h-4 w-4" />} />
-        <Stat label="Active Subs" value="1,254" trend="+8% MoM" icon={<CreditCard className="h-4 w-4" />} accent="text-success" />
-        <Stat label="Question Banks" value="9" trend="+2 new" icon={<Library className="h-4 w-4" />} />
-        <Stat label="MRR" value="GHS 312,460" trend="+14% MoM" icon={<TrendingUp className="h-4 w-4" />} accent="text-accent" />
-      </div>
+      {/* KPI grid */}
+      <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi
+          label="Total users"
+          value="3,482"
+          delta="+12%"
+          deltaUp
+          icon={<Users className="h-4 w-4" />}
+        />
+        <Kpi
+          label="Active subscriptions"
+          value="1,254"
+          delta="+8%"
+          deltaUp
+          icon={<CreditCard className="h-4 w-4" />}
+        />
+        <Kpi
+          label="Quizzes completed"
+          value="48,920"
+          delta="+22%"
+          deltaUp
+          icon={<Zap className="h-4 w-4" />}
+        />
+        <Kpi
+          label="MRR"
+          value="GHS 312,460"
+          delta="+14%"
+          deltaUp
+          icon={<TrendingUp className="h-4 w-4" />}
+          accent
+        />
+      </section>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel title="Signups (last 7 days)">
+      {/* Secondary metrics row */}
+      <section className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <MiniMetric label="DAU" value="486" sub="+6% vs yesterday" />
+        <MiniMetric label="WAU" value="2,134" sub="61% of total users" />
+        <MiniMetric label="Avg accuracy" value="74%" sub="↑ 1.2 pts MoM" />
+        <MiniMetric label="Question banks" value="9" sub="2 published this month" />
+      </section>
+
+      {/* Charts grid */}
+      <section className="mt-6 grid gap-4 lg:grid-cols-3">
+        <Panel title="Growth · Users + Revenue" subtitle="Last 8 weeks" className="lg:col-span-2">
+          <div className="h-72">
+            <ResponsiveContainer>
+              <AreaChart data={growth}>
+                <defs>
+                  <linearGradient id="gUsers" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0E7C7B" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="#0E7C7B" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#2BC97F" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="#2BC97F" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="d" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                <Tooltip />
+                <Area type="monotone" dataKey="users" stroke="#0E7C7B" strokeWidth={2} fill="url(#gUsers)" />
+                <Area type="monotone" dataKey="revenue" stroke="#2BC97F" strokeWidth={2} fill="url(#gRev)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel title="Plan distribution" subtitle="Active subscriptions">
+          <div className="h-72">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie data={planSplit} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                  {planSplit.map((p) => (
+                    <Cell key={p.name} fill={p.fill} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <ul className="mt-2 space-y-1.5 text-xs">
+            {planSplit.map((p) => (
+              <li key={p.name} className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: p.fill }} />
+                <span className="flex-1 text-muted-foreground">{p.name}</span>
+                <span className="font-bold text-foreground">{p.value}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      </section>
+
+      <section className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Panel title="Average score by subject" subtitle="All learners, last 30 days" className="lg:col-span-2">
           <div className="h-64">
             <ResponsiveContainer>
-              <BarChart data={signups}>
-                <CartesianGrid stroke="hsl(var(--border))" />
-                <XAxis dataKey="d" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="v" fill="hsl(var(--accent))" radius={[6, 6, 0, 0]} />
+              <BarChart data={subjectScores}>
+                <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="s" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                <Tooltip formatter={(v: number) => `${v}%`} />
+                <Bar dataKey="v" fill="#2BC97F" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Panel>
-        <Panel title="Revenue (GHS, last 5 weeks)">
-          <div className="h-64">
-            <ResponsiveContainer>
-              <LineChart data={revenue}>
-                <CartesianGrid stroke="hsl(var(--border))" />
-                <XAxis dataKey="d" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `${v / 1000}k`} />
-                <Tooltip formatter={(v: number) => `GHS ${v.toLocaleString()}`} />
-                <Line type="monotone" dataKey="v" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+
+        <Panel title="Recent activity" subtitle="Live feed" right={<Link to="/admin/audit-logs" className="text-xs font-semibold text-[#0E7C7B] hover:underline">View all →</Link>}>
+          <ul className="space-y-3">
+            {recentActivity.map((a, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${toneStyles[a.tone]}`}>
+                  <Activity className="h-3.5 w-3.5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{a.e}</p>
+                  <p className="truncate text-xs text-muted-foreground">{a.who}</p>
+                  <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{a.t}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </Panel>
-      </div>
+      </section>
+
+      {/* Quick actions */}
+      <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Quick actions</h3>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickAction to="/admin/users" label="Manage users" icon={<Users className="h-4 w-4" />} />
+          <QuickAction to="/admin/banks" label="Create new bank" icon={<Library className="h-4 w-4" />} />
+          <QuickAction to="/admin/subscriptions" label="Review subscriptions" icon={<CreditCard className="h-4 w-4" />} />
+          <QuickAction to="/admin/ai-settings" label="Configure AI" icon={<Zap className="h-4 w-4" />} />
+        </div>
+      </section>
     </div>
   );
 }
 
-function Stat({ label, value, trend, icon, accent = "text-foreground" }: { label: string; value: string; trend: string; icon: React.ReactNode; accent?: string }) {
+function Kpi({
+  label,
+  value,
+  delta,
+  deltaUp,
+  icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  delta: string;
+  deltaUp: boolean;
+  icon: React.ReactNode;
+  accent?: boolean;
+}) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
-        <span className={`flex h-7 w-7 items-center justify-center rounded-lg bg-surface-alt ${accent}`}>{icon}</span>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+        <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${accent ? "bg-gradient-to-br from-[#0E7C7B] to-[#2BC97F] text-white" : "bg-surface-alt text-foreground"}`}>
+          {icon}
+        </span>
       </div>
-      <p className={`mt-3 text-2xl font-bold tracking-tight ${accent}`}>{value}</p>
-      <p className="mt-1 text-xs font-semibold text-success">{trend}</p>
+      <p className={`mt-3 text-2xl font-bold tracking-tight ${accent ? "bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] bg-clip-text text-transparent" : "text-foreground"}`}>
+        {value}
+      </p>
+      <p className={`mt-1 inline-flex items-center gap-1 text-xs font-semibold ${deltaUp ? "text-success" : "text-error"}`}>
+        {deltaUp ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+        {delta} <span className="text-muted-foreground">vs last month</span>
+      </p>
     </div>
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function MiniMetric({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-5">
-      <h3 className="text-sm font-bold tracking-tight text-foreground">{title}</h3>
-      <div className="mt-3">{children}</div>
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-bold text-foreground">{value}</p>
+      <p className="text-[11px] text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+
+function Panel({
+  title,
+  subtitle,
+  children,
+  className = "",
+  right,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  className?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <section className={`rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)] ${className}`}>
+      <header className="flex items-start justify-between">
+        <div>
+          <h3 className="text-sm font-bold tracking-tight text-foreground">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
+        </div>
+        {right}
+      </header>
+      <div className="mt-4">{children}</div>
     </section>
+  );
+}
+
+function QuickAction({ to, label, icon }: { to: string; label: string; icon: React.ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="group flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-[#2BC97F]/40 hover:bg-gradient-to-br hover:from-[#2BC97F]/5 hover:to-transparent hover:shadow-md"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#0E7C7B]/10 to-[#2BC97F]/15 text-[#0E7C7B] transition-transform group-hover:scale-110">
+        {icon}
+      </span>
+      <span className="text-sm font-semibold text-foreground">{label}</span>
+    </Link>
   );
 }
