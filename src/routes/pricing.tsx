@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
-import { pricingPlans } from "@/data/plans";
+import { durationPlans, pricingFaqs } from "@/data/plans";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -12,13 +12,12 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          "Simple, fair pricing for medical exam preparation. Start with a free trial, upgrade when you're ready.",
+          "Flexible plans for every medical professional. Start with 10 free questions — no credit card required. GHS 129/month, GHS 799/year.",
       },
       { property: "og:title", content: "Pricing — Medinovaqbank" },
       {
         property: "og:description",
-        content:
-          "Simple, fair pricing for medical exam preparation. Start with a free trial.",
+        content: "Flexible plans for every medical professional. Start with 10 free questions.",
       },
     ],
   }),
@@ -26,125 +25,138 @@ export const Route = createFileRoute("/pricing")({
 });
 
 function PricingPage() {
-  const [yearly, setYearly] = useState(false);
-
   return (
     <div className="min-h-screen bg-background">
       <PublicNav />
 
-      <section className="container-page py-20">
+      <section className="container-page pb-24 pt-16">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
-            Pricing
-          </p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-accent">Pricing</p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-            Pick a plan that fits your prep
+            Flexible Plans for Every Medical Professional
           </h1>
           <p className="mt-4 text-muted-foreground">
-            Start free. Upgrade when you're ready. Cancel any time.
+            Start with 10 free questions. No credit card required.
           </p>
+        </div>
 
-          {/* Toggle */}
-          <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-surface p-1">
-            <button
-              type="button"
-              onClick={() => setYearly(false)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                !yearly
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setYearly(true)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                yearly
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Yearly
-              <span className="ml-2 rounded-full bg-accent-light px-2 py-0.5 text-[10px] font-semibold uppercase text-accent">
-                Save 20%
-              </span>
-            </button>
+        <div className="mx-auto mt-14 grid max-w-7xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {durationPlans.map((p) => (
+            <PlanCard key={p.id} plan={p} />
+          ))}
+        </div>
+
+        {/* Savings callout */}
+        <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-border bg-surface p-5 text-center">
+          <p className="text-sm text-foreground">
+            <span className="font-bold text-accent">Less than GHS 0.08 per question.</span>{" "}
+            At GHS 799 for 12 months across 10,000+ questions, that's the smartest investment you'll make this year.
+          </p>
+        </div>
+
+        {/* Free trial banner */}
+        <div className="mx-auto mt-6 max-w-3xl rounded-2xl bg-gradient-to-r from-accent to-[#008C82] p-6 text-center text-white shadow-[var(--shadow-card-hover)]">
+          <p className="text-base font-semibold">
+            🎯 Not sure yet? Try 10 free questions — no card required. Just sign in with Google.
+          </p>
+          <Link
+            to="/signup"
+            className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-white px-5 text-sm font-bold text-accent hover:bg-white/90"
+          >
+            Start Free Trial
+          </Link>
+        </div>
+
+        {/* FAQ */}
+        <div className="mx-auto mt-20 max-w-3xl">
+          <h2 className="text-center text-2xl font-bold tracking-tight text-foreground">
+            Frequently Asked Questions
+          </h2>
+          <div className="mt-8 divide-y divide-border rounded-2xl border border-border bg-surface">
+            {pricingFaqs.map((f, i) => (
+              <FaqItem key={i} q={f.q} a={f.a} />
+            ))}
           </div>
         </div>
-
-        <div className="mx-auto mt-14 grid max-w-6xl gap-6 lg:grid-cols-3">
-          {pricingPlans.map((p) => {
-            const price = yearly ? p.priceYearly : p.priceMonthly;
-            const isFree = price === 0;
-            return (
-              <div
-                key={p.id}
-                className={`relative flex flex-col rounded-2xl border p-8 ${
-                  p.popular
-                    ? "border-accent bg-surface shadow-[var(--shadow-card-hover)]"
-                    : "border-border bg-surface shadow-[var(--shadow-card)]"
-                }`}
-              >
-                {p.popular && (
-                  <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">
-                    <Sparkles className="h-3 w-3" />
-                    Most popular
-                  </span>
-                )}
-
-                <h3 className="text-lg font-semibold text-foreground">{p.name}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{p.tagline}</p>
-
-                <div className="mt-6 flex items-baseline gap-1">
-                  {isFree ? (
-                    <span className="text-4xl font-bold text-foreground">Free</span>
-                  ) : (
-                    <>
-                      <span className="text-sm font-semibold text-muted-foreground">
-                        {p.currency}
-                      </span>
-                      <span className="text-4xl font-bold tracking-tight text-foreground">
-                        {price.toLocaleString()}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        / {yearly ? "year" : "month"}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                <ul className="mt-6 space-y-3 text-sm">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-foreground">
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  to={p.id === "starter" ? "/signup" : "/signup"}
-                  className={`mt-8 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
-                    p.popular
-                      ? "bg-primary text-primary-foreground hover:bg-primary-light"
-                      : "border border-border bg-surface text-foreground hover:bg-surface-alt"
-                  }`}
-                >
-                  {p.cta}
-                </Link>
-              </div>
-            );
-          })}
-        </div>
-
-        <p className="mt-10 text-center text-xs text-muted-foreground">
-          Prices in Ghana Cedis (GHS). Other currencies supported at checkout.
-        </p>
       </section>
 
       <PublicFooter />
     </div>
+  );
+}
+
+function PlanCard({ plan }: { plan: (typeof durationPlans)[number] }) {
+  const isPopular = plan.id === "q3";
+  const badgeCls =
+    plan.badge?.tone === "accent"
+      ? "bg-accent text-accent-foreground"
+      : plan.badge?.tone === "amber"
+        ? "bg-warning text-white"
+        : plan.badge?.tone === "navy"
+          ? "bg-primary text-primary-foreground"
+          : "";
+
+  return (
+    <div
+      className={`relative flex flex-col rounded-2xl border bg-surface p-6 ${
+        isPopular ? "border-2 border-accent shadow-[var(--shadow-card-hover)]" : "border-border shadow-[var(--shadow-card)]"
+      }`}
+    >
+      {plan.badge && (
+        <span className={`absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${badgeCls}`}>
+          {plan.badge.label}
+        </span>
+      )}
+      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        {plan.name}
+      </p>
+
+      <div className="mt-4 flex items-baseline gap-1">
+        <span className="text-xs font-semibold text-muted-foreground">{plan.currency}</span>
+        <span className="text-4xl font-bold tracking-tight text-foreground">
+          {plan.price.toLocaleString()}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{plan.durationLabel}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">≈ GHS {plan.perMonth}/month</p>
+
+      <ul className="mt-5 space-y-2.5 text-sm">
+        {plan.features.map((f) => (
+          <li key={f} className="flex items-start gap-2 text-foreground">
+            <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+
+      <Link
+        to="/signup"
+        className={`mt-6 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+          isPopular
+            ? "bg-accent text-accent-foreground hover:bg-accent/90"
+            : "border border-border bg-surface text-foreground hover:bg-surface-alt"
+        }`}
+      >
+        {plan.cta}
+      </Link>
+    </div>
+  );
+}
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen((v) => !v)}
+      className="flex w-full flex-col items-stretch px-5 py-4 text-left"
+      aria-expanded={open}
+    >
+      <span className="flex items-center justify-between gap-4">
+        <span className="text-sm font-semibold text-foreground">{q}</span>
+        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </span>
+      {open && <span className="mt-2 text-sm text-muted-foreground">{a}</span>}
+    </button>
   );
 }
