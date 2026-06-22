@@ -136,3 +136,150 @@ function Select({ label, value, onChange, options }: { label: string; value: str
     </label>
   );
 }
+
+function UserActionsMenu({ user }: { user: AdminUserRow }) {
+  const [open, setOpen] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showOverride, setShowOverride] = useState(false);
+  const [showRole, setShowRole] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+
+  return (
+    <div className="relative ml-auto">
+      <button onClick={() => setOpen((v) => !v)} className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground" aria-label="Actions">
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface shadow-xl">
+            <MenuItem icon={<Eye className="h-4 w-4" />} label="View Profile" onClick={() => { setShowProfile(true); setOpen(false); }} />
+            <MenuItem icon={<ToggleLeft className="h-4 w-4" />} label={user.status === "Suspended" ? "Activate" : "Suspend"} onClick={() => { toast.success(`${user.name} ${user.status === "Suspended" ? "activated" : "suspended"}`); setOpen(false); }} />
+            <MenuItem icon={<CreditCard className="h-4 w-4" />} label="Override Subscription" onClick={() => { setShowOverride(true); setOpen(false); }} />
+            <MenuItem icon={<Shield className="h-4 w-4" />} label="Change Role" onClick={() => { setShowRole(true); setOpen(false); }} />
+            <div className="border-t border-border" />
+            <MenuItem icon={<Trash2 className="h-4 w-4" />} label="Delete User" destructive onClick={() => { setShowDelete(true); setOpen(false); }} />
+          </div>
+        </>
+      )}
+
+      {showProfile && (
+        <UserModal title={`${user.name}`} onClose={() => setShowProfile(false)}>
+          <div className="space-y-3 text-sm">
+            <Row label="Email" value={user.email} />
+            <Row label="Specialty" value={user.specialty} />
+            <Row label="Role" value={user.role.replace("_", " ")} />
+            <Row label="Status" value={user.status} />
+            <Row label="Joined" value={user.joined} />
+            <Row label="Total Sessions" value="32" />
+            <Row label="Total Questions Answered" value="1,284" />
+            <Row label="Avg Score" value="78%" />
+          </div>
+        </UserModal>
+      )}
+
+      {showOverride && (
+        <OverrideSubscriptionModal user={user} onClose={() => setShowOverride(false)} />
+      )}
+
+      {showRole && (
+        <ChangeRoleModal user={user} onClose={() => setShowRole(false)} />
+      )}
+
+      {showDelete && (
+        <UserModal title="Delete user?" onClose={() => setShowDelete(false)}>
+          <p className="text-sm text-muted-foreground">
+            Permanently delete <span className="font-semibold text-foreground">{user.name}</span> and all their session data. This cannot be undone.
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button onClick={() => setShowDelete(false)} className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">Cancel</button>
+            <button onClick={() => { toast.success("User deleted"); setShowDelete(false); }} className="inline-flex h-10 items-center rounded-lg bg-error px-4 text-sm font-semibold text-white hover:bg-error/90">
+              <Trash2 className="mr-1.5 h-4 w-4" /> Delete
+            </button>
+          </div>
+        </UserModal>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({ icon, label, onClick, destructive }: { icon: React.ReactNode; label: string; onClick: () => void; destructive?: boolean }) {
+  return (
+    <button onClick={onClick} className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-alt ${destructive ? "text-error" : "text-foreground"}`}>
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function UserModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <header className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h3 className="text-base font-bold text-foreground">{title}</h3>
+          <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground"><X className="h-4 w-4" /></button>
+        </header>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-border pb-2 last:border-b-0">
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-sm font-semibold text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function OverrideSubscriptionModal({ user, onClose }: { user: AdminUserRow; onClose: () => void }) {
+  const [plan, setPlan] = useState("3 Months");
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 3);
+    return d.toISOString().slice(0, 10);
+  });
+  return (
+    <UserModal title={`Override subscription · ${user.name}`} onClose={onClose}>
+      <div className="space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Plan</span>
+          <select value={plan} onChange={(e) => setPlan(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-2.5 text-sm">
+            {["Monthly", "3 Months", "6 Months", "12 Months"].map((p) => <option key={p}>{p}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">End Date</span>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm" />
+        </label>
+      </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button onClick={onClose} className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">Cancel</button>
+        <button onClick={() => { toast.success(`Subscription updated for ${user.name}`); onClose(); }} className="inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90">Save</button>
+      </div>
+    </UserModal>
+  );
+}
+
+function ChangeRoleModal({ user, onClose }: { user: AdminUserRow; onClose: () => void }) {
+  const [role, setRole] = useState<AdminUserRow["role"]>(user.role);
+  return (
+    <UserModal title={`Change role · ${user.name}`} onClose={onClose}>
+      <div className="space-y-2">
+        {(["USER", "ADMIN", "SUPER_ADMIN"] as const).map((r) => (
+          <label key={r} className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 ${role === r ? "border-accent bg-accent/5" : "border-border bg-surface hover:bg-surface-alt"}`}>
+            <input type="radio" name="role" checked={role === r} onChange={() => setRole(r)} />
+            <span className="text-sm font-semibold text-foreground">{r.replace("_", " ")}</span>
+          </label>
+        ))}
+      </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button onClick={onClose} className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">Cancel</button>
+        <button onClick={() => { toast.success(`Role changed to ${role.replace("_", " ")}`); onClose(); }} className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Save</button>
+      </div>
+    </UserModal>
+  );
+}
