@@ -90,7 +90,7 @@ function PricingPage() {
   );
 }
 
-function PlanCard({ plan }: { plan: (typeof durationPlans)[number] }) {
+function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: (typeof durationPlans)[number]; isAuthenticated: boolean; onSubscribe: () => void }) {
   const isPopular = plan.id === "q3";
   const badgeCls =
     plan.badge?.tone === "accent"
