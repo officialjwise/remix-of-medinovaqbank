@@ -24,7 +24,6 @@ const nav = [
 
 const settingsNav = [
   { to: "/admin/settings/plans", label: "Pricing Plans" },
-  { to: "/admin/settings/pricing", label: "Legacy Pricing" },
   { to: "/admin/settings/system", label: "System Config" },
 ] as const;
 
