@@ -65,68 +65,72 @@
 :root {
   --radius: 0.75rem;
 
-  /* Brand */
-  --primary: oklch(0.30 0.07 254);            /* #0F2B4C deep navy */
-  --primary-light: oklch(0.38 0.08 254);      /* #1A3D6E */
+  /* Brand — Medinova teal→green */
+  --primary: oklch(0.48 0.12 195);            /* #0E7C7B deep teal */
+  --primary-light: oklch(0.58 0.13 185);      /* #14A6A0 */
   --primary-foreground: oklch(1 0 0);
 
-  --accent: oklch(0.70 0.11 192);             /* #00B4A6 medical teal */
-  --accent-light: oklch(0.97 0.02 190);       /* #E8F9F8 */
-  --accent-foreground: oklch(1 0 0);
+  --accent: oklch(0.72 0.18 152);             /* #2BC97F vivid emerald */
+  --accent-light: oklch(0.96 0.05 152);       /* #E5FBEF */
+  --accent-foreground: oklch(0.20 0.04 200);
+
+  /* Brand gradient — used in heroes, CTAs, splashes */
+  --gradient-brand: linear-gradient(135deg, oklch(0.48 0.12 195) 0%, oklch(0.62 0.16 168) 50%, oklch(0.74 0.18 145) 100%);
+  --gradient-brand-soft: linear-gradient(135deg, oklch(0.96 0.04 195) 0%, oklch(0.96 0.05 152) 100%);
 
   /* Surface */
-  --background: oklch(0.98 0.005 247);        /* #F7F9FC */
-  --foreground: oklch(0.20 0.03 256);         /* #0F172A */
+  --background: oklch(0.985 0.005 180);       /* #F4FAFA */
+  --foreground: oklch(0.22 0.03 210);         /* #11283A */
   --surface: oklch(1 0 0);
-  --surface-alt: oklch(0.96 0.008 250);       /* #F1F5F9 */
+  --surface-alt: oklch(0.96 0.012 188);       /* #ECF5F4 */
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.20 0.03 256);
+  --card-foreground: oklch(0.22 0.03 210);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.20 0.03 256);
+  --popover-foreground: oklch(0.22 0.03 210);
 
-  --secondary: oklch(0.96 0.008 250);
-  --secondary-foreground: oklch(0.20 0.03 256);
-  --muted: oklch(0.96 0.008 250);
-  --muted-foreground: oklch(0.55 0.02 256);   /* #475569 */
+  --secondary: oklch(0.96 0.012 188);
+  --secondary-foreground: oklch(0.22 0.03 210);
+  --muted: oklch(0.96 0.012 188);
+  --muted-foreground: oklch(0.50 0.02 210);   /* #4A6276 */
 
   /* Semantic */
-  --success: oklch(0.62 0.18 145);            /* #16A34A */
-  --success-light: oklch(0.97 0.04 145);
+  --success: oklch(0.66 0.18 152);            /* #1FA968 */
+  --success-light: oklch(0.96 0.04 152);
   --error: oklch(0.58 0.22 27);               /* #DC2626 */
   --error-light: oklch(0.97 0.02 27);
-  --warning: oklch(0.66 0.15 60);             /* #D97706 */
-  --warning-light: oklch(0.98 0.04 80);
+  --warning: oklch(0.72 0.15 70);             /* #E89A1A */
+  --warning-light: oklch(0.97 0.04 80);
 
   --destructive: oklch(0.58 0.22 27);
   --destructive-foreground: oklch(1 0 0);
 
-  --border: oklch(0.91 0.012 248);            /* #E2E8F0 */
-  --border-strong: oklch(0.83 0.02 248);      /* #CBD5E1 */
-  --input: oklch(0.91 0.012 248);
-  --ring: oklch(0.70 0.11 192);
+  --border: oklch(0.91 0.012 188);            /* #DDE9E8 */
+  --border-strong: oklch(0.83 0.02 188);
+  --input: oklch(0.91 0.012 188);
+  --ring: oklch(0.72 0.18 152);
 
   /* Mode + answer state */
-  --tutor-mode: oklch(0.62 0.20 295);         /* #8B5CF6 */
-  --quiz-mode: oklch(0.30 0.07 254);
-  --correct: oklch(0.62 0.18 145);
+  --tutor-mode: oklch(0.48 0.12 195);
+  --quiz-mode: oklch(0.72 0.18 152);
+  --correct: oklch(0.66 0.18 152);
   --incorrect: oklch(0.58 0.22 27);
-  --skipped: oklch(0.55 0.01 256);            /* #6B7280 */
+  --skipped: oklch(0.55 0.01 210);
 
-  --chart-1: oklch(0.30 0.07 254);
-  --chart-2: oklch(0.70 0.11 192);
-  --chart-3: oklch(0.62 0.20 295);
-  --chart-4: oklch(0.66 0.15 60);
-  --chart-5: oklch(0.62 0.18 145);
+  --chart-1: oklch(0.48 0.12 195);
+  --chart-2: oklch(0.72 0.18 152);
+  --chart-3: oklch(0.62 0.16 168);
+  --chart-4: oklch(0.72 0.15 70);
+  --chart-5: oklch(0.58 0.22 27);
 
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.20 0.03 256);
-  --sidebar-primary: oklch(0.30 0.07 254);
+  --sidebar-foreground: oklch(0.22 0.03 210);
+  --sidebar-primary: oklch(0.48 0.12 195);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.96 0.008 250);
-  --sidebar-accent-foreground: oklch(0.20 0.03 256);
-  --sidebar-border: oklch(0.91 0.012 248);
-  --sidebar-ring: oklch(0.70 0.11 192);
+  --sidebar-accent: oklch(0.96 0.012 188);
+  --sidebar-accent-foreground: oklch(0.22 0.03 210);
+  --sidebar-border: oklch(0.91 0.012 188);
+  --sidebar-ring: oklch(0.72 0.18 152);
 }
 
 .dark {

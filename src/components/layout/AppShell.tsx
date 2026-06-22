@@ -7,12 +7,12 @@ import {
   LogOut,
   Menu,
   ScrollText,
-  Stethoscope,
   Trophy,
   User as UserIcon,
   X,
 } from "lucide-react";
 import { ReactNode, useState } from "react";
+import { Logo } from "@/components/brand/Logo";
 import { useAuthStore } from "@/stores/authStore";
 
 const nav = [
@@ -97,13 +97,8 @@ function SidebarInner({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center px-5">
-        <Link to="/" className="flex items-center gap-2" onClick={onNavigate}>
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Stethoscope className="h-5 w-5" />
-          </span>
-          <span className="text-base font-bold tracking-tight">
-            Medinova<span className="text-accent">qbank</span>
-          </span>
+        <Link to="/" className="flex items-center" onClick={onNavigate} aria-label="Medinovaqbank home">
+          <Logo size={36} />
         </Link>
       </div>
 

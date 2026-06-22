@@ -370,74 +370,140 @@ function Explanation({
   const isCorrect = selected === question.correctKey;
 
   return (
-    <section className="mt-6 rounded-xl border border-border bg-surface-alt/40 p-5 shadow-[var(--shadow-card)]">
-      <header className="flex items-center gap-2 border-l-4 border-accent pl-3">
-        <Sparkles className="h-4 w-4 text-accent" />
-        <h3 className="text-xs font-bold uppercase tracking-wide text-accent">
-          Gemini AI Explanation
+    <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
+      {/* Header band */}
+      <header
+        className={`flex items-center gap-2 px-5 py-3 ${
+          isCorrect
+            ? "bg-gradient-to-r from-success-light to-transparent"
+            : "bg-gradient-to-r from-error-light to-transparent"
+        }`}
+      >
+        <Sparkles className={`h-4 w-4 ${isCorrect ? "text-success" : "text-error"}`} />
+        <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-foreground">
+          Answer Explanation
         </h3>
-      </header>
-
-      <div className="mt-4">
-        <div
-          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
-            isCorrect ? "bg-success-light text-success" : "bg-error-light text-error"
+        <span
+          className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+            isCorrect ? "bg-success text-white" : "bg-error text-white"
           }`}
         >
-          {isCorrect ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-          {isCorrect ? "Correct" : "Incorrect"} · Answer: {question.correctKey}.{" "}
-          {correctOpt?.text}
+          {isCorrect ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+          {isCorrect ? "Correct" : "Incorrect"}
+        </span>
+      </header>
+
+      <div className="space-y-5 p-5">
+        {/* Correct answer banner */}
+        <div className="flex items-start gap-3 rounded-xl border-l-4 border-success bg-success-light/50 p-4">
+          <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-success" />
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-success">
+              Correct answer · {question.correctKey}. {correctOpt?.text}
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-foreground">{question.whyCorrect}</p>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-4">
-        <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Why {question.correctKey} is correct
-        </h4>
-        <p className="mt-1.5 text-sm leading-relaxed text-foreground">{question.whyCorrect}</p>
-      </div>
+        {/* Why selected was wrong (only if user got it wrong and selected something) */}
+        {!isCorrect && selected && (
+          <div className="rounded-xl border border-error/20 bg-error-light/30 p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-error">
+              Why you chose {selected} · Incorrect
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-foreground">
+              {question.whyWrong[selected] ?? "This option doesn't fit the clinical picture in this vignette."}
+            </p>
+          </div>
+        )}
 
-      <div className="mt-4">
-        <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Why other options are wrong
-        </h4>
-        <ul className="mt-2 space-y-1.5 text-sm text-foreground">
-          {question.options
-            .filter((o) => o.key !== question.correctKey)
-            .map((o) => (
-              <li key={o.key} className="flex gap-2">
-                <span className="font-bold">{o.key}.</span>
-                <span className="text-muted-foreground">
-                  {question.whyWrong[o.key] ?? "Not the best answer in this scenario."}
-                </span>
-              </li>
-            ))}
-        </ul>
-      </div>
+        {/* All distractors with "when this would be correct" framing */}
+        <div>
+          <h4 className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            Other options — and when each <em className="not-italic font-bold text-foreground">would</em> be correct
+          </h4>
+          <ul className="mt-3 space-y-3">
+            {question.options
+              .filter((o) => o.key !== question.correctKey)
+              .map((o) => {
+                const wrongReason = question.whyWrong[o.key] ?? "Not the best answer in this scenario.";
+                const wouldBeCorrect = generateWouldBeScenario(o, question);
+                return (
+                  <li
+                    key={o.key}
+                    className="rounded-xl border border-border bg-surface-alt/40 p-3.5"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-foreground/90 text-[11px] font-bold text-white">
+                        {o.key}
+                      </span>
+                      <p className="text-sm font-semibold text-foreground">{o.text}</p>
+                    </div>
+                    <p className="mt-2 pl-8 text-sm text-muted-foreground">
+                      <span className="font-semibold text-error">Incorrect because — </span>
+                      {wrongReason}
+                    </p>
+                    <p className="mt-1.5 pl-8 text-sm text-muted-foreground">
+                      <span className="font-semibold text-[#0E7C7B]">However, this would be correct if — </span>
+                      {wouldBeCorrect}
+                    </p>
+                  </li>
+                );
+              })}
+          </ul>
+        </div>
 
-      <div className="mt-4 rounded-lg bg-accent-light/40 p-3 text-sm text-foreground">
-        <span className="font-bold">💡 Key Learning Point: </span>
-        {question.keyPoint}
-      </div>
+        {/* Key learning */}
+        <div className="rounded-xl bg-gradient-to-br from-[#0E7C7B]/10 to-[#2BC97F]/15 p-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#0E7C7B]">
+            💡 Key learning point
+          </p>
+          <p className="mt-1.5 text-sm font-medium leading-relaxed text-foreground">
+            {question.keyPoint}
+          </p>
+        </div>
 
-      {question.related.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Related:
-          </span>
-          {question.related.map((r) => (
-            <span
-              key={r}
-              className="rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs font-medium text-foreground"
-            >
-              {r}
+        {question.related.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              Related topics:
             </span>
-          ))}
-        </div>
-      )}
+            {question.related.map((r) => (
+              <span
+                key={r}
+                className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground"
+              >
+                {r}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
+
+/**
+ * Generates a short "this option would be correct if…" scenario based on the
+ * existing whyWrong rationale. We invert the reasoning into a positive context
+ * so learners see when the distractor would actually flip to correct.
+ */
+function generateWouldBeScenario(
+  opt: { key: string; text: string },
+  question: Question,
+): string {
+  const rationale = question.whyWrong[opt.key as "A" | "B" | "C" | "D" | "E"] ?? "";
+  // If the rationale already describes the alternate condition, surface it.
+  if (/would|when|if|in which|patients with/i.test(rationale)) {
+    // Extract a clinically meaningful trailing clause if possible.
+    const tail = rationale.split(/—|\.|;/).filter(Boolean).slice(-1)[0]?.trim();
+    if (tail && tail.length > 20) return tail.replace(/^(?:would|when)\s*/i, "the patient ");
+  }
+  // Fallback: state the topic shift implied by the option text.
+  return `the clinical picture pointed instead to ${opt.text.toLowerCase()} as the underlying mechanism or required next step.`;
+}
+
+
 
 function formatTime(s: number) {
   const m = Math.floor(s / 60);

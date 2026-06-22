@@ -1,20 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { Stethoscope } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 import { useAuthStore } from "@/stores/authStore";
 
 export function PublicNav() {
   const { isAuthenticated, user } = useAuthStore();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/80 backdrop-blur">
+    <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-surface/85 backdrop-blur-md">
       <div className="container-page flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Stethoscope className="h-5 w-5" />
-          </span>
-          <span className="text-lg font-bold tracking-tight text-foreground">
-            Medinova<span className="text-accent">qbank</span>
-          </span>
+        <Link to="/" aria-label="Medinovaqbank home">
+          <Logo size={36} />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
@@ -22,21 +17,21 @@ export function PublicNav() {
             to="/"
             className="text-sm font-medium text-muted-foreground hover:text-foreground"
             activeOptions={{ exact: true }}
-            activeProps={{ className: "text-foreground text-sm font-medium" }}
+            activeProps={{ className: "text-foreground text-sm font-semibold" }}
           >
             Home
           </Link>
           <Link
             to="/pricing"
             className="text-sm font-medium text-muted-foreground hover:text-foreground"
-            activeProps={{ className: "text-foreground text-sm font-medium" }}
+            activeProps={{ className: "text-foreground text-sm font-semibold" }}
           >
             Pricing
           </Link>
           <Link
             to="/about"
             className="text-sm font-medium text-muted-foreground hover:text-foreground"
-            activeProps={{ className: "text-foreground text-sm font-medium" }}
+            activeProps={{ className: "text-foreground text-sm font-semibold" }}
           >
             About
           </Link>
@@ -50,7 +45,7 @@ export function PublicNav() {
               </span>
               <Link
                 to="/dashboard"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-light"
+                className="rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_rgb(43_201_127_/_0.4)] transition-transform hover:-translate-y-0.5"
               >
                 Open dashboard
               </Link>
@@ -65,7 +60,7 @@ export function PublicNav() {
               </Link>
               <Link
                 to="/login"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-light"
+                className="rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_rgb(43_201_127_/_0.4)] transition-transform hover:-translate-y-0.5"
               >
                 Get started
               </Link>
