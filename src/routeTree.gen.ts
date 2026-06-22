@@ -35,6 +35,7 @@ import { Route as QuizSessionIdReviewRouteImport } from './routes/quiz.$sessionI
 import { Route as QuizSessionIdResultsRouteImport } from './routes/quiz.$sessionId.results'
 import { Route as AdminSettingsSystemRouteImport } from './routes/admin.settings.system'
 import { Route as AdminSettingsPricingRouteImport } from './routes/admin.settings.pricing'
+import { Route as AdminBanksBankIdQuestionsRouteImport } from './routes/admin.banks.$bankId.questions'
 
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
@@ -165,6 +166,12 @@ const AdminSettingsPricingRoute = AdminSettingsPricingRouteImport.update({
   path: '/settings/pricing',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBanksBankIdQuestionsRoute =
+  AdminBanksBankIdQuestionsRouteImport.update({
+    id: '/$bankId/questions',
+    path: '/$bankId/questions',
+    getParentRoute: () => AdminBanksRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -180,7 +187,7 @@ export interface FileRoutesByFullPath {
   '/sessions': typeof AppSessionsRoute
   '/subscription': typeof AppSubscriptionRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
-  '/admin/banks': typeof AdminBanksRoute
+  '/admin/banks': typeof AdminBanksRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
+  '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -207,7 +215,7 @@ export interface FileRoutesByTo {
   '/sessions': typeof AppSessionsRoute
   '/subscription': typeof AppSubscriptionRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
-  '/admin/banks': typeof AdminBanksRoute
+  '/admin/banks': typeof AdminBanksRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -219,6 +227,7 @@ export interface FileRoutesByTo {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
+  '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -236,7 +245,7 @@ export interface FileRoutesById {
   '/_app/sessions': typeof AppSessionsRoute
   '/_app/subscription': typeof AppSubscriptionRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
-  '/admin/banks': typeof AdminBanksRoute
+  '/admin/banks': typeof AdminBanksRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -248,6 +257,7 @@ export interface FileRoutesById {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
+  '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
+    | '/admin/banks/$bankId/questions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
+    | '/admin/banks/$bankId/questions'
   id:
     | '__root__'
     | '/'
@@ -332,6 +344,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
+    | '/admin/banks/$bankId/questions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -530,6 +543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsPricingRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/banks/$bankId/questions': {
+      id: '/admin/banks/$bankId/questions'
+      path: '/$bankId/questions'
+      fullPath: '/admin/banks/$bankId/questions'
+      preLoaderRoute: typeof AdminBanksBankIdQuestionsRouteImport
+      parentRoute: typeof AdminBanksRoute
+    }
   }
 }
 
@@ -555,9 +575,21 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface AdminBanksRouteChildren {
+  AdminBanksBankIdQuestionsRoute: typeof AdminBanksBankIdQuestionsRoute
+}
+
+const AdminBanksRouteChildren: AdminBanksRouteChildren = {
+  AdminBanksBankIdQuestionsRoute: AdminBanksBankIdQuestionsRoute,
+}
+
+const AdminBanksRouteWithChildren = AdminBanksRoute._addFileChildren(
+  AdminBanksRouteChildren,
+)
+
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
-  AdminBanksRoute: typeof AdminBanksRoute
+  AdminBanksRoute: typeof AdminBanksRouteWithChildren
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
@@ -568,7 +600,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
-  AdminBanksRoute: AdminBanksRoute,
+  AdminBanksRoute: AdminBanksRouteWithChildren,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminSubscriptionsRoute: AdminSubscriptionsRoute,
