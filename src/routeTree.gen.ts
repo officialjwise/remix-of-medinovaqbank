@@ -35,6 +35,7 @@ import { Route as QuizSessionIdReviewRouteImport } from './routes/quiz.$sessionI
 import { Route as QuizSessionIdResultsRouteImport } from './routes/quiz.$sessionId.results'
 import { Route as AdminSettingsSystemRouteImport } from './routes/admin.settings.system'
 import { Route as AdminSettingsPricingRouteImport } from './routes/admin.settings.pricing'
+import { Route as AdminBanksBankIdUploadRouteImport } from './routes/admin.banks.$bankId.upload'
 import { Route as AdminBanksBankIdQuestionsRouteImport } from './routes/admin.banks.$bankId.questions'
 
 const PricingRoute = PricingRouteImport.update({
@@ -166,6 +167,11 @@ const AdminSettingsPricingRoute = AdminSettingsPricingRouteImport.update({
   path: '/settings/pricing',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBanksBankIdUploadRoute = AdminBanksBankIdUploadRouteImport.update({
+  id: '/$bankId/upload',
+  path: '/$bankId/upload',
+  getParentRoute: () => AdminBanksRoute,
+} as any)
 const AdminBanksBankIdQuestionsRoute =
   AdminBanksBankIdQuestionsRouteImport.update({
     id: '/$bankId/questions',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRoute
+  '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -228,6 +235,7 @@ export interface FileRoutesByTo {
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRoute
+  '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -258,6 +266,7 @@ export interface FileRoutesById {
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRoute
+  '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -288,6 +297,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
     | '/admin/banks/$bankId/questions'
+    | '/admin/banks/$bankId/upload'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
     | '/admin/banks/$bankId/questions'
+    | '/admin/banks/$bankId/upload'
   id:
     | '__root__'
     | '/'
@@ -345,6 +356,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
     | '/admin/banks/$bankId/questions'
+    | '/admin/banks/$bankId/upload'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -543,6 +555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsPricingRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/banks/$bankId/upload': {
+      id: '/admin/banks/$bankId/upload'
+      path: '/$bankId/upload'
+      fullPath: '/admin/banks/$bankId/upload'
+      preLoaderRoute: typeof AdminBanksBankIdUploadRouteImport
+      parentRoute: typeof AdminBanksRoute
+    }
     '/admin/banks/$bankId/questions': {
       id: '/admin/banks/$bankId/questions'
       path: '/$bankId/questions'
@@ -577,10 +596,12 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AdminBanksRouteChildren {
   AdminBanksBankIdQuestionsRoute: typeof AdminBanksBankIdQuestionsRoute
+  AdminBanksBankIdUploadRoute: typeof AdminBanksBankIdUploadRoute
 }
 
 const AdminBanksRouteChildren: AdminBanksRouteChildren = {
   AdminBanksBankIdQuestionsRoute: AdminBanksBankIdQuestionsRoute,
+  AdminBanksBankIdUploadRoute: AdminBanksBankIdUploadRoute,
 }
 
 const AdminBanksRouteWithChildren = AdminBanksRoute._addFileChildren(
