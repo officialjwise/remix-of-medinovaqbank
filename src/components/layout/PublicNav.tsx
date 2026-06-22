@@ -18,36 +18,59 @@ export function PublicNav() {
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
-          <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground" activeOptions={{ exact: true }} activeProps={{ className: "text-foreground" }}>
+          <Link
+            to="/"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            activeOptions={{ exact: true }}
+            activeProps={{ className: "text-foreground text-sm font-medium" }}
+          >
             Home
           </Link>
-          <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground" activeProps={{ className: "text-foreground" }}>
+          <Link
+            to="/pricing"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            activeProps={{ className: "text-foreground text-sm font-medium" }}
+          >
             Pricing
           </Link>
-          <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground" activeProps={{ className: "text-foreground" }}>
+          <Link
+            to="/about"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            activeProps={{ className: "text-foreground text-sm font-medium" }}
+          >
             About
           </Link>
         </nav>
 
         <div className="flex items-center gap-3">
           {isAuthenticated ? (
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {user?.name}
-            </span>
+            <>
+              <span className="hidden text-sm text-muted-foreground sm:inline">
+                {user?.name}
+              </span>
+              <Link
+                to="/dashboard"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-light"
+              >
+                Open dashboard
+              </Link>
+            </>
           ) : (
-            <Link
-              to="/login"
-              className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline"
-            >
-              Sign in
-            </Link>
+            <>
+              <Link
+                to="/login"
+                className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline"
+              >
+                Sign in
+              </Link>
+              <Link
+                to="/login"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-light"
+              >
+                Get started
+              </Link>
+            </>
           )}
-          <Link
-            to={isAuthenticated ? "/pricing" : "/signup"}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-light"
-          >
-            {isAuthenticated ? "Upgrade" : "Get started"}
-          </Link>
         </div>
       </div>
     </header>

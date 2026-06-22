@@ -6,32 +6,44 @@ export interface AuthResult {
   user: User;
 }
 
-const mockUser = (email: string, name?: string): User => ({
+const mockPractitioner = (email = "doctor@medinova.app", name = "Dr. Bright Nketia"): User => ({
   id: crypto.randomUUID(),
   email,
-  name: name ?? email.split("@")[0],
+  name,
+  specialty: "Internal Medicine",
   role: "USER",
   createdAt: new Date().toISOString(),
 });
 
+const mockAdmin = (email = "admin@medinova.app"): User => ({
+  id: crypto.randomUUID(),
+  email,
+  name: "Admin Console",
+  role: "ADMIN",
+  createdAt: new Date().toISOString(),
+});
+
 export const authApi = {
-  login: (email: string, _password: string) =>
-    apiClient.post<AuthResult>("/auth/login", { email }, {
-      accessToken: "mock-token-" + Date.now(),
-      user: mockUser(email),
-    }),
-
-  signup: (email: string, _password: string, name: string) =>
-    apiClient.post<AuthResult>("/auth/signup", { email, name }, {
-      accessToken: "mock-token-" + Date.now(),
-      user: mockUser(email, name),
-    }),
-
+  // Practitioners only — Google OAuth
   googleCallback: (token: string) =>
     apiClient.post<AuthResult>("/auth/google/callback", { token }, {
-      accessToken: token || "mock-google-token",
-      user: mockUser("doctor@medinova.app", "Dr. Bright Nketia"),
+      accessToken: token || "mock-google-token-" + Date.now(),
+      user: mockPractitioner(),
     }),
 
-  me: () => apiClient.get<User>("/auth/me", mockUser("doctor@medinova.app", "Dr. Bright Nketia")),
+  // Admin login (email/password OR Google)
+  adminLogin: (email: string, _password: string) =>
+    apiClient.post<AuthResult>("/auth/admin/login", { email }, {
+      accessToken: "mock-admin-token-" + Date.now(),
+      user: mockAdmin(email),
+    }),
+
+  adminGoogleCallback: (token: string) =>
+    apiClient.post<AuthResult>("/auth/admin/google", { token }, {
+      accessToken: token || "mock-admin-google-token",
+      user: mockAdmin(),
+    }),
+
+  me: () =>
+    apiClient.get<User>("/auth/me", mockPractitioner()),
 };

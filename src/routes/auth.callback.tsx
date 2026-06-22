@@ -12,7 +12,10 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/auth/callback")({
   validateSearch: searchSchema,
   head: () => ({
-    meta: [{ title: "Signing you in… — Medinovaqbank" }],
+    meta: [
+      { title: "Verifying your account… — Medinovaqbank" },
+      { name: "robots", content: "noindex" },
+    ],
   }),
   component: AuthCallbackPage,
 });
@@ -30,10 +33,9 @@ function AuthCallbackPage() {
         if (cancelled) return;
         localStorage.setItem("accessToken", accessToken);
         login(accessToken, user);
-        navigate({ to: "/" });
+        navigate({ to: "/dashboard" });
       } catch {
-        if (cancelled) return;
-        navigate({ to: "/login" });
+        if (!cancelled) navigate({ to: "/login" });
       }
     })();
     return () => {
@@ -45,7 +47,9 @@ function AuthCallbackPage() {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
         <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-border border-t-accent" />
-        <p className="mt-4 text-sm text-muted-foreground">Signing you in…</p>
+        <p className="mt-4 text-sm font-medium text-muted-foreground">
+          Verifying your account…
+        </p>
       </div>
     </div>
   );
