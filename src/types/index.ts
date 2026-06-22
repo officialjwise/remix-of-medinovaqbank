@@ -5,6 +5,7 @@ export interface User {
   email: string;
   name: string;
   avatarUrl?: string;
+  specialty?: string;
   role: UserRole;
   createdAt: string;
 }
@@ -16,6 +17,7 @@ export interface Subscription {
   planName?: string;
   renewsAt?: string;
   trialQuestionsLeft?: number;
+  trialQuestionsTotal?: number;
 }
 
 export interface PricingPlan {
@@ -28,4 +30,28 @@ export interface PricingPlan {
   features: string[];
   popular?: boolean;
   cta: string;
+}
+
+export type QuizMode = "TUTOR" | "QUIZ";
+
+export interface QuestionBank {
+  id: string;
+  subject: string;
+  subjectColor: string; // tailwind class fragment
+  name: string;
+  description: string;
+  questionCount: number;
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
+}
+
+export interface SessionSummary {
+  id: string;
+  bankId: string;
+  bankName: string;
+  mode: QuizMode;
+  scorePct: number;
+  questionsAnswered: number;
+  totalQuestions: number;
+  completedAt: string;
+  inProgress?: boolean;
 }

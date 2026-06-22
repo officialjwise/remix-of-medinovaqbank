@@ -13,6 +13,12 @@ interface AuthState {
   setSubscription: (s: Subscription) => void;
 }
 
+const defaultTrial: Subscription = {
+  status: "TRIAL",
+  trialQuestionsLeft: 7,
+  trialQuestionsTotal: 10,
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -21,7 +27,12 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       subscription: null,
       login: (accessToken, user) =>
-        set({ accessToken, user, isAuthenticated: true }),
+        set({
+          accessToken,
+          user,
+          isAuthenticated: true,
+          subscription: user.role === "USER" ? defaultTrial : null,
+        }),
       logout: () =>
         set({ accessToken: null, user: null, isAuthenticated: false, subscription: null }),
       setUser: (user) => set({ user }),
