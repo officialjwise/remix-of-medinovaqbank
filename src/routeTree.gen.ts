@@ -35,6 +35,7 @@ import { Route as QuizSessionIdReviewRouteImport } from './routes/quiz.$sessionI
 import { Route as QuizSessionIdResultsRouteImport } from './routes/quiz.$sessionId.results'
 import { Route as AdminSettingsSystemRouteImport } from './routes/admin.settings.system'
 import { Route as AdminSettingsPricingRouteImport } from './routes/admin.settings.pricing'
+import { Route as AdminSettingsPlansRouteImport } from './routes/admin.settings.plans'
 import { Route as AdminBanksBankIdUploadRouteImport } from './routes/admin.banks.$bankId.upload'
 import { Route as AdminBanksBankIdQuestionsRouteImport } from './routes/admin.banks.$bankId.questions'
 
@@ -167,6 +168,11 @@ const AdminSettingsPricingRoute = AdminSettingsPricingRouteImport.update({
   path: '/settings/pricing',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSettingsPlansRoute = AdminSettingsPlansRouteImport.update({
+  id: '/settings/plans',
+  path: '/settings/plans',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminBanksBankIdUploadRoute = AdminBanksBankIdUploadRouteImport.update({
   id: '/$bankId/upload',
   path: '/$bankId/upload',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
@@ -291,6 +300,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
     | '/quiz/$sessionId/results'
@@ -320,6 +330,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
     | '/quiz/$sessionId/results'
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
     | '/quiz/$sessionId/results'
@@ -555,6 +567,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsPricingRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/settings/plans': {
+      id: '/admin/settings/plans'
+      path: '/settings/plans'
+      fullPath: '/admin/settings/plans'
+      preLoaderRoute: typeof AdminSettingsPlansRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/banks/$bankId/upload': {
       id: '/admin/banks/$bankId/upload'
       path: '/$bankId/upload'
@@ -615,6 +634,7 @@ interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminSettingsPlansRoute: typeof AdminSettingsPlansRoute
   AdminSettingsPricingRoute: typeof AdminSettingsPricingRoute
   AdminSettingsSystemRoute: typeof AdminSettingsSystemRoute
 }
@@ -626,6 +646,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminSubscriptionsRoute: AdminSubscriptionsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AdminSettingsPlansRoute: AdminSettingsPlansRoute,
   AdminSettingsPricingRoute: AdminSettingsPricingRoute,
   AdminSettingsSystemRoute: AdminSettingsSystemRoute,
 }
