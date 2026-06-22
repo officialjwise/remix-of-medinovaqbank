@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
   Flame,
@@ -18,8 +18,9 @@ import {
   YAxis,
 } from "recharts";
 import { useAuthStore } from "@/stores/authStore";
+import { useSessionStore } from "@/stores/sessionStore";
 import { questionBanks, recentSessions } from "@/data/banks";
-import type { SessionSummary } from "@/types";
+import type { QuizMode, SessionSummary } from "@/types";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
@@ -40,8 +41,35 @@ function greeting() {
 
 function DashboardPage() {
   const { user } = useAuthStore();
-  const inProgress = recentSessions.find((s) => s.inProgress);
+  const navigate = useNavigate();
+  const sessionsMap = useSessionStore((s) => s.sessions);
+  const createSession = useSessionStore((s) => s.createSession);
+
+  // Resume the most recently started in-store session, if any.
+  const liveInProgress = Object.values(sessionsMap)
+    .filter((s) => s.questionIds.some((id) => !s.submitted[id]))
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+  const inProgress = liveInProgress
+    ? null
+    : recentSessions.find((s) => s.inProgress);
   const completed = recentSessions.filter((s) => !s.inProgress);
+
+  function startBank(bankId: string, mode: QuizMode) {
+    const id = createSession({
+      bankId,
+      mode,
+      count: 10,
+      topics: [],
+      difficulty: "All",
+      durationSec: mode === "QUIZ" ? 600 : undefined,
+    });
+    navigate({ to: "/quiz/$sessionId", params: { sessionId: id } });
+  }
+
+  function resumeLive() {
+    if (!liveInProgress) return;
+    navigate({ to: "/quiz/$sessionId", params: { sessionId: liveInProgress.id } });
+  }
 
   const stats = [
     { icon: GraduationCap, label: "Sessions completed", value: completed.length },
