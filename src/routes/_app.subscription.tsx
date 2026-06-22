@@ -185,6 +185,12 @@ function SubscriptionPage() {
           )}
         </div>
       </section>
+
+      <PaystackCheckoutModal
+        plan={checkoutPlan}
+        open={checkoutPlan !== null}
+        onClose={() => setCheckoutPlan(null)}
+      />
     </div>
   );
 }
