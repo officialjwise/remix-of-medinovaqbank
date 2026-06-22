@@ -20,6 +20,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminSubscriptionsRouteImport } from './routes/admin.subscriptions'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminFlagsRouteImport } from './routes/admin.flags'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminBanksRouteImport } from './routes/admin.banks'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
@@ -91,6 +92,11 @@ const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFlagsRoute = AdminFlagsRouteImport.update({
+  id: '/flags',
+  path: '/flags',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/banks': typeof AdminBanksRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/flags': typeof AdminFlagsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByTo {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/banks': typeof AdminBanksRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/flags': typeof AdminFlagsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -263,6 +271,7 @@ export interface FileRoutesById {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/banks': typeof AdminBanksRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/flags': typeof AdminFlagsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -295,6 +304,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/banks'
     | '/admin/dashboard'
+    | '/admin/flags'
     | '/admin/login'
     | '/admin/subscriptions'
     | '/admin/users'
@@ -325,6 +335,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/banks'
     | '/admin/dashboard'
+    | '/admin/flags'
     | '/admin/login'
     | '/admin/subscriptions'
     | '/admin/users'
@@ -356,6 +367,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/banks'
     | '/admin/dashboard'
+    | '/admin/flags'
     | '/admin/login'
     | '/admin/subscriptions'
     | '/admin/users'
@@ -460,6 +472,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/flags': {
+      id: '/admin/flags'
+      path: '/flags'
+      fullPath: '/admin/flags'
+      preLoaderRoute: typeof AdminFlagsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/dashboard': {
@@ -631,6 +650,7 @@ interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminBanksRoute: typeof AdminBanksRouteWithChildren
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminFlagsRoute: typeof AdminFlagsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -643,6 +663,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminBanksRoute: AdminBanksRouteWithChildren,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminFlagsRoute: AdminFlagsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminSubscriptionsRoute: AdminSubscriptionsRoute,
   AdminUsersRoute: AdminUsersRoute,

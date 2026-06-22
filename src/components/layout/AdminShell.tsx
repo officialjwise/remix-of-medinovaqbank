@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   CreditCard,
+  Flag,
   Library,
   LayoutDashboard,
   LogOut,
@@ -16,12 +17,14 @@ const nav = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/users", label: "Users", icon: Users },
   { to: "/admin/banks", label: "Question Banks", icon: Library },
+  { to: "/admin/flags", label: "Flagged Questions", icon: Flag },
   { to: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard },
   { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ] as const;
 
 const settingsNav = [
-  { to: "/admin/settings/pricing", label: "Pricing Plans" },
+  { to: "/admin/settings/plans", label: "Pricing Plans" },
+  { to: "/admin/settings/pricing", label: "Legacy Pricing" },
   { to: "/admin/settings/system", label: "System Config" },
 ] as const;
 
