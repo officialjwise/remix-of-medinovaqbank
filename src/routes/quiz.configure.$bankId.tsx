@@ -135,7 +135,7 @@ function ConfigurePage() {
         {/* Topic */}
         <Section title="Topic Filter (optional)">
           <div className="flex flex-wrap gap-2">
-            {bank.topics.map((t) => (
+            {bank.topics.map((t: string) => (
               <PillButton key={t} active={topics.includes(t)} onClick={() => toggleTopic(t)}>
                 {t}
               </PillButton>
