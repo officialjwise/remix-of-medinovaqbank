@@ -134,16 +134,30 @@ function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: (typeof durati
         ))}
       </ul>
 
-      <Link
-        to="/signup"
-        className={`mt-6 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
-          isPopular
-            ? "bg-accent text-accent-foreground hover:bg-accent/90"
-            : "border border-border bg-surface text-foreground hover:bg-surface-alt"
-        }`}
-      >
-        {plan.cta}
-      </Link>
+      {isAuthenticated ? (
+        <button
+          type="button"
+          onClick={onSubscribe}
+          className={`mt-6 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+            isPopular
+              ? "bg-accent text-accent-foreground hover:bg-accent/90"
+              : "border border-border bg-surface text-foreground hover:bg-surface-alt"
+          }`}
+        >
+          {plan.cta}
+        </button>
+      ) : (
+        <Link
+          to="/signup"
+          className={`mt-6 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+            isPopular
+              ? "bg-accent text-accent-foreground hover:bg-accent/90"
+              : "border border-border bg-surface text-foreground hover:bg-surface-alt"
+          }`}
+        >
+          {plan.cta}
+        </Link>
+      )}
     </div>
   );
 }
