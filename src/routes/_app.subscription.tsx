@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
-import { durationPlans } from "@/data/plans";
+import { durationPlans, type DurationPlan } from "@/data/plans";
+import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
 
 export const Route = createFileRoute("/_app/subscription")({
   head: () => ({
