@@ -127,6 +127,7 @@ function SubscriptionPage() {
               </ul>
               <button
                 type="button"
+                onClick={() => setCheckoutPlan(p)}
                 className={`mt-4 inline-flex h-9 items-center justify-center rounded-lg text-xs font-semibold ${
                   p.id === "q3"
                     ? "bg-accent text-accent-foreground hover:bg-accent/90"
