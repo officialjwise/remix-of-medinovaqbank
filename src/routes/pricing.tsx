@@ -27,6 +27,9 @@ export const Route = createFileRoute("/pricing")({
 });
 
 function PricingPage() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
+
   return (
     <div className="min-h-screen bg-background">
       <PublicNav />
@@ -44,7 +47,7 @@ function PricingPage() {
 
         <div className="mx-auto mt-14 grid max-w-7xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {durationPlans.map((p) => (
-            <PlanCard key={p.id} plan={p} />
+            <PlanCard key={p.id} plan={p} isAuthenticated={isAuthenticated} onSubscribe={() => setCheckoutPlan(p)} />
           ))}
         </div>
 
