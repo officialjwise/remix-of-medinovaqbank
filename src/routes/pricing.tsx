@@ -3,7 +3,9 @@ import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
-import { durationPlans, pricingFaqs } from "@/data/plans";
+import { durationPlans, pricingFaqs, type DurationPlan } from "@/data/plans";
+import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
+import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
