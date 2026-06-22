@@ -177,6 +177,7 @@ function DashboardPage() {
                 <div className="mt-5 flex gap-2">
                   <button
                     type="button"
+                    onClick={() => startBank(b.id, "QUIZ")}
                     className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary-light"
                   >
                     <Timer className="mr-1.5 inline h-3.5 w-3.5" />
@@ -184,6 +185,7 @@ function DashboardPage() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => startBank(b.id, "TUTOR")}
                     className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
                   >
                     <GraduationCap className="mr-1.5 inline h-3.5 w-3.5" />
@@ -245,12 +247,13 @@ function DashboardPage() {
                       {s.questionsAnswered}/{s.totalQuestions}
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <button
-                        type="button"
+                      <Link
+                        to="/quiz/$sessionId/results"
+                        params={{ sessionId: s.id }}
                         className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-alt"
                       >
                         View
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -289,8 +292,19 @@ function DashboardPage() {
   );
 }
 
-function ContinueCard({ session }: { session: SessionSummary }) {
+function ContinueCard({ session, onResume }: { session: SessionSummary; onResume: () => void }) {
   const pct = Math.round((session.questionsAnswered / session.totalQuestions) * 100);
+  return (
+    <ContinueCardShell bankName={session.bankName} answered={session.questionsAnswered} total={session.totalQuestions} pct={pct} onResume={onResume} />
+  );
+}
+
+function LiveContinueCard({ bankName, answered, total, onResume }: { bankName: string; answered: number; total: number; onResume: () => void }) {
+  const pct = total ? Math.round((answered / total) * 100) : 0;
+  return <ContinueCardShell bankName={bankName} answered={answered} total={total} pct={pct} onResume={onResume} />;
+}
+
+function ContinueCardShell({ bankName, answered, total, pct, onResume }: { bankName: string; answered: number; total: number; pct: number; onResume: () => void }) {
   return (
     <section className="card-surface flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
       <div className="flex items-start gap-4">
@@ -301,22 +315,16 @@ function ContinueCard({ session }: { session: SessionSummary }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-accent">
             Continue learning
           </p>
-          <h3 className="mt-1 truncate text-base font-semibold text-foreground">
-            {session.bankName}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {session.questionsAnswered}/{session.totalQuestions} answered
-          </p>
+          <h3 className="mt-1 truncate text-base font-semibold text-foreground">{bankName}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{answered}/{total} answered</p>
           <div className="mt-3 h-1.5 w-full max-w-md overflow-hidden rounded-full bg-surface-alt">
-            <div
-              className="h-full rounded-full bg-accent transition-all"
-              style={{ width: `${pct}%` }}
-            />
+            <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
           </div>
         </div>
       </div>
       <button
         type="button"
+        onClick={onResume}
         className="self-start rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-light md:self-center"
       >
         Resume Quiz
