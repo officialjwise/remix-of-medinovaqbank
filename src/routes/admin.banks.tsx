@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Edit, Plus, Trash2 } from "lucide-react";
 import { questionBanks } from "@/data/banks";
 
-export const Route = createFileRoute("/_admin/banks")({
+export const Route = createFileRoute("/admin/banks")({
   head: () => ({ meta: [{ title: "Admin · Banks — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
   component: AdminBanks,
 });

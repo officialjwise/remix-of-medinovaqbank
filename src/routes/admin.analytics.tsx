@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-export const Route = createFileRoute("/_admin/analytics")({
+export const Route = createFileRoute("/admin/analytics")({
   head: () => ({ meta: [{ title: "Admin · Analytics — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
   component: AdminAnalytics,
 });

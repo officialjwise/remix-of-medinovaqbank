@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Save } from "lucide-react";
 
-export const Route = createFileRoute("/_admin/settings/system")({
+export const Route = createFileRoute("/admin/settings/system")({
   head: () => ({ meta: [{ title: "Admin · System — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
   component: AdminSystem,
 });

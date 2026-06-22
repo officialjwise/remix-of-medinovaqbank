@@ -16,7 +16,12 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QuizSessionIdRouteImport } from './routes/quiz.$sessionId'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminSubscriptionsRouteImport } from './routes/admin.subscriptions'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as AdminBanksRouteImport } from './routes/admin.banks'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AppSubscriptionRouteImport } from './routes/_app.subscription'
 import { Route as AppSessionsRouteImport } from './routes/_app.sessions'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
@@ -27,6 +32,8 @@ import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as QuizConfigureBankIdRouteImport } from './routes/quiz.configure.$bankId'
 import { Route as QuizSessionIdReviewRouteImport } from './routes/quiz.$sessionId.review'
 import { Route as QuizSessionIdResultsRouteImport } from './routes/quiz.$sessionId.results'
+import { Route as AdminSettingsSystemRouteImport } from './routes/admin.settings.system'
+import { Route as AdminSettingsPricingRouteImport } from './routes/admin.settings.pricing'
 
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
@@ -62,9 +69,34 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
+  id: '/admin/subscriptions',
+  path: '/admin/subscriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin/login',
   path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/admin/dashboard',
+  path: '/admin/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBanksRoute = AdminBanksRouteImport.update({
+  id: '/admin/banks',
+  path: '/admin/banks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/admin/analytics',
+  path: '/admin/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppSubscriptionRoute = AppSubscriptionRouteImport.update({
@@ -117,6 +149,16 @@ const QuizSessionIdResultsRoute = QuizSessionIdResultsRouteImport.update({
   path: '/results',
   getParentRoute: () => QuizSessionIdRoute,
 } as any)
+const AdminSettingsSystemRoute = AdminSettingsSystemRouteImport.update({
+  id: '/admin/settings/system',
+  path: '/admin/settings/system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsPricingRoute = AdminSettingsPricingRouteImport.update({
+  id: '/admin/settings/pricing',
+  path: '/admin/settings/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -130,9 +172,16 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
   '/subscription': typeof AppSubscriptionRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/banks': typeof AdminBanksRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/settings/pricing': typeof AdminSettingsPricingRoute
+  '/admin/settings/system': typeof AdminSettingsSystemRoute
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
@@ -149,9 +198,16 @@ export interface FileRoutesByTo {
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
   '/subscription': typeof AppSubscriptionRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/banks': typeof AdminBanksRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/settings/pricing': typeof AdminSettingsPricingRoute
+  '/admin/settings/system': typeof AdminSettingsSystemRoute
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
@@ -170,9 +226,16 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRoute
   '/_app/sessions': typeof AppSessionsRoute
   '/_app/subscription': typeof AppSubscriptionRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/banks': typeof AdminBanksRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/settings/pricing': typeof AdminSettingsPricingRoute
+  '/admin/settings/system': typeof AdminSettingsSystemRoute
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
@@ -191,9 +254,16 @@ export interface FileRouteTypes {
     | '/profile'
     | '/sessions'
     | '/subscription'
+    | '/admin/analytics'
+    | '/admin/banks'
+    | '/admin/dashboard'
     | '/admin/login'
+    | '/admin/subscriptions'
+    | '/admin/users'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/admin/settings/pricing'
+    | '/admin/settings/system'
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
@@ -210,9 +280,16 @@ export interface FileRouteTypes {
     | '/profile'
     | '/sessions'
     | '/subscription'
+    | '/admin/analytics'
+    | '/admin/banks'
+    | '/admin/dashboard'
     | '/admin/login'
+    | '/admin/subscriptions'
+    | '/admin/users'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/admin/settings/pricing'
+    | '/admin/settings/system'
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
@@ -230,9 +307,16 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/sessions'
     | '/_app/subscription'
+    | '/admin/analytics'
+    | '/admin/banks'
+    | '/admin/dashboard'
     | '/admin/login'
+    | '/admin/subscriptions'
+    | '/admin/users'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/admin/settings/pricing'
+    | '/admin/settings/system'
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
@@ -244,9 +328,16 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   LoginRoute: typeof LoginRoute
   PricingRoute: typeof PricingRoute
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminBanksRoute: typeof AdminBanksRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   QuizSessionIdRoute: typeof QuizSessionIdRouteWithChildren
+  AdminSettingsPricingRoute: typeof AdminSettingsPricingRoute
+  AdminSettingsSystemRoute: typeof AdminSettingsSystemRoute
   QuizConfigureBankIdRoute: typeof QuizConfigureBankIdRoute
 }
 
@@ -301,11 +392,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/subscriptions': {
+      id: '/admin/subscriptions'
+      path: '/admin/subscriptions'
+      fullPath: '/admin/subscriptions'
+      preLoaderRoute: typeof AdminSubscriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/admin/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/admin/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/banks': {
+      id: '/admin/banks'
+      path: '/admin/banks'
+      fullPath: '/admin/banks'
+      preLoaderRoute: typeof AdminBanksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/admin/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/subscription': {
@@ -378,6 +504,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuizSessionIdResultsRouteImport
       parentRoute: typeof QuizSessionIdRoute
     }
+    '/admin/settings/system': {
+      id: '/admin/settings/system'
+      path: '/admin/settings/system'
+      fullPath: '/admin/settings/system'
+      preLoaderRoute: typeof AdminSettingsSystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings/pricing': {
+      id: '/admin/settings/pricing'
+      path: '/admin/settings/pricing'
+      fullPath: '/admin/settings/pricing'
+      preLoaderRoute: typeof AdminSettingsPricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -423,9 +563,16 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   LoginRoute: LoginRoute,
   PricingRoute: PricingRoute,
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminBanksRoute: AdminBanksRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminSubscriptionsRoute: AdminSubscriptionsRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   QuizSessionIdRoute: QuizSessionIdRouteWithChildren,
+  AdminSettingsPricingRoute: AdminSettingsPricingRoute,
+  AdminSettingsSystemRoute: AdminSettingsSystemRoute,
   QuizConfigureBankIdRoute: QuizConfigureBankIdRoute,
 }
 export const routeTree = rootRouteImport

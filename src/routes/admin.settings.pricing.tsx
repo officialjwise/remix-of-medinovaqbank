@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Save } from "lucide-react";
 import { durationPlans } from "@/data/plans";
 
-export const Route = createFileRoute("/_admin/settings/pricing")({
+export const Route = createFileRoute("/admin/settings/pricing")({
   head: () => ({ meta: [{ title: "Admin · Pricing — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
   component: AdminPricing,
 });

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_admin/subscriptions")({
+export const Route = createFileRoute("/admin/subscriptions")({
   head: () => ({ meta: [{ title: "Admin · Subscriptions — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
   component: AdminSubscriptions,
 });

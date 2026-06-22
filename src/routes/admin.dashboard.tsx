@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CreditCard, Library, TrendingUp, Users } from "lucide-react";
 
-export const Route = createFileRoute("/_admin/dashboard")({
+export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Admin · Dashboard — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
   component: AdminDashboard,
 });
