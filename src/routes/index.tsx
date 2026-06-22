@@ -1,16 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Activity,
-  BookOpen,
-  CheckCircle2,
+  BarChart3,
+  Brain,
+  ClipboardList,
   GraduationCap,
-  LineChart,
+  Library,
   Sparkles,
+  Stethoscope,
+  Timer,
   Trophy,
-  Users,
 } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
+import { pricingPlans } from "@/data/plans";
+import quizMockup from "@/assets/quiz-mockup.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -19,43 +22,71 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Professional medical question bank with tutor mode, quiz mode, detailed explanations, and analytics. Built for medical practitioners in Ghana and beyond.",
+          "Ghana's premier medical question bank. AI-powered explanations, real-time analytics, tutor and quiz modes — built for serious medical professionals.",
+      },
+      { property: "og:title", content: "Medinovaqbank — Master Medicine. Ace Every Exam." },
+      {
+        property: "og:description",
+        content:
+          "Ghana's premier medical question bank. AI-powered explanations, real-time analytics, tutor and quiz modes.",
       },
     ],
   }),
   component: LandingPage,
 });
 
+const trustBadges = [
+  "10,000+ Questions",
+  "Gemini AI Powered",
+  "Ghana Medical Standard",
+  "Real-time Analytics",
+];
+
+const stats = [
+  {
+    icon: Library,
+    title: "10,000+ Questions",
+    body: "Across all major medical subjects, peer-reviewed by practising clinicians.",
+  },
+  {
+    icon: Brain,
+    title: "AI-Powered Explanations",
+    body: "Gemini-generated rationales for every answer choice — right and wrong.",
+  },
+  {
+    icon: BarChart3,
+    title: "Gaussian Performance Analytics",
+    body: "See exactly where you sit on the bell curve compared to your peers.",
+  },
+];
+
 const features = [
+  { icon: GraduationCap, title: "Tutor Mode", body: "Instant AI feedback after every answer. Learn as you go." },
+  { icon: Timer, title: "Quiz Mode", body: "Simulate real exam conditions. Full feedback after completion." },
+  { icon: Sparkles, title: "Gemini AI Explanations", body: "Know exactly why each option is right or wrong." },
+  { icon: BarChart3, title: "Performance Analytics", body: "See your percentile on a bell curve vs. peers." },
+  { icon: Trophy, title: "Leaderboard", body: "Compete with medical professionals nationwide." },
+  { icon: ClipboardList, title: "Detailed Review", body: "Revisit any past session question by question, read-only." },
+];
+
+const testimonials = [
   {
-    icon: BookOpen,
-    title: "10,000+ board-style questions",
-    body: "Vignette-based questions written and peer-reviewed by practising clinicians, mapped to MDCG, USMLE and PLAB blueprints.",
+    name: "Dr. Akua Mensah",
+    specialty: "Internal Medicine, KBTH",
+    quote: "Best prep tool I've used. The Gemini explanations alone are worth it — every answer feels like a tutorial.",
+    initials: "AM",
   },
   {
-    icon: GraduationCap,
-    title: "Tutor & Quiz modes",
-    body: "Switch between immediate explanations during practice, or simulate exam conditions with timed, blocked quizzes.",
+    name: "Dr. Kwame Owusu",
+    specialty: "Surgery Resident, KATH",
+    quote: "The tutor mode rebuilt how I study. I went from 58% to 84% on my mocks in three months.",
+    initials: "KO",
   },
   {
-    icon: LineChart,
-    title: "Performance analytics",
-    body: "Track accuracy by subject and system, see your percentile against peers, and find your weakest topics fast.",
-  },
-  {
-    icon: Trophy,
-    title: "Leaderboard",
-    body: "Compete with thousands of medical students and doctors. Climb the ranks weekly across institutions.",
-  },
-  {
-    icon: Activity,
-    title: "Smart review",
-    body: "Flagged, missed and marked questions are auto-organised so every minute of revision counts.",
-  },
-  {
-    icon: Sparkles,
-    title: "Always up to date",
-    body: "New questions added every week. References updated to reflect the latest guidelines and evidence.",
+    name: "Dr. Ama Boateng",
+    specialty: "OB/GYN, UCC SMS",
+    quote: "Finally a question bank that reflects the cases we actually see. The analytics are genuinely useful.",
+    initials: "AB",
   },
 ];
 
@@ -64,86 +95,105 @@ function LandingPage() {
     <div className="min-h-screen bg-background">
       <PublicNav />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden">
+      {/* HERO */}
+      <section
+        className="relative overflow-hidden text-white"
+        style={{ background: "linear-gradient(135deg, var(--primary) 0%, #0A1F38 100%)" }}
+      >
         <div
-          className="pointer-events-none absolute inset-0 -z-10"
-          style={{
-            background:
-              "radial-gradient(60% 50% at 50% 0%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 70%)",
-          }}
+          aria-hidden
+          className="pointer-events-none absolute -right-40 -top-40 h-[480px] w-[480px] rounded-full opacity-30 blur-3xl"
+          style={{ background: "var(--accent)" }}
         />
-        <div className="container-page py-20 md:py-28">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-              Trusted by medical students across Ghana
+        <div className="container-page grid gap-12 py-20 md:py-28 lg:grid-cols-12 lg:gap-8">
+          <div className="lg:col-span-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur">
+              <Stethoscope className="h-3.5 w-3.5 text-accent" />
+              Built for medical practitioners
             </span>
-            <h1 className="mt-6 text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+
+            <h1 className="mt-6 text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl">
               Master Medicine.{" "}
-              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-accent to-white bg-clip-text text-transparent">
                 Ace Every Exam.
               </span>
             </h1>
-            <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
-              A distraction-free, board-style question bank built for the way
-              clinicians actually study. Tutor mode for learning, quiz mode for
-              simulating exam day, and analytics to show you exactly where to
-              focus next.
+
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
+              Ghana's premier medical question bank. AI-powered explanations,
+              real-time analytics, tutor and quiz modes — built for serious
+              medical professionals.
             </p>
 
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
-                to="/signup"
-                className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-light"
+                to="/login"
+                className="rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/20 transition-opacity hover:opacity-90"
               >
-                Start free trial
+                Get Started Free
               </Link>
               <Link
                 to="/pricing"
-                className="rounded-lg border border-border bg-surface px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-surface-alt"
+                className="rounded-lg border border-white/25 bg-white/0 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
               >
-                See pricing
+                View Plans
               </Link>
             </div>
 
-            <p className="mt-6 text-xs text-muted-foreground">
-              50 free questions · No credit card required
-            </p>
+            <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3">
+              {trustBadges.map((b) => (
+                <div
+                  key={b}
+                  className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-white/60"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                  {b}
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Stat strip */}
-          <dl className="mx-auto mt-16 grid max-w-3xl grid-cols-2 gap-6 sm:grid-cols-4">
-            {[
-              { v: "10K+", l: "Questions" },
-              { v: "97%", l: "Pass-rate boost" },
-              { v: "30+", l: "Specialties" },
-              { v: "4.9★", l: "User rating" },
-            ].map((s) => (
-              <div key={s.l} className="card-surface px-4 py-5 text-center">
-                <dt className="text-2xl font-bold text-primary">{s.v}</dt>
-                <dd className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
-                  {s.l}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <div className="relative lg:col-span-6">
+            <div
+              aria-hidden
+              className="absolute inset-0 -z-10 rounded-3xl opacity-50 blur-3xl"
+              style={{ background: "radial-gradient(closest-side, var(--accent), transparent)" }}
+            />
+            <img
+              src={quizMockup}
+              alt="Medinovaqbank quiz interface mockup showing a USMLE-style vignette with answer options, timer, and live performance dashboard"
+              width={1280}
+              height={1024}
+              className="w-full drop-shadow-2xl"
+            />
+          </div>
         </div>
       </section>
 
-      {/* Features */}
+      {/* STATS BAR */}
+      <section className="container-page -mt-12 pb-16">
+        <div className="grid gap-4 md:grid-cols-3">
+          {stats.map((s) => (
+            <div key={s.title} className="card-surface flex items-start gap-4 p-6">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-accent-light text-accent">
+                <s.icon className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-semibold text-foreground">{s.title}</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FEATURES */}
       <section className="container-page py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
-            Why Medinovaqbank
-          </p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-accent">Why Medinovaqbank</p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Everything you need to walk into the exam confident
           </h2>
-          <p className="mt-4 text-muted-foreground">
-            Designed end-to-end for medical exam prep — not retrofitted from a
-            generic learning platform.
-          </p>
         </div>
 
         <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -155,97 +205,122 @@ function LandingPage() {
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-accent-light text-accent">
                 <f.icon className="h-5 w-5" />
               </span>
-              <h3 className="mt-4 text-base font-semibold text-foreground">
-                {f.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {f.body}
-              </p>
+              <h3 className="mt-4 text-base font-semibold text-foreground">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Modes */}
-      <section className="container-page pb-20">
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="card-surface relative overflow-hidden p-8">
-            <span className="inline-flex items-center gap-2 rounded-full bg-accent-light px-3 py-1 text-xs font-semibold text-accent">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-              Tutor mode
-            </span>
-            <h3 className="mt-4 text-2xl font-bold text-foreground">
-              Learn with every click
-            </h3>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Get the explanation, references, and key takeaways the moment you
-              answer. Build durable understanding, not just recognition.
-            </p>
-            <ul className="mt-6 space-y-2 text-sm text-foreground">
-              {["Inline rationales", "Linked references", "Highlight & note tools"].map(
-                (i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    {i}
-                  </li>
-                ),
-              )}
-            </ul>
-          </div>
+      {/* PRICING PREVIEW */}
+      <section className="container-page py-12">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-sm font-semibold uppercase tracking-wide text-accent">Pricing</p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Simple plans built for medical prep
+          </h2>
+        </div>
 
-          <div
-            className="relative overflow-hidden rounded-2xl border border-primary/20 p-8 text-primary-foreground"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%)",
-            }}
-          >
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-              Quiz mode
-            </span>
-            <h3 className="mt-4 text-2xl font-bold">Simulate exam day</h3>
-            <p className="mt-3 text-sm leading-relaxed text-white/80">
-              Timed, blocked, distraction-free. The closest you'll get to the
-              real thing without sitting it.
-            </p>
-            <ul className="mt-6 space-y-2 text-sm">
-              {[
-                "Custom block size & timer",
-                "End-of-block performance breakdown",
-                "Full review with rationales",
-              ].map((i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-accent" />
-                  {i}
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className="mx-auto mt-12 grid max-w-6xl gap-5 lg:grid-cols-3">
+          {pricingPlans.map((p) => (
+            <div
+              key={p.id}
+              className={`relative flex flex-col rounded-2xl border p-7 ${
+                p.popular
+                  ? "border-accent bg-surface shadow-[var(--shadow-card-hover)]"
+                  : "border-border bg-surface shadow-[var(--shadow-card)]"
+              }`}
+            >
+              {p.popular && (
+                <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">
+                  <Sparkles className="h-3 w-3" />
+                  Most popular
+                </span>
+              )}
+              <h3 className="text-lg font-semibold text-foreground">{p.name}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{p.tagline}</p>
+              <div className="mt-5 flex items-baseline gap-1">
+                {p.priceMonthly === 0 ? (
+                  <span className="text-3xl font-bold text-foreground">Free</span>
+                ) : (
+                  <>
+                    <span className="text-sm font-semibold text-muted-foreground">{p.currency}</span>
+                    <span className="text-3xl font-bold tracking-tight text-foreground">
+                      {p.priceMonthly.toLocaleString()}
+                    </span>
+                    <span className="text-sm text-muted-foreground">/ month</span>
+                  </>
+                )}
+              </div>
+              <Link
+                to="/pricing"
+                className={`mt-6 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                  p.popular
+                    ? "bg-primary text-primary-foreground hover:bg-primary-light"
+                    : "border border-border bg-surface text-foreground hover:bg-surface-alt"
+                }`}
+              >
+                {p.cta}
+              </Link>
+            </div>
+          ))}
+        </div>
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          Start Free Trial — 10 Questions Free.{" "}
+          <Link to="/pricing" className="font-semibold text-accent hover:underline">
+            Compare plans →
+          </Link>
+        </p>
+      </section>
+
+      {/* TESTIMONIALS */}
+      <section className="container-page py-20">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
+            Loved by medical professionals
+          </p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Trusted across hospitals and schools
+          </h2>
+        </div>
+
+        <div className="mt-14 grid gap-6 md:grid-cols-3">
+          {testimonials.map((t) => (
+            <figure key={t.name} className="card-surface flex h-full flex-col p-6">
+              <blockquote className="flex-1 text-sm leading-relaxed text-foreground">
+                "{t.quote}"
+              </blockquote>
+              <figcaption className="mt-6 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                  {t.initials}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{t.name}</p>
+                  <p className="text-xs text-muted-foreground">{t.specialty}</p>
+                </div>
+              </figcaption>
+            </figure>
+          ))}
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="container-page pb-24">
-        <div className="card-surface flex flex-col items-center gap-6 px-8 py-12 text-center md:flex-row md:justify-between md:text-left">
-          <div className="flex items-start gap-4">
-            <span className="hidden h-12 w-12 items-center justify-center rounded-xl bg-accent-light text-accent md:inline-flex">
-              <Users className="h-6 w-6" />
-            </span>
-            <div>
-              <h3 className="text-2xl font-bold text-foreground">
-                Ready to start studying smarter?
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Join thousands of medical students preparing the right way.
-              </p>
-            </div>
+      {/* CTA BANNER */}
+      <section
+        className="text-white"
+        style={{ background: "linear-gradient(135deg, var(--primary) 0%, #0A1F38 100%)" }}
+      >
+        <div className="container-page flex flex-col items-center gap-6 py-16 text-center md:flex-row md:justify-between md:text-left">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Ready to start?</h2>
+            <p className="mt-2 text-sm text-white/70">
+              Create your account and get 10 free questions. No credit card required.
+            </p>
           </div>
           <Link
-            to="/signup"
-            className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-light"
+            to="/login"
+            className="rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/20 transition-opacity hover:opacity-90"
           >
-            Create your free account
+            Get Started Free
           </Link>
         </div>
       </section>
