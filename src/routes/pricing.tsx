@@ -3,7 +3,9 @@ import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
-import { durationPlans, pricingFaqs } from "@/data/plans";
+import { durationPlans, pricingFaqs, type DurationPlan } from "@/data/plans";
+import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
+import { useAuthStore } from "@/stores/authStore";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -25,6 +27,9 @@ export const Route = createFileRoute("/pricing")({
 });
 
 function PricingPage() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
+
   return (
     <div className="min-h-screen bg-background">
       <PublicNav />
@@ -42,7 +47,7 @@ function PricingPage() {
 
         <div className="mx-auto mt-14 grid max-w-7xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {durationPlans.map((p) => (
-            <PlanCard key={p.id} plan={p} />
+            <PlanCard key={p.id} plan={p} isAuthenticated={isAuthenticated} onSubscribe={() => setCheckoutPlan(p)} />
           ))}
         </div>
 
@@ -81,11 +86,17 @@ function PricingPage() {
       </section>
 
       <PublicFooter />
+
+      <PaystackCheckoutModal
+        plan={checkoutPlan}
+        open={checkoutPlan !== null}
+        onClose={() => setCheckoutPlan(null)}
+      />
     </div>
   );
 }
 
-function PlanCard({ plan }: { plan: (typeof durationPlans)[number] }) {
+function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: (typeof durationPlans)[number]; isAuthenticated: boolean; onSubscribe: () => void }) {
   const isPopular = plan.id === "q3";
   const badgeCls =
     plan.badge?.tone === "accent"
@@ -129,16 +140,30 @@ function PlanCard({ plan }: { plan: (typeof durationPlans)[number] }) {
         ))}
       </ul>
 
-      <Link
-        to="/signup"
-        className={`mt-6 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
-          isPopular
-            ? "bg-accent text-accent-foreground hover:bg-accent/90"
-            : "border border-border bg-surface text-foreground hover:bg-surface-alt"
-        }`}
-      >
-        {plan.cta}
-      </Link>
+      {isAuthenticated ? (
+        <button
+          type="button"
+          onClick={onSubscribe}
+          className={`mt-6 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+            isPopular
+              ? "bg-accent text-accent-foreground hover:bg-accent/90"
+              : "border border-border bg-surface text-foreground hover:bg-surface-alt"
+          }`}
+        >
+          {plan.cta}
+        </button>
+      ) : (
+        <Link
+          to="/signup"
+          className={`mt-6 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+            isPopular
+              ? "bg-accent text-accent-foreground hover:bg-accent/90"
+              : "border border-border bg-surface text-foreground hover:bg-surface-alt"
+          }`}
+        >
+          {plan.cta}
+        </Link>
+      )}
     </div>
   );
 }

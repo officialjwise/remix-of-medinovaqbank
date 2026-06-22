@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
-import { durationPlans } from "@/data/plans";
+import { durationPlans, type DurationPlan } from "@/data/plans";
+import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
 
 export const Route = createFileRoute("/_app/subscription")({
   head: () => ({
@@ -22,7 +24,7 @@ const paymentHistory = [
 function SubscriptionPage() {
   const subscription = useAuthStore((s) => s.subscription);
   const isActive = subscription?.status === "ACTIVE";
-  const isTrial = subscription?.status === "TRIAL";
+  const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
 
   // Demo expiry: 87 days from now
   const expires = new Date();
@@ -125,6 +127,7 @@ function SubscriptionPage() {
               </ul>
               <button
                 type="button"
+                onClick={() => setCheckoutPlan(p)}
                 className={`mt-4 inline-flex h-9 items-center justify-center rounded-lg text-xs font-semibold ${
                   p.id === "q3"
                     ? "bg-accent text-accent-foreground hover:bg-accent/90"
@@ -182,6 +185,12 @@ function SubscriptionPage() {
           )}
         </div>
       </section>
+
+      <PaystackCheckoutModal
+        plan={checkoutPlan}
+        open={checkoutPlan !== null}
+        onClose={() => setCheckoutPlan(null)}
+      />
     </div>
   );
 }
