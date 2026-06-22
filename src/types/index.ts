@@ -33,15 +33,23 @@ export interface PricingPlan {
 }
 
 export type QuizMode = "TUTOR" | "QUIZ";
+export type Difficulty = "Beginner" | "Intermediate" | "Advanced";
+export type ExamType = "USMLE" | "PLAB" | "MDCN" | "MEDICAL COUNCIL" | "GENERAL";
 
 export interface QuestionBank {
   id: string;
   subject: string;
-  subjectColor: string; // tailwind class fragment
+  subjectColor: string;
+  accentHex: string;
   name: string;
   description: string;
   questionCount: number;
-  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  difficulty: Difficulty;
+  topics: string[];
+  examType: ExamType;
+  sessionsCount: number;
+  isFree?: boolean;
+  createdAt: string;
 }
 
 export interface SessionSummary {
@@ -54,4 +62,36 @@ export interface SessionSummary {
   totalQuestions: number;
   completedAt: string;
   inProgress?: boolean;
+}
+
+export interface QuestionOption {
+  key: "A" | "B" | "C" | "D" | "E";
+  text: string;
+}
+
+export interface Question {
+  id: string;
+  bankId: string;
+  topic: string;
+  difficulty: Difficulty;
+  stem: string;
+  options: QuestionOption[];
+  correctKey: "A" | "B" | "C" | "D" | "E";
+  whyCorrect: string;
+  whyWrong: Partial<Record<"A" | "B" | "C" | "D" | "E", string>>;
+  keyPoint: string;
+  related: string[];
+}
+
+export interface ActiveSession {
+  id: string;
+  bankId: string;
+  bankName: string;
+  mode: QuizMode;
+  questionIds: string[];
+  answers: Record<string, "A" | "B" | "C" | "D" | "E">;
+  submitted: Record<string, true>;
+  startedAt: string;
+  durationSec?: number;
+  bookmarked: Record<string, true>;
 }
