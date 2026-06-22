@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as QuizSessionIdRouteImport } from './routes/quiz.$sessionId'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AppSubscriptionRouteImport } from './routes/_app.subscription'
@@ -47,6 +48,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuizSessionIdRoute = QuizSessionIdRouteImport.update({
+  id: '/quiz/$sessionId',
+  path: '/quiz/$sessionId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/subscription': typeof AppSubscriptionRoute
   '/admin/login': typeof AdminLoginRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/quiz/$sessionId': typeof QuizSessionIdRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
 }
 export interface FileRoutesByTo {
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/subscription': typeof AppSubscriptionRoute
   '/admin/login': typeof AdminLoginRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/quiz/$sessionId': typeof QuizSessionIdRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
 }
 export interface FileRoutesById {
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/_app/subscription': typeof AppSubscriptionRoute
   '/admin/login': typeof AdminLoginRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/quiz/$sessionId': typeof QuizSessionIdRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
 }
 export interface FileRouteTypes {
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/subscription'
     | '/admin/login'
     | '/auth/callback'
+    | '/quiz/$sessionId'
     | '/quiz/configure/$bankId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/subscription'
     | '/admin/login'
     | '/auth/callback'
+    | '/quiz/$sessionId'
     | '/quiz/configure/$bankId'
   id:
     | '__root__'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_app/subscription'
     | '/admin/login'
     | '/auth/callback'
+    | '/quiz/$sessionId'
     | '/quiz/configure/$bankId'
   fileRoutesById: FileRoutesById
 }
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  QuizSessionIdRoute: typeof QuizSessionIdRoute
   QuizConfigureBankIdRoute: typeof QuizConfigureBankIdRoute
 }
 
@@ -248,6 +261,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quiz/$sessionId': {
+      id: '/quiz/$sessionId'
+      path: '/quiz/$sessionId'
+      fullPath: '/quiz/$sessionId'
+      preLoaderRoute: typeof QuizSessionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -353,6 +373,7 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   AdminLoginRoute: AdminLoginRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  QuizSessionIdRoute: QuizSessionIdRoute,
   QuizConfigureBankIdRoute: QuizConfigureBankIdRoute,
 }
 export const routeTree = rootRouteImport
