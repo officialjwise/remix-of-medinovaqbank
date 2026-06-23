@@ -7,6 +7,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Flag,
+  Lightbulb,
   Sparkles,
   X,
 } from "lucide-react";
@@ -41,6 +43,7 @@ function QuizPage() {
   const [index, setIndex] = useState(0);
   const [navOpen, setNavOpen] = useState(true);
   const [elapsed, setElapsed] = useState(0);
+  const [flagged, setFlagged] = useState<Record<string, boolean>>({});
 
   // Timer tick
   useEffect(() => {
@@ -240,6 +243,19 @@ function QuizPage() {
                     )}
                     {session.bookmarked[qid] ? "Bookmarked" : "Bookmark"}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setFlagged((f) => ({ ...f, [qid]: !f[qid] }))}
+                    className={`ml-2 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                      flagged[qid]
+                        ? "border-amber-300 bg-amber-50 text-amber-700"
+                        : "border-border bg-surface text-muted-foreground hover:bg-surface-alt"
+                    }`}
+                    aria-pressed={!!flagged[qid]}
+                  >
+                    <Flag className="h-4 w-4" />
+                    {flagged[qid] ? "Flagged" : "Flag"}
+                  </button>
                 </div>
 
                 <article className="mt-3 rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
@@ -400,7 +416,7 @@ function Explanation({
       >
         <Sparkles className={`h-4 w-4 ${isCorrect ? "text-success" : "text-error"}`} />
         <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-foreground">
-          Answer Explanation
+          Clinical Breakdown
         </h3>
         <span
           className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
@@ -477,8 +493,8 @@ function Explanation({
 
         {/* Key learning */}
         <div className="rounded-xl bg-gradient-to-br from-[#0E7C7B]/10 to-[#2BC97F]/15 p-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#0E7C7B]">
-            💡 Key learning point
+          <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#0E7C7B]">
+            <Lightbulb className="h-3.5 w-3.5" /> Clinical pearl
           </p>
           <p className="mt-1.5 text-sm font-medium leading-relaxed text-foreground">
             {question.keyPoint}
