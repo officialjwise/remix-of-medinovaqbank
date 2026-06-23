@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Lock, Search } from "lucide-react";
 import { questionBanks } from "@/data/banks";
 import { useAuthStore } from "@/stores/authStore";
+import { subjectTheme } from "@/data/subjectColors";
 import type { Difficulty, ExamType, QuestionBank } from "@/types";
 
 export const Route = createFileRoute("/_app/banks")({
@@ -22,7 +23,9 @@ const sorts = ["Newest", "Most Questions", "Most Sessions"] as const;
 
 function BanksPage() {
   const subscription = useAuthStore((s) => s.subscription);
-  const isLocked = !(subscription?.status === "ACTIVE");
+  const isActive = subscription?.status === "ACTIVE";
+  const onTrial = subscription?.status === "TRIAL";
+  const trialExhausted = onTrial && (subscription?.trialQuestionsLeft ?? 0) <= 0;
 
   const [query, setQuery] = useState("");
   const [subject, setSubject] = useState("All");
@@ -103,7 +106,8 @@ function BanksPage() {
           <BankCard
             key={bank.id}
             bank={bank}
-            locked={isLocked && !bank.isFree}
+            locked={!isActive && trialExhausted && !bank.isFree}
+            trialLeft={onTrial && !trialExhausted ? subscription?.trialQuestionsLeft ?? 0 : null}
             onLockedClick={() => setShowUpgrade(true)}
           />
         ))}
@@ -152,24 +156,20 @@ function FilterSelect({
 function BankCard({
   bank,
   locked,
+  trialLeft,
   onLockedClick,
 }: {
   bank: QuestionBank;
   locked: boolean;
+  trialLeft: number | null;
   onLockedClick: () => void;
 }) {
+  const theme = subjectTheme(bank.subject);
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]">
-      <div
-        className={`h-2 bg-gradient-to-r ${bank.subjectColor}`}
-        aria-hidden
-      />
+    <article className={`group relative flex flex-col overflow-hidden rounded-xl border-t-4 border-x border-b border-border bg-surface shadow-[var(--shadow-card)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)] ${theme.border}`}>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center gap-2">
-          <span
-            className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white"
-            style={{ backgroundColor: bank.accentHex }}
-          >
+          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${theme.badge}`}>
             {bank.subject}
           </span>
           <span className="rounded-full border border-border bg-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -178,6 +178,11 @@ function BankCard({
           {bank.isFree && (
             <span className="rounded-full bg-success-light px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
               Free
+            </span>
+          )}
+          {trialLeft !== null && !bank.isFree && (
+            <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+              Trial · {trialLeft} left
             </span>
           )}
         </div>
@@ -199,7 +204,8 @@ function BankCard({
           <Link
             to="/quiz/configure/$bankId"
             params={{ bankId: bank.id }}
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-accent px-3.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
+            className="inline-flex h-9 items-center justify-center rounded-lg px-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 active:scale-95"
+            style={{ background: `linear-gradient(135deg, #0E7C7B 0%, ${theme.hex} 100%)` }}
           >
             Start Quiz
           </Link>

@@ -51,7 +51,7 @@ export function AuthSplit({
           {brandHighlight ?? (
             <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
               <p className="text-sm italic text-white/85">
-                "Best prep tool I've used. The Gemini explanations alone are
+                "Best prep tool I've used. The clinical explanations alone are
                 worth it — every answer feels like a tutorial."
               </p>
               <p className="mt-3 text-xs font-semibold text-white">
