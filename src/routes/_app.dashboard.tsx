@@ -223,11 +223,9 @@ function DashboardPage() {
                 {completed.slice(0, 5).map((s) => (
                   <tr key={s.id} className="hover:bg-surface-alt/50">
                     <td className="px-6 py-3 text-muted-foreground">
-                      {new Date(s.completedAt).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {formatDateStable(s.completedAt)}
                     </td>
+
                     <td className="px-6 py-3 font-medium text-foreground">{s.bankName}</td>
                     <td className="px-6 py-3">
                       <span
