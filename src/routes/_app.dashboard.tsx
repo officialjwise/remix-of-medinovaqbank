@@ -39,6 +39,13 @@ function greeting() {
   return "Good evening";
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function formatDateStable(iso: string) {
+  const d = new Date(iso);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+
 function DashboardPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
