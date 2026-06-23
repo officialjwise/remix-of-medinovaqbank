@@ -39,9 +39,11 @@ const sectionUsers = [
 
 const sectionContent = [
   { to: "/admin/banks", label: "Question Banks", icon: Library },
+  { to: "/admin/notes", label: "High Yield Notes", icon: BookOpen },
   { to: "/admin/categories", label: "Categories", icon: Tag },
   { to: "/admin/flags", label: "Flagged Questions", icon: Flag },
 ] as const;
+
 
 const sectionRevenue = [
   { to: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard },
