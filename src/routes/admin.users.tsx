@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { MoreHorizontal, Search, ShieldOff, UserCheck, X, Eye, ToggleLeft, CreditCard, Shield, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -139,10 +139,10 @@ function Select({ label, value, onChange, options }: { label: string; value: str
 
 function UserActionsMenu({ user }: { user: AdminUserRow }) {
   const [open, setOpen] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const [showOverride, setShowOverride] = useState(false);
   const [showRole, setShowRole] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="relative ml-auto">
@@ -153,7 +153,14 @@ function UserActionsMenu({ user }: { user: AdminUserRow }) {
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
           <div className="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-surface shadow-xl">
-            <MenuItem icon={<Eye className="h-4 w-4" />} label="View Profile" onClick={() => { setShowProfile(true); setOpen(false); }} />
+            <MenuItem
+              icon={<Eye className="h-4 w-4" />}
+              label="View Profile"
+              onClick={() => {
+                setOpen(false);
+                navigate({ to: "/admin/users/$userId", params: { userId: user.id } });
+              }}
+            />
             <MenuItem icon={<ToggleLeft className="h-4 w-4" />} label={user.status === "Suspended" ? "Activate" : "Suspend"} onClick={() => { toast.success(`${user.name} ${user.status === "Suspended" ? "activated" : "suspended"}`); setOpen(false); }} />
             <MenuItem icon={<CreditCard className="h-4 w-4" />} label="Override Subscription" onClick={() => { setShowOverride(true); setOpen(false); }} />
             <MenuItem icon={<Shield className="h-4 w-4" />} label="Change Role" onClick={() => { setShowRole(true); setOpen(false); }} />
@@ -161,21 +168,6 @@ function UserActionsMenu({ user }: { user: AdminUserRow }) {
             <MenuItem icon={<Trash2 className="h-4 w-4" />} label="Delete User" destructive onClick={() => { setShowDelete(true); setOpen(false); }} />
           </div>
         </>
-      )}
-
-      {showProfile && (
-        <UserModal title={`${user.name}`} onClose={() => setShowProfile(false)}>
-          <div className="space-y-3 text-sm">
-            <Row label="Email" value={user.email} />
-            <Row label="Specialty" value={user.specialty} />
-            <Row label="Role" value={user.role.replace("_", " ")} />
-            <Row label="Status" value={user.status} />
-            <Row label="Joined" value={user.joined} />
-            <Row label="Total Sessions" value="32" />
-            <Row label="Total Questions Answered" value="1,284" />
-            <Row label="Avg Score" value="78%" />
-          </div>
-        </UserModal>
       )}
 
       {showOverride && (
