@@ -1,48 +1,48 @@
+Your message bundles a lot of work across the quiz UI, results page, and the entire super-admin surface. Before I start editing, I want to confirm scope and order so I don't burn a turn on the wrong slice.
 
-# Medinovaqbank — UI Fine-Tuning & Completion Pass
+## What I'll build (frontend only, mocks stay)
 
-This is a large scope. Below is exactly what I will change, grouped so you can confirm before I implement. Anything not listed here I will leave alone.
+### 1. Quiz explanation panel (`/quiz/$sessionId`)
+- Strip every "AI" / "Gemini" mention; rename to **Clinical Breakdown**.
+- Panel wrapper: `bg-slate-50 border-l-4 border-teal-500 rounded-r-xl p-6`.
+- Sections in order:
+  1. Correct-answer banner (green)
+  2. Why the correct answer is correct
+  3. Why your answer was wrong (only when user got it wrong)
+  4. **"When would each wrong choice be correct?"** — mandatory; lists only the distractors, each as: one-line "Why X is wrong" + one-line "Scenario where X would be correct"
+  5. Clinical Pearl callout (amber)
+  6. Related Topics chips
+- Footer: `← Previous Question` / `Next Question →` aligned left/right.
 
-## 1. Critical fixes
+### 2. Results page (`/quiz/$sessionId/results`)
+- Hero band: full-width `bg-gradient-to-br from-[#0F2B4C] to-[#00B4A6]`, large circular donut (recharts), correct/incorrect/skipped chips, time + mode + bank, percentile line, two CTAs.
+- 4 KPI cards (teal / amber / blue / purple gradients): Score Overview, Accuracy by Difficulty, Time Analysis, Subject Breakdown.
+- Collapsible answer-review table (click row → inline explanation using the same Clinical Breakdown component).
+- "Share your result" card (UI only).
 
-1. **Hero / stats overlap** — already structurally separate, but I'll tighten spacing, add `pb-20` to hero, pull stats up with `-mt-12 relative z-10`, and ensure stat cards sit on opaque surface.
-2. **Rotating hero → stylized HTML mock cards** — Replace image-based `RotatingHero` with a browser-chrome frame (red/yellow/green dots + `medinovaqbank.com/dashboard` URL bar) containing three CSS-rendered mock cards (Analytics, Quiz, Leaderboard), 4s interval, fade transition.
-3. **Start Quiz button** — On `/banks` and dashboard, wire to `navigate({ to: "/quiz/configure/$bankId", params: { bankId } })`. Trial gate: if no subscription and trial exhausted, open subscription modal; otherwise navigate. Show "Trial: N questions left" badge when on trial.
-4. **`/pricing` public** — Confirm route lives outside `_app` (it already does). Subscribe CTA: if logged in → checkout modal; if logged out → `/login?redirect=/pricing`.
-5. **Logo** — Build `LogoLight` / `LogoDark` SVG components (navy `#0F2B4C` text + teal `#00B4A6` pulse cross). Wire dark variant into hero/admin sidebar, light variant into user sidebar/topbar/footer.
+### 3. Super-admin shell
+- Rebuild `AdminShell` sidebar with the full grouped menu (Overview / Content / Users / Billing / Analytics / System) using the navy gradient, teal active border, uppercase section headers.
+- Add `Exit Admin` footer item.
 
-## 2. Global design polish
+### 4. Super-admin dashboard (`/admin/dashboard`)
+- 6 gradient KPI cards (blue/teal/green/amber/purple/rose) with floating icon circle + trend pill.
+- 2-col charts: New Users / day (Area, 30d) + Revenue / month (Bar, 6mo, two series).
+- 2-col: Plan distribution donut + Activity timeline feed.
+- Top Question Banks table + Recent Transactions table.
+- Quick Actions row.
 
-- Add gradient sidebar header, hover-lift on cards, `active:scale-95` on primary buttons.
-- Add **subject color system** as CSS utility map in `src/data/subjectColors.ts` (Anatomy → blue, Pharm → emerald, etc.) and apply as 4px top border + colored badge on every question bank card.
-- Add gradient tokens (primary, success, warning, premium) into `src/styles.css`.
+### 5. Users management (`/admin/users`)
+- Header with search + filter selects + summary pills.
+- Redesigned table rows with avatar, role/subscription badges, per-row actions dropdown (View, Edit, Override Sub, Reset Pwd, Deactivate, Delete with typed-name confirm).
 
-## 3. New page: `/quiz/configure/$bankId`
+### 6. User profile detail (`/admin/users/$userId`) — new route
+- Full page with profile header, subscription panel, activity stats, session history, admin actions.
 
-Full page (not modal), two columns:
-- **Left**: Mode toggle (Tutor / Quiz) as big selectable cards, question count pills + custom slider, difficulty pills, topic chips (from bank data), timer pills, order toggle, Cancel + Start Session.
-- **Right**: Bank preview card (subject banner, count, difficulty, sessions, avg score, topic chips) + "Your stats on this bank" mini card.
-- Already exists at `src/routes/quiz.configure.$bankId.tsx` — I'll rebuild it to this spec.
+All data stays mocked (`src/data/*`). No backend wiring.
 
-## 4. Quiz interface rebuild (`/quiz/$sessionId`)
+## Out of scope this pass
+- New admin sub-pages beyond `/admin/users/$userId` (Categories, Bulk Uploads, Medical Practitioners, API Keys, Roles & Permissions, etc.). The sidebar will link to them but they'll be lightweight placeholder pages unless you say otherwise.
+- Lovable Cloud, real auth, payments.
 
-- Top bar: Exit, bank name, mode badge, timer, progress bar.
-- Left rail (220px, collapsible): numbered question circles with color legend (teal correct, red wrong, navy answered, orange ring current, grey unanswered, bookmark overlay). Click to jump.
-- Main: question card with subject-tinted top border, option cards (hover lift, selected ring), Bookmark + Flag, Skip + Submit.
-- **New explanation format** ("Clinical Breakdown", no "AI" wording):
-  - Correct answer banner
-  - Why correct
-  - Why your choice was wrong (only if incorrect)
-  - **Per-distractor "Would be correct if…" scenarios**
-  - Clinical Pearl callout
-  - Related topics chips
-
-## 5. Out of scope this pass (will flag, not build)
-
-- Wiring Lovable Cloud / real auth / real payments — you said keep mocks.
-- Bulk question CSV importer.
-- Real LLM explanation generator.
-
----
-
-If this matches what you want, approve and I'll implement in one pass. If you want me to drop or add anything (e.g. skip the quiz-interface rebuild and only do fixes 1–5), say so and I'll revise.
+## Question
+This is ~6 substantial chunks. Do you want me to ship all six in one pass (longer turn, lots of files), or land them in order 1 → 6 so you can review each step?

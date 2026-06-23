@@ -454,9 +454,14 @@ function Explanation({
 
         {/* All distractors — "Why X is wrong" + scenario where correct */}
         <div>
-          <h4 className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-            Option-by-option breakdown
-          </h4>
+          <div className="rounded-r-xl border-l-4 border-teal-500 bg-slate-50 dark:bg-slate-900/40 px-4 py-3">
+            <h4 className="text-[11px] font-bold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+              When would each wrong choice be correct?
+            </h4>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              The highest-yield insight — the exact clinical scenario that flips each distractor into the right answer.
+            </p>
+          </div>
           <ul className="mt-3 space-y-3">
             {question.options
               .filter((o) => o.key !== question.correctKey)
@@ -466,7 +471,7 @@ function Explanation({
                 return (
                   <li
                     key={o.key}
-                    className="rounded-xl border border-border bg-surface-alt/40 p-4"
+                    className="rounded-r-xl border border-l-4 border-border border-l-teal-500 bg-slate-50 p-4 dark:bg-slate-900/30"
                   >
                     <div className="flex items-start gap-2.5">
                       <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-error/10 text-xs font-bold text-error">

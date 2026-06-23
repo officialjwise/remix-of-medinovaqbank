@@ -15,8 +15,6 @@ import {
 } from "recharts";
 import {
   Activity,
-  ArrowDownRight,
-  ArrowUpRight,
   Bell,
   CreditCard,
   Library,
@@ -109,36 +107,13 @@ function AdminDashboard() {
       </section>
 
       {/* KPI grid */}
-      <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi
-          label="Total users"
-          value="3,482"
-          delta="+12%"
-          deltaUp
-          icon={<Users className="h-4 w-4" />}
-        />
-        <Kpi
-          label="Active subscriptions"
-          value="1,254"
-          delta="+8%"
-          deltaUp
-          icon={<CreditCard className="h-4 w-4" />}
-        />
-        <Kpi
-          label="Quizzes completed"
-          value="48,920"
-          delta="+22%"
-          deltaUp
-          icon={<Zap className="h-4 w-4" />}
-        />
-        <Kpi
-          label="MRR"
-          value="GHS 312,460"
-          delta="+14%"
-          deltaUp
-          icon={<TrendingUp className="h-4 w-4" />}
-          accent
-        />
+      <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <GradientKpi tone="blue"   label="Total users"          value="3,482"        delta="+124 this month"  icon={<Users className="h-6 w-6" />} />
+        <GradientKpi tone="teal"   label="Active subscriptions" value="1,254"        delta="+43 this week"    icon={<CreditCard className="h-6 w-6" />} />
+        <GradientKpi tone="green"  label="Revenue (Month)"      value="GHS 142,890"  delta="+18% vs last"     icon={<TrendingUp className="h-6 w-6" />} />
+        <GradientKpi tone="amber"  label="Trial users"          value="341"          delta="Convert rate 28%" icon={<Zap className="h-6 w-6" />} />
+        <GradientKpi tone="purple" label="Questions answered today" value="12,841"   delta="+2,100 vs yest."  icon={<Activity className="h-6 w-6" />} />
+        <GradientKpi tone="rose"   label="Expiring soon (7 days)"   value="67 subs"  delta="Send reminders →" icon={<Bell className="h-6 w-6" />} />
       </section>
 
       {/* Secondary metrics row */}
@@ -248,36 +223,38 @@ function AdminDashboard() {
   );
 }
 
-function Kpi({
+const gradientTones = {
+  blue:   "from-[#1E40AF] to-[#3B82F6]",
+  teal:   "from-[#0E7C7B] to-[#14B8A6]",
+  green:  "from-[#047857] to-[#10B981]",
+  amber:  "from-[#B45309] to-[#F59E0B]",
+  purple: "from-[#6D28D9] to-[#A855F7]",
+  rose:   "from-[#9F1239] to-[#F43F5E]",
+} as const;
+
+function GradientKpi({
+  tone,
   label,
   value,
   delta,
-  deltaUp,
   icon,
-  accent,
 }: {
+  tone: keyof typeof gradientTones;
   label: string;
   value: string;
   delta: string;
-  deltaUp: boolean;
   icon: React.ReactNode;
-  accent?: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-        <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${accent ? "bg-gradient-to-br from-[#0E7C7B] to-[#2BC97F] text-white" : "bg-surface-alt text-foreground"}`}>
-          {icon}
-        </span>
-      </div>
-      <p className={`mt-3 text-2xl font-bold tracking-tight ${accent ? "bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] bg-clip-text text-transparent" : "text-foreground"}`}>
-        {value}
-      </p>
-      <p className={`mt-1 inline-flex items-center gap-1 text-xs font-semibold ${deltaUp ? "text-success" : "text-error"}`}>
-        {deltaUp ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-        {delta} <span className="text-muted-foreground">vs last month</span>
-      </p>
+    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br p-6 text-white shadow-[0_18px_40px_-18px_rgb(0_0_0_/_0.35)] ${gradientTones[tone]}`}>
+      <span className="absolute right-4 top-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-white/90">
+        {icon}
+      </span>
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/80">{label}</p>
+      <p className="mt-3 text-3xl font-bold tracking-tight">{value}</p>
+      <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold backdrop-blur">
+        {delta}
+      </span>
     </div>
   );
 }
