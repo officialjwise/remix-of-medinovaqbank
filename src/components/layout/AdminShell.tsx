@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
   BarChart3,
+  BookOpen,
   Brain,
   CreditCard,
   FileText,
@@ -21,7 +22,9 @@ import {
 } from "lucide-react";
 import { ReactNode, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuthStore } from "@/stores/authStore";
+
 
 const sectionPlatform = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
