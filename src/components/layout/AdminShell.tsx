@@ -204,9 +204,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
             </button>
             <h1 className="truncate text-sm font-semibold tracking-tight">{currentLabel}</h1>
-            <span className="ml-auto rounded-full bg-gradient-to-r from-[#0E7C7B]/40 to-[#2BC97F]/40 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-[#7BE0B0] ring-1 ring-[#2BC97F]/30">
-              {isSuper ? "Super Admin" : "Admin"}
-            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <ThemeToggle tone="dark" />
+              <span className="rounded-full bg-gradient-to-r from-[#0E7C7B]/40 to-[#2BC97F]/40 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-[#7BE0B0] ring-1 ring-[#2BC97F]/30">
+                {isSuper ? "Super Admin" : "Admin"}
+              </span>
+            </div>
+
           </div>
         </header>
         <main className="px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
