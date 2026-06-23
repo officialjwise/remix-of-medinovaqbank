@@ -32,6 +32,7 @@ import { Route as AdminSubscriptionsRouteImport } from './routes/admin.subscript
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminProfileRouteImport } from './routes/admin.profile'
+import { Route as AdminNotesRouteImport } from './routes/admin.notes'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminFlagsRouteImport } from './routes/admin.flags'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
@@ -45,6 +46,7 @@ import { Route as AppSubscriptionRouteImport } from './routes/_app.subscription'
 import { Route as AppSessionsRouteImport } from './routes/_app.sessions'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppNotesRouteImport } from './routes/_app.notes'
 import { Route as AppLeaderboardRouteImport } from './routes/_app.leaderboard'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBanksRouteImport } from './routes/_app.banks'
@@ -173,6 +175,11 @@ const AdminProfileRoute = AdminProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminNotesRoute = AdminNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -236,6 +243,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotesRoute = AppNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLeaderboardRoute = AppLeaderboardRouteImport.update({
@@ -324,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/banks': typeof AppBanksRoute
   '/dashboard': typeof AppDashboardRoute
   '/leaderboard': typeof AppLeaderboardRoute
+  '/notes': typeof AppNotesRoute
   '/notifications': typeof AppNotificationsRoute
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
@@ -337,6 +350,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flags': typeof AdminFlagsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -374,6 +388,7 @@ export interface FileRoutesByTo {
   '/banks': typeof AppBanksRoute
   '/dashboard': typeof AppDashboardRoute
   '/leaderboard': typeof AppLeaderboardRoute
+  '/notes': typeof AppNotesRoute
   '/notifications': typeof AppNotificationsRoute
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
@@ -387,6 +402,7 @@ export interface FileRoutesByTo {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flags': typeof AdminFlagsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -426,6 +442,7 @@ export interface FileRoutesById {
   '/_app/banks': typeof AppBanksRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/leaderboard': typeof AppLeaderboardRoute
+  '/_app/notes': typeof AppNotesRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/sessions': typeof AppSessionsRoute
@@ -439,6 +456,7 @@ export interface FileRoutesById {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flags': typeof AdminFlagsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -478,6 +496,7 @@ export interface FileRouteTypes {
     | '/banks'
     | '/dashboard'
     | '/leaderboard'
+    | '/notes'
     | '/notifications'
     | '/profile'
     | '/sessions'
@@ -491,6 +510,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flags'
     | '/admin/login'
+    | '/admin/notes'
     | '/admin/profile'
     | '/admin/reports'
     | '/admin/roles'
@@ -528,6 +548,7 @@ export interface FileRouteTypes {
     | '/banks'
     | '/dashboard'
     | '/leaderboard'
+    | '/notes'
     | '/notifications'
     | '/profile'
     | '/sessions'
@@ -541,6 +562,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flags'
     | '/admin/login'
+    | '/admin/notes'
     | '/admin/profile'
     | '/admin/reports'
     | '/admin/roles'
@@ -579,6 +601,7 @@ export interface FileRouteTypes {
     | '/_app/banks'
     | '/_app/dashboard'
     | '/_app/leaderboard'
+    | '/_app/notes'
     | '/_app/notifications'
     | '/_app/profile'
     | '/_app/sessions'
@@ -592,6 +615,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flags'
     | '/admin/login'
+    | '/admin/notes'
     | '/admin/profile'
     | '/admin/reports'
     | '/admin/roles'
@@ -795,6 +819,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProfileRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/notes': {
+      id: '/admin/notes'
+      path: '/notes'
+      fullPath: '/admin/notes'
+      preLoaderRoute: typeof AdminNotesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/login'
@@ -884,6 +915,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notes': {
+      id: '/_app/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof AppNotesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/leaderboard': {
@@ -985,6 +1023,7 @@ interface AppRouteChildren {
   AppBanksRoute: typeof AppBanksRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppLeaderboardRoute: typeof AppLeaderboardRoute
+  AppNotesRoute: typeof AppNotesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppProfileRoute: typeof AppProfileRoute
   AppSessionsRoute: typeof AppSessionsRoute
@@ -996,6 +1035,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBanksRoute: AppBanksRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppLeaderboardRoute: AppLeaderboardRoute,
+  AppNotesRoute: AppNotesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppProfileRoute: AppProfileRoute,
   AppSessionsRoute: AppSessionsRoute,
@@ -1040,6 +1080,7 @@ interface AdminRouteChildren {
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminFlagsRoute: typeof AdminFlagsRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminNotesRoute: typeof AdminNotesRoute
   AdminProfileRoute: typeof AdminProfileRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRolesRoute: typeof AdminRolesRoute
@@ -1061,6 +1102,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDashboardRoute: AdminDashboardRoute,
   AdminFlagsRoute: AdminFlagsRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminNotesRoute: AdminNotesRoute,
   AdminProfileRoute: AdminProfileRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminRolesRoute: AdminRolesRoute,
@@ -1111,13 +1153,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
