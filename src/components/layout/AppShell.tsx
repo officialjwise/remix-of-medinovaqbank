@@ -206,8 +206,9 @@ function Topbar({ title, onMenu }: { title: string; onMenu: () => void }) {
           {title}
         </h1>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
           {chip}
+          <ThemeToggle />
           <div className="relative">
             <button
               type="button"
@@ -217,6 +218,7 @@ function Topbar({ title, onMenu }: { title: string; onMenu: () => void }) {
             >
               {(user?.name ?? "U").slice(0, 1)}
             </button>
+
             {open && (
               <div
                 className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-card-hover)]"
