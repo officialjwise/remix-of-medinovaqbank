@@ -242,7 +242,7 @@ function ConfigurePage() {
                   <div className="mt-4">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Topics</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {bank.topics.slice(0, 5).map((t) => (
+                      {bank.topics.slice(0, 5).map((t: string) => (
                         <span key={t} className="rounded-full border border-border bg-surface-alt px-2 py-0.5 text-[11px] font-medium text-foreground">
                           {t}
                         </span>
