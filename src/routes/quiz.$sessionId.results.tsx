@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Check, ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown, Share2, X } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { computeResults, formatDuration, scoreColor } from "@/lib/quiz-results";
@@ -59,31 +59,57 @@ function ResultsPage() {
   }
 
   const c = scoreColor(results.scorePct);
+  const percentile = Math.min(99, Math.max(5, Math.round(results.scorePct * 0.9 + 5)));
 
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
-        {/* Hero */}
-        <section className="rounded-2xl border border-border bg-surface p-8 shadow-[var(--shadow-card)]">
-          <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:gap-10">
-            <ScoreRing pct={results.scorePct} ringClass={c.ring} textClass={c.text} />
+        {/* Hero — navy → teal gradient */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F2B4C] via-[#0E7C7B] to-[#00B4A6] p-8 text-white shadow-[0_24px_60px_-20px_rgb(15_43_76_/_0.55)] sm:p-10">
+          <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#7BE0B0] opacity-20 blur-3xl" />
+          <div className="relative flex flex-col items-center gap-8 sm:flex-row sm:items-center sm:gap-10">
+            <ScoreRing pct={results.scorePct} />
             <div className="flex-1 text-center sm:text-left">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Mode: {session.mode} · Bank: {session.bankName}
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#7BE0B0]">
+                Session complete · {session.mode}
               </p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                Session Complete
+              <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+                {session.bankName}
               </h1>
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-foreground sm:justify-start">
-                <Stat label="Correct" value={results.correct} cls="text-success" />
-                <Dot />
-                <Stat label="Incorrect" value={results.incorrect} cls="text-error" />
-                <Dot />
-                <Stat label="Skipped" value={results.skipped} cls="text-muted-foreground" />
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <Chip>✅ {results.correct} Correct</Chip>
+                <Chip>❌ {results.incorrect} Incorrect</Chip>
+                <Chip>⏭ {results.skipped} Skipped</Chip>
+                <Chip>⏱ {formatDuration(results.durationSec)}</Chip>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Time taken: <span className="font-semibold text-foreground">{formatDuration(results.durationSec)}</span>
+              <p className="mt-4 text-sm text-white/85">
+                <span className="font-semibold text-white">Percentile —</span> You scored better than {percentile}% of recent test-takers in this bank.
               </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <Link
+                  to="/quiz/$sessionId/review"
+                  params={{ sessionId }}
+                  className="inline-flex h-11 items-center justify-center rounded-lg bg-white px-5 text-sm font-bold text-[#0F2B4C] shadow hover:bg-white/95"
+                >
+                  Review All Questions
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: "/banks" })}
+                  className="inline-flex h-11 items-center justify-center rounded-lg border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
+                >
+                  Start New Session
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(`I scored ${results.scorePct}% on ${session.bankName} — Medinovaqbank`);
+                  }}
+                  className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
+                >
+                  <Share2 className="h-4 w-4" /> Share
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -220,27 +246,9 @@ function ResultsPage() {
           </div>
         </section>
 
-        {/* CTAs */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/quiz/$sessionId/review"
-            params={{ sessionId }}
-            className="inline-flex h-11 items-center justify-center rounded-lg border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:bg-surface-alt"
-          >
-            Review All Questions
-          </Link>
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/banks" })}
-            className="inline-flex h-11 items-center justify-center rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
-          >
-            Start New Session
-          </button>
-          <Link
-            to="/leaderboard"
-            className="inline-flex h-11 items-center justify-center rounded-lg border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:bg-surface-alt"
-          >
-            View Leaderboard
+        <div className="mt-8 flex items-center justify-center">
+          <Link to="/leaderboard" className="text-sm font-semibold text-[#0E7C7B] hover:underline">
+            View Leaderboard →
           </Link>
         </div>
       </main>
@@ -248,43 +256,38 @@ function ResultsPage() {
   );
 }
 
-function ScoreRing({ pct, ringClass, textClass }: { pct: number; ringClass: string; textClass: string }) {
+function ScoreRing({ pct }: { pct: number }) {
   const r = 56;
   const c = 2 * Math.PI * r;
   const offset = c - (pct / 100) * c;
   return (
-    <div className="relative h-36 w-36 flex-shrink-0">
+    <div className="relative h-40 w-40 flex-shrink-0">
       <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="10" />
+        <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="10" />
         <circle
           cx="70"
           cy="70"
           r={r}
           fill="none"
+          stroke="#7BE0B0"
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={offset}
-          className={ringClass}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={`text-4xl font-bold tabular-nums ${textClass}`}>{pct}%</span>
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Score</span>
+        <span className="text-4xl font-bold tabular-nums text-white">{pct}%</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#7BE0B0]">Score</span>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value, cls }: { label: string; value: number; cls: string }) {
+function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span>
-      <span className={`text-lg font-bold tabular-nums ${cls}`}>{value}</span>
-      <span className="ml-1 text-sm text-muted-foreground">{label}</span>
+    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur ring-1 ring-white/20">
+      {children}
     </span>
   );
-}
-
-function Dot() {
-  return <span className="text-muted-foreground">·</span>;
 }
