@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Edit, Plus, Trash2, FileText, Upload, Eye, Power } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Edit, Plus, Trash2, FileText, Upload, Eye, Search } from "lucide-react";
 import { toast } from "sonner";
 import { questionBanks } from "@/data/banks";
 import type { Difficulty, ExamType } from "@/types";
@@ -36,6 +36,28 @@ const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
 function AdminBanks() {
   const [draft, setDraft] = useState<BankDraft | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("All");
+  const [difficultyFilter, setDifficultyFilter] = useState<"All" | Difficulty>("All");
+  const [activeFilters, setActiveFilters] = useState<Record<string, boolean>>({});
+
+  const totalQuestions = questionBanks.reduce((s, b) => s + b.questionCount, 0);
+  const activeBanks = questionBanks.length;
+
+  const subjects = useMemo(
+    () => ["All", ...Array.from(new Set(questionBanks.map((b) => b.subject)))],
+    [],
+  );
+
+  const filtered = questionBanks.filter((b) => {
+    if (subjectFilter !== "All" && b.subject !== subjectFilter) return false;
+    if (difficultyFilter !== "All" && b.difficulty !== difficultyFilter) return false;
+    if (query.trim()) {
+      const s = query.toLowerCase();
+      if (!b.name.toLowerCase().includes(s) && !b.description.toLowerCase().includes(s)) return false;
+    }
+    return true;
+  });
 
   const onNew = () => setDraft({ ...emptyDraft });
   const onEdit = (id: string) => {
@@ -60,62 +82,153 @@ function AdminBanks() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Question Banks</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{questionBanks.length} banks · manage content & metadata</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{activeBanks} banks</span> · {totalQuestions.toLocaleString()} questions · {activeBanks} active
+          </p>
         </div>
-        <button onClick={onNew} className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90">
-          <Plus className="h-4 w-4" /> New Bank
+        <button
+          onClick={onNew}
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-sm font-semibold text-white shadow-md hover:opacity-95"
+        >
+          <Plus className="h-4 w-4" /> Create New Bank
         </button>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-border bg-surface">
-        <div className="hidden grid-cols-[1.5fr_140px_120px_100px_120px_180px] gap-4 border-b border-border bg-surface-alt/40 px-5 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground md:grid">
-          <span>Bank</span>
-          <span>Subject</span>
-          <span>Difficulty</span>
-          <span className="text-right">Questions</span>
-          <span className="text-right">Sessions</span>
-          <span className="text-right">Actions</span>
+      {/* Toolbar */}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[240px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search banks…"
+            className="h-10 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+          />
         </div>
-        {questionBanks.map((b) => (
-          <div key={b.id} className="grid grid-cols-1 gap-2 border-b border-border px-5 py-3 last:border-b-0 md:grid-cols-[1.5fr_140px_120px_100px_120px_180px] md:items-center md:gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className={`h-8 w-1.5 flex-shrink-0 rounded-full bg-gradient-to-b ${b.subjectColor}`} />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{b.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{b.description}</p>
-              </div>
-            </div>
-            <span className="text-xs text-foreground">{b.subject}</span>
-            <span>
-              <span className="inline-flex rounded-full border border-border bg-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {b.difficulty}
-              </span>
-            </span>
-            <span className="text-right font-mono text-sm font-bold tabular-nums text-foreground">{b.questionCount.toLocaleString()}</span>
-            <span className="text-right font-mono text-sm tabular-nums text-muted-foreground">{b.sessionsCount.toLocaleString()}</span>
-            <div className="flex items-center justify-end gap-1">
-              <Link to="/admin/banks/$bankId/questions" params={{ bankId: b.id }} className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground" aria-label="View questions" title="Questions">
-                <FileText className="h-4 w-4" />
-              </Link>
-              <Link to="/admin/banks/$bankId/upload" params={{ bankId: b.id }} className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground" aria-label="Bulk upload" title="Upload">
-                <Upload className="h-4 w-4" />
-              </Link>
-              <button onClick={() => toast.success(`Toggled "${b.name}"`)} className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground" aria-label="Toggle active" title="Toggle active">
-                <Power className="h-4 w-4" />
-              </button>
-              <button onClick={() => onEdit(b.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground" aria-label="Edit" title="Edit">
-                <Edit className="h-4 w-4" />
-              </button>
-              <button onClick={() => setConfirmDelete(b.id)} className="rounded-md p-1.5 text-error hover:bg-error-light" aria-label="Delete" title="Delete">
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        ))}
+        <select
+          value={subjectFilter}
+          onChange={(e) => setSubjectFilter(e.target.value)}
+          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm"
+        >
+          {subjects.map((s) => <option key={s} value={s}>{s === "All" ? "All subjects" : s}</option>)}
+        </select>
+        <select
+          value={difficultyFilter}
+          onChange={(e) => setDifficultyFilter(e.target.value as typeof difficultyFilter)}
+          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm"
+        >
+          <option value="All">All difficulties</option>
+          {DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
       </div>
+
+      {/* Bank cards grid */}
+      {filtered.length === 0 ? (
+        <div className="mt-12 rounded-2xl border border-dashed border-border bg-surface p-12 text-center text-sm text-muted-foreground">
+          No banks match those filters.
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((b) => {
+            const isActive = activeFilters[b.id] !== false;
+            const difficultyPct = b.difficulty === "Beginner" ? 33 : b.difficulty === "Intermediate" ? 66 : 100;
+            return (
+              <article
+                key={b.id}
+                className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-14px_rgb(14_124_123_/_0.25)]"
+              >
+                <div className={`h-1.5 w-full bg-gradient-to-r ${b.subjectColor}`} />
+                <div className="flex flex-1 flex-col p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <span
+                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
+                      style={{ background: b.accentHex }}
+                    >
+                      {b.subject}
+                    </span>
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                      <span className={`h-2 w-2 rounded-full ${isActive ? "bg-success" : "bg-muted-foreground/40"}`} />
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={isActive}
+                        onChange={() => {
+                          setActiveFilters((f) => ({ ...f, [b.id]: !isActive }));
+                          toast.success(`${b.name} ${!isActive ? "activated" : "paused"}`);
+                        }}
+                      />
+                      {isActive ? "Active" : "Paused"}
+                    </label>
+                  </div>
+
+                  <h3 className="mt-3 text-lg font-bold tracking-tight text-foreground">{b.name}</h3>
+                  <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{b.description}</p>
+
+                  <div className="my-4 border-t border-border" />
+
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <Metric label="Questions" value={b.questionCount.toLocaleString()} />
+                    <Metric label="Sessions" value={b.sessionsCount.toLocaleString()} />
+                    <Metric label="Exam" value={b.examType} />
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                      <span>Difficulty</span>
+                      <span style={{ color: b.accentHex }}>{b.difficulty}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-alt">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${difficultyPct}%`, background: b.accentHex }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex items-center gap-1.5 border-t border-border pt-4">
+                    <Link
+                      to="/admin/banks/$bankId/questions"
+                      params={{ bankId: b.id }}
+                      className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-surface-alt text-xs font-semibold text-foreground hover:bg-surface-alt/70"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Manage
+                    </Link>
+                    <Link
+                      to="/admin/banks/$bankId/upload"
+                      params={{ bankId: b.id }}
+                      className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+                      aria-label="Upload"
+                      title="Upload"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                    </Link>
+                    <button
+                      onClick={() => onEdit(b.id)}
+                      className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+                      aria-label="Edit"
+                      title="Edit"
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(b.id)}
+                      className="inline-flex h-8 items-center justify-center rounded-lg border border-error/30 bg-error-light/40 px-2.5 text-xs font-semibold text-error hover:bg-error-light"
+                      aria-label="Delete"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       {draft && (
@@ -205,5 +318,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-sm font-bold tabular-nums text-foreground">{value}</p>
+    </div>
   );
 }
