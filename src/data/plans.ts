@@ -16,7 +16,7 @@ export interface DurationPlan {
 
 const baseFeatures = [
   "Full access to every question bank",
-  "AI explanations on every answer",
+  "Detailed explanations on every answer",
   "Leaderboard & percentile rank",
   "Performance analytics dashboard",
 ];
@@ -105,7 +105,7 @@ export const pricingFaqs = [
     a: "Yes — every paid plan unlocks the full library across Internal Medicine, Surgery, OB/GYN, Paediatrics, Pharmacology, Pathology, and more.",
   },
   {
-    q: "How does the AI explanation work?",
+    q: "How does the answer explanation work?",
     a: "After every answer (Tutor mode) or after a session (Quiz mode), our AI tutor explains the correct answer, why each distractor is wrong, the key learning point, and links to related concepts.",
   },
 ];

@@ -39,6 +39,13 @@ function greeting() {
   return "Good evening";
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function formatDateStable(iso: string) {
+  const d = new Date(iso);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+
 function DashboardPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -185,12 +192,14 @@ function DashboardPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => startBank(b.id, "TUTOR")}
+                    onClick={() => navigate({ to: "/quiz/configure/$bankId", params: { bankId: b.id } })}
                     className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
                   >
                     <GraduationCap className="mr-1.5 inline h-3.5 w-3.5" />
                     Tutor mode
                   </button>
+
+
                 </div>
               </div>
             </article>
@@ -223,11 +232,9 @@ function DashboardPage() {
                 {completed.slice(0, 5).map((s) => (
                   <tr key={s.id} className="hover:bg-surface-alt/50">
                     <td className="px-6 py-3 text-muted-foreground">
-                      {new Date(s.completedAt).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {formatDateStable(s.completedAt)}
                     </td>
+
                     <td className="px-6 py-3 font-medium text-foreground">{s.bankName}</td>
                     <td className="px-6 py-3">
                       <span

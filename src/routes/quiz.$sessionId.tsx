@@ -144,7 +144,15 @@ function QuizPage() {
                 {formatTime(remaining)}
               </span>
             )}
+            <button
+              type="button"
+              onClick={finish}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary-light"
+            >
+              <Check className="h-3.5 w-3.5" /> Finish
+            </button>
           </div>
+
         </div>
         {/* Progress bar */}
         <div className="h-1 w-full bg-surface-alt">
@@ -428,10 +436,10 @@ function Explanation({
           </div>
         )}
 
-        {/* All distractors with "when this would be correct" framing */}
+        {/* All distractors — "Why X is wrong" + scenario where correct */}
         <div>
           <h4 className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-            Other options — and when each <em className="not-italic font-bold text-foreground">would</em> be correct
+            Option-by-option breakdown
           </h4>
           <ul className="mt-3 space-y-3">
             {question.options
@@ -442,27 +450,30 @@ function Explanation({
                 return (
                   <li
                     key={o.key}
-                    className="rounded-xl border border-border bg-surface-alt/40 p-3.5"
+                    className="rounded-xl border border-border bg-surface-alt/40 p-4"
                   >
-                    <div className="flex items-start gap-2">
-                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-foreground/90 text-[11px] font-bold text-white">
+                    <div className="flex items-start gap-2.5">
+                      <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-error/10 text-xs font-bold text-error">
                         {o.key}
                       </span>
                       <p className="text-sm font-semibold text-foreground">{o.text}</p>
                     </div>
-                    <p className="mt-2 pl-8 text-sm text-muted-foreground">
-                      <span className="font-semibold text-error">Incorrect because — </span>
-                      {wrongReason}
-                    </p>
-                    <p className="mt-1.5 pl-8 text-sm text-muted-foreground">
-                      <span className="font-semibold text-[#0E7C7B]">However, this would be correct if — </span>
-                      {wouldBeCorrect}
-                    </p>
+                    <div className="mt-3 space-y-1.5 pl-9">
+                      <p className="text-sm leading-relaxed text-foreground">
+                        <span className="font-bold text-error">Why {o.key} is wrong — </span>
+                        {wrongReason}
+                      </p>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        <span className="font-bold text-[var(--accent)]">Scenario where {o.key} would be correct — </span>
+                        {wouldBeCorrect}
+                      </p>
+                    </div>
                   </li>
                 );
               })}
           </ul>
         </div>
+
 
         {/* Key learning */}
         <div className="rounded-xl bg-gradient-to-br from-[#0E7C7B]/10 to-[#2BC97F]/15 p-4">

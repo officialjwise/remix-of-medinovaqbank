@@ -140,7 +140,7 @@ function ReviewPage() {
               {/* Always-on explanation */}
               <section className="mt-6 rounded-xl border border-border bg-surface-alt/40 p-5">
                 <h3 className="border-l-4 border-accent pl-3 text-xs font-bold uppercase tracking-wide text-accent">
-                  AI Explanation
+                  Answer Explanation
                 </h3>
                 <p className="mt-3 text-sm font-bold text-success">
                   Correct: {q.correctKey}. {q.options.find((o) => o.key === q.correctKey)?.text}

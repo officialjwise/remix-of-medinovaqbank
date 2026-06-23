@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Bell,
+  BookOpen,
   CreditCard,
   Home,
   Library,
@@ -14,11 +15,13 @@ import {
 } from "lucide-react";
 import { ReactNode, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuthStore } from "@/stores/authStore";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
   { to: "/banks", label: "Question Banks", icon: Library },
+  { to: "/notes", label: "High Yield Notes", icon: BookOpen },
   { to: "/sessions", label: "My Sessions", icon: ScrollText },
   { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
@@ -30,6 +33,7 @@ const nav = [
 const titleMap: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/banks": "Question Banks",
+  "/notes": "High Yield Notes",
   "/sessions": "My Sessions",
   "/leaderboard": "Leaderboard",
   "/analytics": "Analytics",
@@ -37,6 +41,7 @@ const titleMap: Record<string, string> = {
   "/profile": "Profile",
   "/subscription": "Subscription",
 };
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -201,8 +206,9 @@ function Topbar({ title, onMenu }: { title: string; onMenu: () => void }) {
           {title}
         </h1>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
           {chip}
+          <ThemeToggle />
           <div className="relative">
             <button
               type="button"
@@ -212,6 +218,7 @@ function Topbar({ title, onMenu }: { title: string; onMenu: () => void }) {
             >
               {(user?.name ?? "U").slice(0, 1)}
             </button>
+
             {open && (
               <div
                 className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-card-hover)]"

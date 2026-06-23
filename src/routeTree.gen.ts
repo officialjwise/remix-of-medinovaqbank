@@ -32,6 +32,7 @@ import { Route as AdminSubscriptionsRouteImport } from './routes/admin.subscript
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminProfileRouteImport } from './routes/admin.profile'
+import { Route as AdminNotesRouteImport } from './routes/admin.notes'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminFlagsRouteImport } from './routes/admin.flags'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
@@ -45,6 +46,7 @@ import { Route as AppSubscriptionRouteImport } from './routes/_app.subscription'
 import { Route as AppSessionsRouteImport } from './routes/_app.sessions'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppNotesRouteImport } from './routes/_app.notes'
 import { Route as AppLeaderboardRouteImport } from './routes/_app.leaderboard'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBanksRouteImport } from './routes/_app.banks'
@@ -58,6 +60,8 @@ import { Route as AdminSettingsPricingRouteImport } from './routes/admin.setting
 import { Route as AdminSettingsPlansRouteImport } from './routes/admin.settings.plans'
 import { Route as AdminBanksBankIdUploadRouteImport } from './routes/admin.banks.$bankId.upload'
 import { Route as AdminBanksBankIdQuestionsRouteImport } from './routes/admin.banks.$bankId.questions'
+import { Route as AdminBanksBankIdQuestionsNewRouteImport } from './routes/admin.banks.$bankId.questions.new'
+import { Route as AdminBanksBankIdQuestionsQuestionIdRouteImport } from './routes/admin.banks.$bankId.questions.$questionId'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -173,6 +177,11 @@ const AdminProfileRoute = AdminProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminNotesRoute = AdminNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -236,6 +245,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotesRoute = AppNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLeaderboardRoute = AppLeaderboardRouteImport.update({
@@ -304,6 +318,18 @@ const AdminBanksBankIdQuestionsRoute =
     path: '/$bankId/questions',
     getParentRoute: () => AdminBanksRoute,
   } as any)
+const AdminBanksBankIdQuestionsNewRoute =
+  AdminBanksBankIdQuestionsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AdminBanksBankIdQuestionsRoute,
+  } as any)
+const AdminBanksBankIdQuestionsQuestionIdRoute =
+  AdminBanksBankIdQuestionsQuestionIdRouteImport.update({
+    id: '/$questionId',
+    path: '/$questionId',
+    getParentRoute: () => AdminBanksBankIdQuestionsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -324,6 +350,7 @@ export interface FileRoutesByFullPath {
   '/banks': typeof AppBanksRoute
   '/dashboard': typeof AppDashboardRoute
   '/leaderboard': typeof AppLeaderboardRoute
+  '/notes': typeof AppNotesRoute
   '/notifications': typeof AppNotificationsRoute
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
@@ -337,6 +364,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flags': typeof AdminFlagsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -352,8 +380,10 @@ export interface FileRoutesByFullPath {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
-  '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRoute
+  '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRouteWithChildren
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
+  '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
+  '/admin/banks/$bankId/questions/new': typeof AdminBanksBankIdQuestionsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -374,6 +404,7 @@ export interface FileRoutesByTo {
   '/banks': typeof AppBanksRoute
   '/dashboard': typeof AppDashboardRoute
   '/leaderboard': typeof AppLeaderboardRoute
+  '/notes': typeof AppNotesRoute
   '/notifications': typeof AppNotificationsRoute
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
@@ -387,6 +418,7 @@ export interface FileRoutesByTo {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flags': typeof AdminFlagsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -402,8 +434,10 @@ export interface FileRoutesByTo {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
-  '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRoute
+  '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRouteWithChildren
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
+  '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
+  '/admin/banks/$bankId/questions/new': typeof AdminBanksBankIdQuestionsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -426,6 +460,7 @@ export interface FileRoutesById {
   '/_app/banks': typeof AppBanksRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/leaderboard': typeof AppLeaderboardRoute
+  '/_app/notes': typeof AppNotesRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/sessions': typeof AppSessionsRoute
@@ -439,6 +474,7 @@ export interface FileRoutesById {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flags': typeof AdminFlagsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
@@ -454,8 +490,10 @@ export interface FileRoutesById {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
-  '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRoute
+  '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRouteWithChildren
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
+  '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
+  '/admin/banks/$bankId/questions/new': typeof AdminBanksBankIdQuestionsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -478,6 +516,7 @@ export interface FileRouteTypes {
     | '/banks'
     | '/dashboard'
     | '/leaderboard'
+    | '/notes'
     | '/notifications'
     | '/profile'
     | '/sessions'
@@ -491,6 +530,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flags'
     | '/admin/login'
+    | '/admin/notes'
     | '/admin/profile'
     | '/admin/reports'
     | '/admin/roles'
@@ -508,6 +548,8 @@ export interface FileRouteTypes {
     | '/quiz/configure/$bankId'
     | '/admin/banks/$bankId/questions'
     | '/admin/banks/$bankId/upload'
+    | '/admin/banks/$bankId/questions/$questionId'
+    | '/admin/banks/$bankId/questions/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -528,6 +570,7 @@ export interface FileRouteTypes {
     | '/banks'
     | '/dashboard'
     | '/leaderboard'
+    | '/notes'
     | '/notifications'
     | '/profile'
     | '/sessions'
@@ -541,6 +584,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flags'
     | '/admin/login'
+    | '/admin/notes'
     | '/admin/profile'
     | '/admin/reports'
     | '/admin/roles'
@@ -558,6 +602,8 @@ export interface FileRouteTypes {
     | '/quiz/configure/$bankId'
     | '/admin/banks/$bankId/questions'
     | '/admin/banks/$bankId/upload'
+    | '/admin/banks/$bankId/questions/$questionId'
+    | '/admin/banks/$bankId/questions/new'
   id:
     | '__root__'
     | '/'
@@ -579,6 +625,7 @@ export interface FileRouteTypes {
     | '/_app/banks'
     | '/_app/dashboard'
     | '/_app/leaderboard'
+    | '/_app/notes'
     | '/_app/notifications'
     | '/_app/profile'
     | '/_app/sessions'
@@ -592,6 +639,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flags'
     | '/admin/login'
+    | '/admin/notes'
     | '/admin/profile'
     | '/admin/reports'
     | '/admin/roles'
@@ -609,6 +657,8 @@ export interface FileRouteTypes {
     | '/quiz/configure/$bankId'
     | '/admin/banks/$bankId/questions'
     | '/admin/banks/$bankId/upload'
+    | '/admin/banks/$bankId/questions/$questionId'
+    | '/admin/banks/$bankId/questions/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -795,6 +845,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProfileRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/notes': {
+      id: '/admin/notes'
+      path: '/notes'
+      fullPath: '/admin/notes'
+      preLoaderRoute: typeof AdminNotesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/login'
@@ -884,6 +941,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notes': {
+      id: '/_app/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof AppNotesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/leaderboard': {
@@ -977,6 +1041,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBanksBankIdQuestionsRouteImport
       parentRoute: typeof AdminBanksRoute
     }
+    '/admin/banks/$bankId/questions/new': {
+      id: '/admin/banks/$bankId/questions/new'
+      path: '/new'
+      fullPath: '/admin/banks/$bankId/questions/new'
+      preLoaderRoute: typeof AdminBanksBankIdQuestionsNewRouteImport
+      parentRoute: typeof AdminBanksBankIdQuestionsRoute
+    }
+    '/admin/banks/$bankId/questions/$questionId': {
+      id: '/admin/banks/$bankId/questions/$questionId'
+      path: '/$questionId'
+      fullPath: '/admin/banks/$bankId/questions/$questionId'
+      preLoaderRoute: typeof AdminBanksBankIdQuestionsQuestionIdRouteImport
+      parentRoute: typeof AdminBanksBankIdQuestionsRoute
+    }
   }
 }
 
@@ -985,6 +1063,7 @@ interface AppRouteChildren {
   AppBanksRoute: typeof AppBanksRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppLeaderboardRoute: typeof AppLeaderboardRoute
+  AppNotesRoute: typeof AppNotesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppProfileRoute: typeof AppProfileRoute
   AppSessionsRoute: typeof AppSessionsRoute
@@ -996,6 +1075,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBanksRoute: AppBanksRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppLeaderboardRoute: AppLeaderboardRoute,
+  AppNotesRoute: AppNotesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppProfileRoute: AppProfileRoute,
   AppSessionsRoute: AppSessionsRoute,
@@ -1004,13 +1084,30 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface AdminBanksBankIdQuestionsRouteChildren {
+  AdminBanksBankIdQuestionsQuestionIdRoute: typeof AdminBanksBankIdQuestionsQuestionIdRoute
+  AdminBanksBankIdQuestionsNewRoute: typeof AdminBanksBankIdQuestionsNewRoute
+}
+
+const AdminBanksBankIdQuestionsRouteChildren: AdminBanksBankIdQuestionsRouteChildren =
+  {
+    AdminBanksBankIdQuestionsQuestionIdRoute:
+      AdminBanksBankIdQuestionsQuestionIdRoute,
+    AdminBanksBankIdQuestionsNewRoute: AdminBanksBankIdQuestionsNewRoute,
+  }
+
+const AdminBanksBankIdQuestionsRouteWithChildren =
+  AdminBanksBankIdQuestionsRoute._addFileChildren(
+    AdminBanksBankIdQuestionsRouteChildren,
+  )
+
 interface AdminBanksRouteChildren {
-  AdminBanksBankIdQuestionsRoute: typeof AdminBanksBankIdQuestionsRoute
+  AdminBanksBankIdQuestionsRoute: typeof AdminBanksBankIdQuestionsRouteWithChildren
   AdminBanksBankIdUploadRoute: typeof AdminBanksBankIdUploadRoute
 }
 
 const AdminBanksRouteChildren: AdminBanksRouteChildren = {
-  AdminBanksBankIdQuestionsRoute: AdminBanksBankIdQuestionsRoute,
+  AdminBanksBankIdQuestionsRoute: AdminBanksBankIdQuestionsRouteWithChildren,
   AdminBanksBankIdUploadRoute: AdminBanksBankIdUploadRoute,
 }
 
@@ -1040,6 +1137,7 @@ interface AdminRouteChildren {
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminFlagsRoute: typeof AdminFlagsRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminNotesRoute: typeof AdminNotesRoute
   AdminProfileRoute: typeof AdminProfileRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRolesRoute: typeof AdminRolesRoute
@@ -1061,6 +1159,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDashboardRoute: AdminDashboardRoute,
   AdminFlagsRoute: AdminFlagsRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminNotesRoute: AdminNotesRoute,
   AdminProfileRoute: AdminProfileRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminRolesRoute: AdminRolesRoute,
