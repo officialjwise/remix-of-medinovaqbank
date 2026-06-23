@@ -58,7 +58,6 @@ function ResultsPage() {
     );
   }
 
-  const c = scoreColor(results.scorePct);
   const percentile = Math.min(99, Math.max(5, Math.round(results.scorePct * 0.9 + 5)));
 
   return (
