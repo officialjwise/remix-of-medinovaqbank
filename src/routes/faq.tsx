@@ -36,7 +36,7 @@ const groups = [
     title: "Content & quizzes",
     items: [
       { q: "How are questions written?", a: "Authored by practising clinicians and reviewed by a content editorial board. Every question has a detailed explanation." },
-      { q: "How does the AI explanation work?", a: "When you answer, you see why the correct option is right, why your distractor was wrong, and the clinical scenario in which each other option would be correct." },
+      { q: "How does the answer explanation work?", a: "When you answer, you see why the correct option is right, why your distractor was wrong, and the clinical scenario in which each other option would be correct." },
       { q: "Can I flag a question?", a: "Yes — every question has a flag button. Flags are reviewed by our content team within 48 hours." },
     ],
   },

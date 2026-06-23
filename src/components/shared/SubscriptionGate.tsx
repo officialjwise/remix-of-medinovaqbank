@@ -35,7 +35,7 @@ function DefaultUpgradeCTA({ title, body }: { title?: string; body?: string } = 
         {title ?? "Upgrade to keep practising"}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {body ?? "Your free trial questions are exhausted. Subscribe to unlock unlimited access to every question bank, AI explanations, and analytics."}
+        {body ?? "Your free trial questions are exhausted. Subscribe to unlock unlimited access to every question bank, Detailed explanations, and analytics."}
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         <Link

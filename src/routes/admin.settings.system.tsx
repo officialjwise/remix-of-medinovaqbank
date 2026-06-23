@@ -28,7 +28,7 @@ function AdminSystem() {
             className="h-9 w-24 rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
         </Row>
-        <Row title="AI Explanation Model" desc="Model used to power answer explanations.">
+        <Row title="Explanation Model" desc="Model used to power answer explanations.">
           <select
             value={aiModel}
             onChange={(e) => setAiModel(e.target.value)}

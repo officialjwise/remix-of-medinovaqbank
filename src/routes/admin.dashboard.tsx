@@ -64,7 +64,7 @@ const recentActivity = [
   { tone: "success" as const, t: "2m ago", e: "New 12-month subscription", who: "Akua Mensah · GHS 799" },
   { tone: "info" as const, t: "8m ago", e: "Bank published", who: "Cardiology Essentials v2 · 120 questions" },
   { tone: "warn" as const, t: "21m ago", e: "Question flagged", who: "Q-RCA-STEMI by 3 users · review queued" },
-  { tone: "success" as const, t: "1h ago", e: "AI explanations cached", who: "1,240 questions pre-warmed" },
+  { tone: "success" as const, t: "1h ago", e: "Detailed explanations cached", who: "1,240 questions pre-warmed" },
   { tone: "info" as const, t: "3h ago", e: "Admin login", who: "kofi.admin · 41.66.x.x" },
 ];
 

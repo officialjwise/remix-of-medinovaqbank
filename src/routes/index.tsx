@@ -23,13 +23,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Ghana's premier medical question bank. AI-powered explanations, real-time analytics, tutor and quiz modes — built for serious medical professionals.",
+          "Ghana's premier medical question bank. Detailed clinical explanations, real-time analytics, tutor and quiz modes — built for serious medical professionals.",
       },
       { property: "og:title", content: "Medinovaqbank — Master Medicine. Ace Every Exam." },
       {
         property: "og:description",
         content:
-          "Ghana's premier medical question bank. AI-powered explanations, real-time analytics, tutor and quiz modes.",
+          "Ghana's premier medical question bank. Detailed clinical explanations, real-time analytics, tutor and quiz modes.",
       },
     ],
   }),
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/")({
 
 const trustBadges = [
   "10,000+ Questions",
-  "AI Explanations",
+  "Answer Explanations",
   "Ghana Medical Standard",
   "Real-time Analytics",
 ];
@@ -64,7 +64,7 @@ const stats = [
 const features = [
   { icon: GraduationCap, title: "Tutor Mode", body: "Instant feedback after every answer. Learn as you go." },
   { icon: Timer, title: "Quiz Mode", body: "Simulate real exam conditions. Full feedback after completion." },
-  { icon: Sparkles, title: "AI Explanations", body: "Know exactly why each option is right or wrong — and when it would flip." },
+  { icon: Sparkles, title: "Answer Explanations", body: "Know exactly why each option is right or wrong — and when it would flip." },
   { icon: BarChart3, title: "Performance Analytics", body: "See your percentile on a bell curve vs. peers." },
   { icon: Trophy, title: "Leaderboard", body: "Compete with medical professionals nationwide." },
   { icon: ClipboardList, title: "Detailed Review", body: "Revisit any past session question by question, read-only." },
@@ -131,7 +131,7 @@ function LandingPage() {
             </h1>
 
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/80">
-              Ghana's premier medical question bank. AI-powered explanations,
+              Ghana's premier medical question bank. Detailed clinical explanations,
               real-time analytics, tutor and quiz modes — built for serious
               medical professionals.
             </p>

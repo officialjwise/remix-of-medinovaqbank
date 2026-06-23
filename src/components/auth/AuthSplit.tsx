@@ -43,7 +43,7 @@ export function AuthSplit({
             </span>
           </h2>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-white/70">
-            Ghana's premier medical question bank. AI-powered explanations,
+            Ghana's premier medical question bank. Detailed clinical explanations,
             real-time analytics, tutor and quiz modes — built for serious
             medical professionals.
           </p>
