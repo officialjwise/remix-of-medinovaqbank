@@ -192,12 +192,13 @@ function DashboardPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate({ to: "/quiz/configure/$bankId", params: { bankId: b.id }, search: { mode: "TUTOR" } as never })}
+                    onClick={() => navigate({ to: "/quiz/configure/$bankId", params: { bankId: b.id } })}
                     className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
                   >
                     <GraduationCap className="mr-1.5 inline h-3.5 w-3.5" />
                     Tutor mode
                   </button>
+
 
                 </div>
               </div>
