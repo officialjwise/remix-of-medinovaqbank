@@ -96,34 +96,65 @@ function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="mt-4 h-72 w-full">
+        <div className="mt-4 h-[280px] w-full">
           <ResponsiveContainer>
-            <AreaChart data={bell} margin={{ top: 20, right: 24, bottom: 0, left: 0 }}>
+            <AreaChart data={bell.map((p) => ({ ...p, left: p.x <= data.yourPct ? p.y : null, right: p.x >= data.yourPct ? p.y : null }))} margin={{ top: 24, right: 24, bottom: 0, left: 0 }}>
               <defs>
-                <linearGradient id="bell" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.5} />
-                  <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0} />
+                <linearGradient id="bellLeft" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0E7C7B" stopOpacity={0.55} />
+                  <stop offset="95%" stopColor="#0E7C7B" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="bellRight" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.04} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
               <XAxis dataKey="x" type="number" domain={[20, 110]} tickFormatter={(v) => `${v}%`} stroke="hsl(var(--muted-foreground))" fontSize={12} />
               <YAxis hide />
-              <Tooltip formatter={(v: number) => v.toFixed(3)} labelFormatter={(l) => `${l}%`} />
-              <Area type="monotone" dataKey="y" stroke="hsl(var(--accent))" fill="url(#bell)" strokeWidth={2} />
+              <Tooltip formatter={(v: number) => (v == null ? "" : v.toFixed(3))} labelFormatter={(l) => `${l}%`} />
+              <Area type="monotone" dataKey="right" stroke="hsl(var(--muted-foreground))" fill="url(#bellRight)" strokeWidth={1.5} isAnimationActive={false} />
+              <Area type="monotone" dataKey="left" stroke="#0E7C7B" fill="url(#bellLeft)" strokeWidth={2} isAnimationActive={false} />
+              <ReferenceLine
+                x={data.cohort.mean - data.cohort.stddev}
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="1 4"
+                strokeOpacity={0.5}
+              />
+              <ReferenceLine
+                x={data.cohort.mean + data.cohort.stddev}
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="1 4"
+                strokeOpacity={0.5}
+              />
+              <ReferenceLine
+                x={data.cohort.mean}
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="3 4"
+                label={{ value: `Average ${data.cohort.mean}%`, position: "top", fill: "hsl(var(--muted-foreground))", fontSize: 10, fontWeight: 600 }}
+              />
               <ReferenceLine
                 x={data.yourPct}
-                stroke="hsl(var(--accent))"
-                strokeWidth={2}
-                strokeDasharray="4 4"
-                label={{ value: "You are here", position: "top", fill: "hsl(var(--accent))", fontSize: 11, fontWeight: 700 }}
+                stroke="#0E7C7B"
+                strokeWidth={2.5}
+                label={{ value: `Your Score: ${data.yourPct}%`, position: "top", fill: "#0E7C7B", fontSize: 12, fontWeight: 800 }}
               />
-              <ReferenceLine x={data.cohort.mean} stroke="hsl(var(--muted-foreground))" strokeDasharray="2 4" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <p className="mt-2 text-center text-xs text-muted-foreground">
-          Rank: <span className="font-bold text-foreground">{data.percentile}th percentile</span> out of {data.cohort.size.toLocaleString()} test-takers
-        </p>
+        <div className="mt-3 space-y-1 text-center">
+          <p className="text-sm font-semibold text-foreground">
+            You scored better than <span className="text-accent">{data.percentile}%</span> of test-takers
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Based on {data.cohort.size.toLocaleString()} practitioners in this bank
+          </p>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#0E7C7B]" /> Your score</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-px w-4 bg-muted-foreground" /> Average</span>
+          <span>68% of test-takers fall between {data.cohort.mean - data.cohort.stddev}% – {data.cohort.mean + data.cohort.stddev}%</span>
+        </div>
       </section>
 
       {/* Subject breakdown + Difficulty */}
