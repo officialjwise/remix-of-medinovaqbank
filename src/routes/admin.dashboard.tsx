@@ -15,8 +15,6 @@ import {
 } from "recharts";
 import {
   Activity,
-  ArrowDownRight,
-  ArrowUpRight,
   Bell,
   CreditCard,
   Library,

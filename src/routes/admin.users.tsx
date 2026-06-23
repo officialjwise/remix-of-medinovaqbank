@@ -218,15 +218,6 @@ function UserModal({ title, onClose, children }: { title: string; onClose: () =>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4 border-b border-border pb-2 last:border-b-0">
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className="text-sm font-semibold text-foreground">{value}</span>
-    </div>
-  );
-}
-
 function OverrideSubscriptionModal({ user, onClose }: { user: AdminUserRow; onClose: () => void }) {
   const [plan, setPlan] = useState("3 Months");
   const [endDate, setEndDate] = useState(() => {
