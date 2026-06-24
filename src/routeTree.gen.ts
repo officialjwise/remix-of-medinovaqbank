@@ -25,6 +25,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QuizSessionIdRouteImport } from './routes/quiz.$sessionId'
+import { Route as PaymentCallbackRouteImport } from './routes/payment.callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
@@ -144,6 +145,11 @@ const IndexRoute = IndexRouteImport.update({
 const QuizSessionIdRoute = QuizSessionIdRouteImport.update({
   id: '/quiz/$sessionId',
   path: '/quiz/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentCallbackRoute = PaymentCallbackRouteImport.update({
+  id: '/payment/callback',
+  path: '/payment/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -397,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/payment/callback': typeof PaymentCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
   '/admin/banks/create': typeof AdminBanksCreateRoute
   '/admin/questions/create': typeof AdminQuestionsCreateRoute
@@ -455,6 +462,7 @@ export interface FileRoutesByTo {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/payment/callback': typeof PaymentCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
   '/admin/banks/create': typeof AdminBanksCreateRoute
   '/admin/questions/create': typeof AdminQuestionsCreateRoute
@@ -515,6 +523,7 @@ export interface FileRoutesById {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/payment/callback': typeof PaymentCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
   '/admin/banks/create': typeof AdminBanksCreateRoute
   '/admin/questions/create': typeof AdminQuestionsCreateRoute
@@ -575,6 +584,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/users'
     | '/auth/callback'
+    | '/payment/callback'
     | '/quiz/$sessionId'
     | '/admin/banks/create'
     | '/admin/questions/create'
@@ -633,6 +643,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/users'
     | '/auth/callback'
+    | '/payment/callback'
     | '/quiz/$sessionId'
     | '/admin/banks/create'
     | '/admin/questions/create'
@@ -692,6 +703,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/users'
     | '/auth/callback'
+    | '/payment/callback'
     | '/quiz/$sessionId'
     | '/admin/banks/create'
     | '/admin/questions/create'
@@ -726,6 +738,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  PaymentCallbackRoute: typeof PaymentCallbackRoute
   QuizSessionIdRoute: typeof QuizSessionIdRouteWithChildren
   QuizConfigureBankIdRoute: typeof QuizConfigureBankIdRoute
 }
@@ -842,6 +855,13 @@ declare module '@tanstack/react-router' {
       path: '/quiz/$sessionId'
       fullPath: '/quiz/$sessionId'
       preLoaderRoute: typeof QuizSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payment/callback': {
+      id: '/payment/callback'
+      path: '/payment/callback'
+      fullPath: '/payment/callback'
+      preLoaderRoute: typeof PaymentCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -1298,6 +1318,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  PaymentCallbackRoute: PaymentCallbackRoute,
   QuizSessionIdRoute: QuizSessionIdRouteWithChildren,
   QuizConfigureBankIdRoute: QuizConfigureBankIdRoute,
 }
