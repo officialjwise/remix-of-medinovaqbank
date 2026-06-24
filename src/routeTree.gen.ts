@@ -25,12 +25,14 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QuizSessionIdRouteImport } from './routes/quiz.$sessionId'
+import { Route as PaymentCallbackRouteImport } from './routes/payment.callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
 import { Route as AdminSubscriptionsRouteImport } from './routes/admin.subscriptions'
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
+import { Route as AdminQuestionsRouteImport } from './routes/admin.questions'
 import { Route as AdminProfileRouteImport } from './routes/admin.profile'
 import { Route as AdminNotesRouteImport } from './routes/admin.notes'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -42,6 +44,7 @@ import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
 import { Route as AdminApiRouteImport } from './routes/admin.api'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminAiSettingsRouteImport } from './routes/admin.ai-settings'
+import { Route as AdminActivityLogsRouteImport } from './routes/admin.activity-logs'
 import { Route as AppSubscriptionRouteImport } from './routes/_app.subscription'
 import { Route as AppSessionsRouteImport } from './routes/_app.sessions'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
@@ -58,8 +61,11 @@ import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$user
 import { Route as AdminSettingsSystemRouteImport } from './routes/admin.settings.system'
 import { Route as AdminSettingsPricingRouteImport } from './routes/admin.settings.pricing'
 import { Route as AdminSettingsPlansRouteImport } from './routes/admin.settings.plans'
+import { Route as AdminQuestionsCreateRouteImport } from './routes/admin.questions.create'
+import { Route as AdminBanksCreateRouteImport } from './routes/admin.banks.create'
 import { Route as AdminBanksBankIdUploadRouteImport } from './routes/admin.banks.$bankId.upload'
 import { Route as AdminBanksBankIdQuestionsRouteImport } from './routes/admin.banks.$bankId.questions'
+import { Route as AdminBanksBankIdEditRouteImport } from './routes/admin.banks.$bankId.edit'
 import { Route as AdminBanksBankIdQuestionsNewRouteImport } from './routes/admin.banks.$bankId.questions.new'
 import { Route as AdminBanksBankIdQuestionsQuestionIdRouteImport } from './routes/admin.banks.$bankId.questions.$questionId'
 
@@ -142,6 +148,11 @@ const QuizSessionIdRoute = QuizSessionIdRouteImport.update({
   path: '/quiz/$sessionId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PaymentCallbackRoute = PaymentCallbackRouteImport.update({
+  id: '/payment/callback',
+  path: '/payment/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
@@ -170,6 +181,11 @@ const AdminRolesRoute = AdminRolesRouteImport.update({
 const AdminReportsRoute = AdminReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminQuestionsRoute = AdminQuestionsRouteImport.update({
+  id: '/questions',
+  path: '/questions',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminProfileRoute = AdminProfileRouteImport.update({
@@ -225,6 +241,11 @@ const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
 const AdminAiSettingsRoute = AdminAiSettingsRouteImport.update({
   id: '/ai-settings',
   path: '/ai-settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminActivityLogsRoute = AdminActivityLogsRouteImport.update({
+  id: '/activity-logs',
+  path: '/activity-logs',
   getParentRoute: () => AdminRoute,
 } as any)
 const AppSubscriptionRoute = AppSubscriptionRouteImport.update({
@@ -307,6 +328,16 @@ const AdminSettingsPlansRoute = AdminSettingsPlansRouteImport.update({
   path: '/settings/plans',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminQuestionsCreateRoute = AdminQuestionsCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => AdminQuestionsRoute,
+} as any)
+const AdminBanksCreateRoute = AdminBanksCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => AdminBanksRoute,
+} as any)
 const AdminBanksBankIdUploadRoute = AdminBanksBankIdUploadRouteImport.update({
   id: '/$bankId/upload',
   path: '/$bankId/upload',
@@ -318,6 +349,11 @@ const AdminBanksBankIdQuestionsRoute =
     path: '/$bankId/questions',
     getParentRoute: () => AdminBanksRoute,
   } as any)
+const AdminBanksBankIdEditRoute = AdminBanksBankIdEditRouteImport.update({
+  id: '/$bankId/edit',
+  path: '/$bankId/edit',
+  getParentRoute: () => AdminBanksRoute,
+} as any)
 const AdminBanksBankIdQuestionsNewRoute =
   AdminBanksBankIdQuestionsNewRouteImport.update({
     id: '/new',
@@ -355,6 +391,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
   '/subscription': typeof AppSubscriptionRoute
+  '/admin/activity-logs': typeof AdminActivityLogsRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/api': typeof AdminApiRoute
@@ -366,13 +403,17 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
+  '/admin/questions': typeof AdminQuestionsRouteWithChildren
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/payment/callback': typeof PaymentCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/banks/create': typeof AdminBanksCreateRoute
+  '/admin/questions/create': typeof AdminQuestionsCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
@@ -380,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
+  '/admin/banks/$bankId/edit': typeof AdminBanksBankIdEditRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRouteWithChildren
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
   '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
@@ -409,6 +451,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
   '/subscription': typeof AppSubscriptionRoute
+  '/admin/activity-logs': typeof AdminActivityLogsRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/api': typeof AdminApiRoute
@@ -420,13 +463,17 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
+  '/admin/questions': typeof AdminQuestionsRouteWithChildren
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/payment/callback': typeof PaymentCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/banks/create': typeof AdminBanksCreateRoute
+  '/admin/questions/create': typeof AdminQuestionsCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
@@ -434,6 +481,7 @@ export interface FileRoutesByTo {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
+  '/admin/banks/$bankId/edit': typeof AdminBanksBankIdEditRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRouteWithChildren
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
   '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
@@ -465,6 +513,7 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRoute
   '/_app/sessions': typeof AppSessionsRoute
   '/_app/subscription': typeof AppSubscriptionRoute
+  '/admin/activity-logs': typeof AdminActivityLogsRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/api': typeof AdminApiRoute
@@ -476,13 +525,17 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
+  '/admin/questions': typeof AdminQuestionsRouteWithChildren
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/payment/callback': typeof PaymentCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/banks/create': typeof AdminBanksCreateRoute
+  '/admin/questions/create': typeof AdminQuestionsCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
@@ -490,6 +543,7 @@ export interface FileRoutesById {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
+  '/admin/banks/$bankId/edit': typeof AdminBanksBankIdEditRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRouteWithChildren
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
   '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
@@ -521,6 +575,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/sessions'
     | '/subscription'
+    | '/admin/activity-logs'
     | '/admin/ai-settings'
     | '/admin/analytics'
     | '/admin/api'
@@ -532,13 +587,17 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/notes'
     | '/admin/profile'
+    | '/admin/questions'
     | '/admin/reports'
     | '/admin/roles'
     | '/admin/subscriptions'
     | '/admin/transactions'
     | '/admin/users'
     | '/auth/callback'
+    | '/payment/callback'
     | '/quiz/$sessionId'
+    | '/admin/banks/create'
+    | '/admin/questions/create'
     | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
@@ -546,6 +605,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
+    | '/admin/banks/$bankId/edit'
     | '/admin/banks/$bankId/questions'
     | '/admin/banks/$bankId/upload'
     | '/admin/banks/$bankId/questions/$questionId'
@@ -575,6 +635,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/sessions'
     | '/subscription'
+    | '/admin/activity-logs'
     | '/admin/ai-settings'
     | '/admin/analytics'
     | '/admin/api'
@@ -586,13 +647,17 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/notes'
     | '/admin/profile'
+    | '/admin/questions'
     | '/admin/reports'
     | '/admin/roles'
     | '/admin/subscriptions'
     | '/admin/transactions'
     | '/admin/users'
     | '/auth/callback'
+    | '/payment/callback'
     | '/quiz/$sessionId'
+    | '/admin/banks/create'
+    | '/admin/questions/create'
     | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
@@ -600,6 +665,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
+    | '/admin/banks/$bankId/edit'
     | '/admin/banks/$bankId/questions'
     | '/admin/banks/$bankId/upload'
     | '/admin/banks/$bankId/questions/$questionId'
@@ -630,6 +696,7 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/sessions'
     | '/_app/subscription'
+    | '/admin/activity-logs'
     | '/admin/ai-settings'
     | '/admin/analytics'
     | '/admin/api'
@@ -641,13 +708,17 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/notes'
     | '/admin/profile'
+    | '/admin/questions'
     | '/admin/reports'
     | '/admin/roles'
     | '/admin/subscriptions'
     | '/admin/transactions'
     | '/admin/users'
     | '/auth/callback'
+    | '/payment/callback'
     | '/quiz/$sessionId'
+    | '/admin/banks/create'
+    | '/admin/questions/create'
     | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
@@ -655,6 +726,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
+    | '/admin/banks/$bankId/edit'
     | '/admin/banks/$bankId/questions'
     | '/admin/banks/$bankId/upload'
     | '/admin/banks/$bankId/questions/$questionId'
@@ -678,6 +750,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  PaymentCallbackRoute: typeof PaymentCallbackRoute
   QuizSessionIdRoute: typeof QuizSessionIdRouteWithChildren
   QuizConfigureBankIdRoute: typeof QuizConfigureBankIdRoute
 }
@@ -796,6 +869,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuizSessionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/payment/callback': {
+      id: '/payment/callback'
+      path: '/payment/callback'
+      fullPath: '/payment/callback'
+      preLoaderRoute: typeof PaymentCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
@@ -836,6 +916,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/admin/reports'
       preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/questions': {
+      id: '/admin/questions'
+      path: '/questions'
+      fullPath: '/admin/questions'
+      preLoaderRoute: typeof AdminQuestionsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/profile': {
@@ -913,6 +1000,13 @@ declare module '@tanstack/react-router' {
       path: '/ai-settings'
       fullPath: '/admin/ai-settings'
       preLoaderRoute: typeof AdminAiSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/activity-logs': {
+      id: '/admin/activity-logs'
+      path: '/activity-logs'
+      fullPath: '/admin/activity-logs'
+      preLoaderRoute: typeof AdminActivityLogsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/_app/subscription': {
@@ -1027,6 +1121,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsPlansRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/questions/create': {
+      id: '/admin/questions/create'
+      path: '/create'
+      fullPath: '/admin/questions/create'
+      preLoaderRoute: typeof AdminQuestionsCreateRouteImport
+      parentRoute: typeof AdminQuestionsRoute
+    }
+    '/admin/banks/create': {
+      id: '/admin/banks/create'
+      path: '/create'
+      fullPath: '/admin/banks/create'
+      preLoaderRoute: typeof AdminBanksCreateRouteImport
+      parentRoute: typeof AdminBanksRoute
+    }
     '/admin/banks/$bankId/upload': {
       id: '/admin/banks/$bankId/upload'
       path: '/$bankId/upload'
@@ -1039,6 +1147,13 @@ declare module '@tanstack/react-router' {
       path: '/$bankId/questions'
       fullPath: '/admin/banks/$bankId/questions'
       preLoaderRoute: typeof AdminBanksBankIdQuestionsRouteImport
+      parentRoute: typeof AdminBanksRoute
+    }
+    '/admin/banks/$bankId/edit': {
+      id: '/admin/banks/$bankId/edit'
+      path: '/$bankId/edit'
+      fullPath: '/admin/banks/$bankId/edit'
+      preLoaderRoute: typeof AdminBanksBankIdEditRouteImport
       parentRoute: typeof AdminBanksRoute
     }
     '/admin/banks/$bankId/questions/new': {
@@ -1102,17 +1217,33 @@ const AdminBanksBankIdQuestionsRouteWithChildren =
   )
 
 interface AdminBanksRouteChildren {
+  AdminBanksCreateRoute: typeof AdminBanksCreateRoute
+  AdminBanksBankIdEditRoute: typeof AdminBanksBankIdEditRoute
   AdminBanksBankIdQuestionsRoute: typeof AdminBanksBankIdQuestionsRouteWithChildren
   AdminBanksBankIdUploadRoute: typeof AdminBanksBankIdUploadRoute
 }
 
 const AdminBanksRouteChildren: AdminBanksRouteChildren = {
+  AdminBanksCreateRoute: AdminBanksCreateRoute,
+  AdminBanksBankIdEditRoute: AdminBanksBankIdEditRoute,
   AdminBanksBankIdQuestionsRoute: AdminBanksBankIdQuestionsRouteWithChildren,
   AdminBanksBankIdUploadRoute: AdminBanksBankIdUploadRoute,
 }
 
 const AdminBanksRouteWithChildren = AdminBanksRoute._addFileChildren(
   AdminBanksRouteChildren,
+)
+
+interface AdminQuestionsRouteChildren {
+  AdminQuestionsCreateRoute: typeof AdminQuestionsCreateRoute
+}
+
+const AdminQuestionsRouteChildren: AdminQuestionsRouteChildren = {
+  AdminQuestionsCreateRoute: AdminQuestionsCreateRoute,
+}
+
+const AdminQuestionsRouteWithChildren = AdminQuestionsRoute._addFileChildren(
+  AdminQuestionsRouteChildren,
 )
 
 interface AdminUsersRouteChildren {
@@ -1128,6 +1259,7 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminActivityLogsRoute: typeof AdminActivityLogsRoute
   AdminAiSettingsRoute: typeof AdminAiSettingsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminApiRoute: typeof AdminApiRoute
@@ -1139,6 +1271,7 @@ interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminNotesRoute: typeof AdminNotesRoute
   AdminProfileRoute: typeof AdminProfileRoute
+  AdminQuestionsRoute: typeof AdminQuestionsRouteWithChildren
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
@@ -1150,6 +1283,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminActivityLogsRoute: AdminActivityLogsRoute,
   AdminAiSettingsRoute: AdminAiSettingsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminApiRoute: AdminApiRoute,
@@ -1161,6 +1295,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminNotesRoute: AdminNotesRoute,
   AdminProfileRoute: AdminProfileRoute,
+  AdminQuestionsRoute: AdminQuestionsRouteWithChildren,
   AdminReportsRoute: AdminReportsRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminSubscriptionsRoute: AdminSubscriptionsRoute,
@@ -1204,19 +1339,10 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  PaymentCallbackRoute: PaymentCallbackRoute,
   QuizSessionIdRoute: QuizSessionIdRouteWithChildren,
   QuizConfigureBankIdRoute: QuizConfigureBankIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
