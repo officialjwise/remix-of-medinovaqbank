@@ -44,6 +44,7 @@ import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
 import { Route as AdminApiRouteImport } from './routes/admin.api'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminAiSettingsRouteImport } from './routes/admin.ai-settings'
+import { Route as AdminActivityLogsRouteImport } from './routes/admin.activity-logs'
 import { Route as AppSubscriptionRouteImport } from './routes/_app.subscription'
 import { Route as AppSessionsRouteImport } from './routes/_app.sessions'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
@@ -242,6 +243,11 @@ const AdminAiSettingsRoute = AdminAiSettingsRouteImport.update({
   path: '/ai-settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminActivityLogsRoute = AdminActivityLogsRouteImport.update({
+  id: '/activity-logs',
+  path: '/activity-logs',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AppSubscriptionRoute = AppSubscriptionRouteImport.update({
   id: '/subscription',
   path: '/subscription',
@@ -385,6 +391,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
   '/subscription': typeof AppSubscriptionRoute
+  '/admin/activity-logs': typeof AdminActivityLogsRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/api': typeof AdminApiRoute
@@ -444,6 +451,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AppProfileRoute
   '/sessions': typeof AppSessionsRoute
   '/subscription': typeof AppSubscriptionRoute
+  '/admin/activity-logs': typeof AdminActivityLogsRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/api': typeof AdminApiRoute
@@ -505,6 +513,7 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRoute
   '/_app/sessions': typeof AppSessionsRoute
   '/_app/subscription': typeof AppSubscriptionRoute
+  '/admin/activity-logs': typeof AdminActivityLogsRoute
   '/admin/ai-settings': typeof AdminAiSettingsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/api': typeof AdminApiRoute
@@ -566,6 +575,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/sessions'
     | '/subscription'
+    | '/admin/activity-logs'
     | '/admin/ai-settings'
     | '/admin/analytics'
     | '/admin/api'
@@ -625,6 +635,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/sessions'
     | '/subscription'
+    | '/admin/activity-logs'
     | '/admin/ai-settings'
     | '/admin/analytics'
     | '/admin/api'
@@ -685,6 +696,7 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/sessions'
     | '/_app/subscription'
+    | '/admin/activity-logs'
     | '/admin/ai-settings'
     | '/admin/analytics'
     | '/admin/api'
@@ -990,6 +1002,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAiSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/activity-logs': {
+      id: '/admin/activity-logs'
+      path: '/activity-logs'
+      fullPath: '/admin/activity-logs'
+      preLoaderRoute: typeof AdminActivityLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/_app/subscription': {
       id: '/_app/subscription'
       path: '/subscription'
@@ -1240,6 +1259,7 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminActivityLogsRoute: typeof AdminActivityLogsRoute
   AdminAiSettingsRoute: typeof AdminAiSettingsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminApiRoute: typeof AdminApiRoute
@@ -1263,6 +1283,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminActivityLogsRoute: AdminActivityLogsRoute,
   AdminAiSettingsRoute: AdminAiSettingsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminApiRoute: AdminApiRoute,

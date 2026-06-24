@@ -12,6 +12,10 @@ export const Route = createFileRoute("/admin")({
     if (user?.role !== "ADMIN" && user?.role !== "SUPER_ADMIN") {
       throw redirect({ to: "/dashboard" });
     }
+    // Bare /admin lands on the dashboard.
+    if (location.pathname === "/admin" || location.pathname === "/admin/") {
+      throw redirect({ to: "/admin/dashboard" });
+    }
   },
   component: AdminLayout,
 });
