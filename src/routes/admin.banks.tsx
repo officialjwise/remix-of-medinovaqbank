@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Edit, Plus, Trash2, FileText, Upload, Search } from "lucide-react";
+import { Edit, Plus, Trash2, FileText, Upload, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { questionBanks } from "@/data/banks";
 import type { Difficulty, ExamType } from "@/types";
@@ -234,7 +234,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <h3 className="text-base font-bold text-foreground">{title}</h3>
           <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground">
-            <Eye className="h-4 w-4 rotate-45" />
+            <X className="h-4 w-4" />
           </button>
         </header>
         <div className="p-5">{children}</div>
