@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Plus, Search, Edit, Eye, Filter } from "lucide-react";
 import { questionBanks } from "@/data/banks";
-import { sampleQuestions } from "@/data/questions";
+import { getQuestionsForBank } from "@/data/questions";
+import type { Question } from "@/types";
 
 export const Route = createFileRoute("/admin/questions")({
   head: () => ({
@@ -18,8 +19,13 @@ function AdminQuestions() {
   const [query, setQuery] = useState("");
   const [bankFilter, setBankFilter] = useState("All");
 
+  const allQuestions: Question[] = useMemo(
+    () => questionBanks.flatMap((b) => getQuestionsForBank(b.id, 12)),
+    [],
+  );
+
   const rows = useMemo(() => {
-    return sampleQuestions.filter((q) => {
+    return allQuestions.filter((q) => {
       if (bankFilter !== "All" && q.bankId !== bankFilter) return false;
       if (query.trim()) {
         const s = query.toLowerCase();
@@ -27,7 +33,7 @@ function AdminQuestions() {
       }
       return true;
     });
-  }, [query, bankFilter]);
+  }, [query, bankFilter, allQuestions]);
 
   return (
     <div>
@@ -35,7 +41,7 @@ function AdminQuestions() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Questions</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {sampleQuestions.length.toLocaleString()} questions across {questionBanks.length} banks
+            {allQuestions.length.toLocaleString()} questions across {questionBanks.length} banks
           </p>
         </div>
         <Link
