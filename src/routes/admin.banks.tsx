@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Edit, Plus, Trash2, FileText, Upload, Eye, Search } from "lucide-react";
+import { Edit, Plus, Trash2, FileText, Upload, Search } from "lucide-react";
 import { toast } from "sonner";
 import { questionBanks } from "@/data/banks";
 import type { Difficulty, ExamType } from "@/types";
@@ -34,7 +34,6 @@ const EXAM_TYPES: ExamType[] = ["USMLE", "PLAB", "MDCN", "MEDICAL COUNCIL", "GEN
 const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
 
 function AdminBanks() {
-  const [draft, setDraft] = useState<BankDraft | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("All");
@@ -59,27 +58,6 @@ function AdminBanks() {
     return true;
   });
 
-  const onNew = () => setDraft({ ...emptyDraft });
-  const onEdit = (id: string) => {
-    const b = questionBanks.find((x) => x.id === id)!;
-    setDraft({
-      id: b.id,
-      name: b.name,
-      subject: b.subject,
-      examType: b.examType,
-      description: b.description,
-      difficulty: b.difficulty,
-      isActive: true,
-    });
-  };
-
-  const save = () => {
-    if (!draft) return;
-    if (!draft.name.trim()) { toast.error("Name is required"); return; }
-    toast.success(draft.id ? `Updated "${draft.name}"` : `Created "${draft.name}"`);
-    setDraft(null);
-  };
-
   return (
     <div>
       {/* Header */}
@@ -90,12 +68,12 @@ function AdminBanks() {
             <span className="font-semibold text-foreground">{activeBanks} banks</span> · {totalQuestions.toLocaleString()} questions · {activeBanks} active
           </p>
         </div>
-        <button
-          onClick={onNew}
+        <Link
+          to="/admin/banks/create"
           className="inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-sm font-semibold text-white shadow-md hover:opacity-95"
         >
           <Plus className="h-4 w-4" /> Create New Bank
-        </button>
+        </Link>
       </div>
 
       {/* Toolbar */}
@@ -206,14 +184,15 @@ function AdminBanks() {
                     >
                       <Upload className="h-3.5 w-3.5" />
                     </Link>
-                    <button
-                      onClick={() => onEdit(b.id)}
+                    <Link
+                      to="/admin/banks/$bankId/edit"
+                      params={{ bankId: b.id }}
                       className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-muted-foreground hover:bg-surface-alt hover:text-foreground"
                       aria-label="Edit"
                       title="Edit"
                     >
                       <Edit className="h-3.5 w-3.5" />
-                    </button>
+                    </Link>
                     <button
                       onClick={() => setConfirmDelete(b.id)}
                       className="inline-flex h-8 items-center justify-center rounded-lg border border-error/30 bg-error-light/40 px-2.5 text-xs font-semibold text-error hover:bg-error-light"
@@ -228,54 +207,6 @@ function AdminBanks() {
             );
           })}
         </div>
-      )}
-
-      {/* Create/Edit Modal */}
-      {draft && (
-        <Modal title={draft.id ? "Edit Bank" : "Create Bank"} onClose={() => setDraft(null)}>
-          <div className="space-y-4">
-            <Field label="Name">
-              <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
-            </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Subject">
-                <select value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-border bg-surface px-2.5 text-sm">
-                  {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </Field>
-              <Field label="Exam Type">
-                <select value={draft.examType} onChange={(e) => setDraft({ ...draft, examType: e.target.value as ExamType })}
-                  className="h-10 w-full rounded-lg border border-border bg-surface px-2.5 text-sm">
-                  {EXAM_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </Field>
-            </div>
-            <Field label="Description">
-              <textarea rows={3} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
-            </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Difficulty">
-                <select value={draft.difficulty} onChange={(e) => setDraft({ ...draft, difficulty: e.target.value as Difficulty })}
-                  className="h-10 w-full rounded-lg border border-border bg-surface px-2.5 text-sm">
-                  {DIFFICULTIES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </Field>
-              <Field label="Status">
-                <label className="flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm">
-                  <input type="checkbox" checked={draft.isActive} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} />
-                  <span>{draft.isActive ? "Active" : "Inactive"}</span>
-                </label>
-              </Field>
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end gap-2">
-            <button onClick={() => setDraft(null)} className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">Cancel</button>
-            <button onClick={save} className="inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90">Save Bank</button>
-          </div>
-        </Modal>
       )}
 
       {/* Delete confirmation */}
