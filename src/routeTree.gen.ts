@@ -59,6 +59,7 @@ import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$user
 import { Route as AdminSettingsSystemRouteImport } from './routes/admin.settings.system'
 import { Route as AdminSettingsPricingRouteImport } from './routes/admin.settings.pricing'
 import { Route as AdminSettingsPlansRouteImport } from './routes/admin.settings.plans'
+import { Route as AdminQuestionsCreateRouteImport } from './routes/admin.questions.create'
 import { Route as AdminBanksCreateRouteImport } from './routes/admin.banks.create'
 import { Route as AdminBanksBankIdUploadRouteImport } from './routes/admin.banks.$bankId.upload'
 import { Route as AdminBanksBankIdQuestionsRouteImport } from './routes/admin.banks.$bankId.questions'
@@ -315,6 +316,11 @@ const AdminSettingsPlansRoute = AdminSettingsPlansRouteImport.update({
   path: '/settings/plans',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminQuestionsCreateRoute = AdminQuestionsCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => AdminQuestionsRoute,
+} as any)
 const AdminBanksCreateRoute = AdminBanksCreateRouteImport.update({
   id: '/create',
   path: '/create',
@@ -384,7 +390,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
-  '/admin/questions': typeof AdminQuestionsRoute
+  '/admin/questions': typeof AdminQuestionsRouteWithChildren
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -393,6 +399,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
   '/admin/banks/create': typeof AdminBanksCreateRoute
+  '/admin/questions/create': typeof AdminQuestionsCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
@@ -441,7 +448,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
-  '/admin/questions': typeof AdminQuestionsRoute
+  '/admin/questions': typeof AdminQuestionsRouteWithChildren
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -450,6 +457,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
   '/admin/banks/create': typeof AdminBanksCreateRoute
+  '/admin/questions/create': typeof AdminQuestionsCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
@@ -500,7 +508,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/notes': typeof AdminNotesRoute
   '/admin/profile': typeof AdminProfileRoute
-  '/admin/questions': typeof AdminQuestionsRoute
+  '/admin/questions': typeof AdminQuestionsRouteWithChildren
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -509,6 +517,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
   '/admin/banks/create': typeof AdminBanksCreateRoute
+  '/admin/questions/create': typeof AdminQuestionsCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
@@ -568,6 +577,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/quiz/$sessionId'
     | '/admin/banks/create'
+    | '/admin/questions/create'
     | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
@@ -625,6 +635,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/quiz/$sessionId'
     | '/admin/banks/create'
+    | '/admin/questions/create'
     | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
@@ -683,6 +694,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/quiz/$sessionId'
     | '/admin/banks/create'
+    | '/admin/questions/create'
     | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
@@ -1070,6 +1082,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsPlansRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/questions/create': {
+      id: '/admin/questions/create'
+      path: '/create'
+      fullPath: '/admin/questions/create'
+      preLoaderRoute: typeof AdminQuestionsCreateRouteImport
+      parentRoute: typeof AdminQuestionsRoute
+    }
     '/admin/banks/create': {
       id: '/admin/banks/create'
       path: '/create'
@@ -1176,6 +1195,18 @@ const AdminBanksRouteWithChildren = AdminBanksRoute._addFileChildren(
   AdminBanksRouteChildren,
 )
 
+interface AdminQuestionsRouteChildren {
+  AdminQuestionsCreateRoute: typeof AdminQuestionsCreateRoute
+}
+
+const AdminQuestionsRouteChildren: AdminQuestionsRouteChildren = {
+  AdminQuestionsCreateRoute: AdminQuestionsCreateRoute,
+}
+
+const AdminQuestionsRouteWithChildren = AdminQuestionsRoute._addFileChildren(
+  AdminQuestionsRouteChildren,
+)
+
 interface AdminUsersRouteChildren {
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
 }
@@ -1200,7 +1231,7 @@ interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminNotesRoute: typeof AdminNotesRoute
   AdminProfileRoute: typeof AdminProfileRoute
-  AdminQuestionsRoute: typeof AdminQuestionsRoute
+  AdminQuestionsRoute: typeof AdminQuestionsRouteWithChildren
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
@@ -1223,7 +1254,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminNotesRoute: AdminNotesRoute,
   AdminProfileRoute: AdminProfileRoute,
-  AdminQuestionsRoute: AdminQuestionsRoute,
+  AdminQuestionsRoute: AdminQuestionsRouteWithChildren,
   AdminReportsRoute: AdminReportsRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminSubscriptionsRoute: AdminSubscriptionsRoute,
