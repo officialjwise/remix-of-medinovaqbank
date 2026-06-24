@@ -61,6 +61,7 @@ import { Route as AdminSettingsPlansRouteImport } from './routes/admin.settings.
 import { Route as AdminBanksCreateRouteImport } from './routes/admin.banks.create'
 import { Route as AdminBanksBankIdUploadRouteImport } from './routes/admin.banks.$bankId.upload'
 import { Route as AdminBanksBankIdQuestionsRouteImport } from './routes/admin.banks.$bankId.questions'
+import { Route as AdminBanksBankIdEditRouteImport } from './routes/admin.banks.$bankId.edit'
 import { Route as AdminBanksBankIdQuestionsNewRouteImport } from './routes/admin.banks.$bankId.questions.new'
 import { Route as AdminBanksBankIdQuestionsQuestionIdRouteImport } from './routes/admin.banks.$bankId.questions.$questionId'
 
@@ -324,6 +325,11 @@ const AdminBanksBankIdQuestionsRoute =
     path: '/$bankId/questions',
     getParentRoute: () => AdminBanksRoute,
   } as any)
+const AdminBanksBankIdEditRoute = AdminBanksBankIdEditRouteImport.update({
+  id: '/$bankId/edit',
+  path: '/$bankId/edit',
+  getParentRoute: () => AdminBanksRoute,
+} as any)
 const AdminBanksBankIdQuestionsNewRoute =
   AdminBanksBankIdQuestionsNewRouteImport.update({
     id: '/new',
@@ -387,6 +393,7 @@ export interface FileRoutesByFullPath {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
+  '/admin/banks/$bankId/edit': typeof AdminBanksBankIdEditRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRouteWithChildren
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
   '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
@@ -442,6 +449,7 @@ export interface FileRoutesByTo {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
+  '/admin/banks/$bankId/edit': typeof AdminBanksBankIdEditRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRouteWithChildren
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
   '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
@@ -499,6 +507,7 @@ export interface FileRoutesById {
   '/quiz/$sessionId/results': typeof QuizSessionIdResultsRoute
   '/quiz/$sessionId/review': typeof QuizSessionIdReviewRoute
   '/quiz/configure/$bankId': typeof QuizConfigureBankIdRoute
+  '/admin/banks/$bankId/edit': typeof AdminBanksBankIdEditRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsRouteWithChildren
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
   '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
@@ -556,6 +565,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
+    | '/admin/banks/$bankId/edit'
     | '/admin/banks/$bankId/questions'
     | '/admin/banks/$bankId/upload'
     | '/admin/banks/$bankId/questions/$questionId'
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
+    | '/admin/banks/$bankId/edit'
     | '/admin/banks/$bankId/questions'
     | '/admin/banks/$bankId/upload'
     | '/admin/banks/$bankId/questions/$questionId'
@@ -667,6 +678,7 @@ export interface FileRouteTypes {
     | '/quiz/$sessionId/results'
     | '/quiz/$sessionId/review'
     | '/quiz/configure/$bankId'
+    | '/admin/banks/$bankId/edit'
     | '/admin/banks/$bankId/questions'
     | '/admin/banks/$bankId/upload'
     | '/admin/banks/$bankId/questions/$questionId'
@@ -1060,6 +1072,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBanksBankIdQuestionsRouteImport
       parentRoute: typeof AdminBanksRoute
     }
+    '/admin/banks/$bankId/edit': {
+      id: '/admin/banks/$bankId/edit'
+      path: '/$bankId/edit'
+      fullPath: '/admin/banks/$bankId/edit'
+      preLoaderRoute: typeof AdminBanksBankIdEditRouteImport
+      parentRoute: typeof AdminBanksRoute
+    }
     '/admin/banks/$bankId/questions/new': {
       id: '/admin/banks/$bankId/questions/new'
       path: '/new'
@@ -1122,12 +1141,14 @@ const AdminBanksBankIdQuestionsRouteWithChildren =
 
 interface AdminBanksRouteChildren {
   AdminBanksCreateRoute: typeof AdminBanksCreateRoute
+  AdminBanksBankIdEditRoute: typeof AdminBanksBankIdEditRoute
   AdminBanksBankIdQuestionsRoute: typeof AdminBanksBankIdQuestionsRouteWithChildren
   AdminBanksBankIdUploadRoute: typeof AdminBanksBankIdUploadRoute
 }
 
 const AdminBanksRouteChildren: AdminBanksRouteChildren = {
   AdminBanksCreateRoute: AdminBanksCreateRoute,
+  AdminBanksBankIdEditRoute: AdminBanksBankIdEditRoute,
   AdminBanksBankIdQuestionsRoute: AdminBanksBankIdQuestionsRouteWithChildren,
   AdminBanksBankIdUploadRoute: AdminBanksBankIdUploadRoute,
 }
