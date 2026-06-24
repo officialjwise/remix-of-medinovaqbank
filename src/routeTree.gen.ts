@@ -58,6 +58,7 @@ import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$user
 import { Route as AdminSettingsSystemRouteImport } from './routes/admin.settings.system'
 import { Route as AdminSettingsPricingRouteImport } from './routes/admin.settings.pricing'
 import { Route as AdminSettingsPlansRouteImport } from './routes/admin.settings.plans'
+import { Route as AdminBanksCreateRouteImport } from './routes/admin.banks.create'
 import { Route as AdminBanksBankIdUploadRouteImport } from './routes/admin.banks.$bankId.upload'
 import { Route as AdminBanksBankIdQuestionsRouteImport } from './routes/admin.banks.$bankId.questions'
 import { Route as AdminBanksBankIdQuestionsNewRouteImport } from './routes/admin.banks.$bankId.questions.new'
@@ -307,6 +308,11 @@ const AdminSettingsPlansRoute = AdminSettingsPlansRouteImport.update({
   path: '/settings/plans',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBanksCreateRoute = AdminBanksCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => AdminBanksRoute,
+} as any)
 const AdminBanksBankIdUploadRoute = AdminBanksBankIdUploadRouteImport.update({
   id: '/$bankId/upload',
   path: '/$bankId/upload',
@@ -373,6 +379,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/banks/create': typeof AdminBanksCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
@@ -427,6 +434,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/banks/create': typeof AdminBanksCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
@@ -483,6 +491,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
+  '/admin/banks/create': typeof AdminBanksCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansRoute
   '/admin/settings/pricing': typeof AdminSettingsPricingRoute
   '/admin/settings/system': typeof AdminSettingsSystemRoute
@@ -539,6 +548,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/admin/banks/create'
     | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
@@ -593,6 +603,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/admin/banks/create'
     | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
@@ -648,6 +659,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/auth/callback'
     | '/quiz/$sessionId'
+    | '/admin/banks/create'
     | '/admin/settings/plans'
     | '/admin/settings/pricing'
     | '/admin/settings/system'
@@ -1027,6 +1039,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsPlansRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/banks/create': {
+      id: '/admin/banks/create'
+      path: '/create'
+      fullPath: '/admin/banks/create'
+      preLoaderRoute: typeof AdminBanksCreateRouteImport
+      parentRoute: typeof AdminBanksRoute
+    }
     '/admin/banks/$bankId/upload': {
       id: '/admin/banks/$bankId/upload'
       path: '/$bankId/upload'
@@ -1102,11 +1121,13 @@ const AdminBanksBankIdQuestionsRouteWithChildren =
   )
 
 interface AdminBanksRouteChildren {
+  AdminBanksCreateRoute: typeof AdminBanksCreateRoute
   AdminBanksBankIdQuestionsRoute: typeof AdminBanksBankIdQuestionsRouteWithChildren
   AdminBanksBankIdUploadRoute: typeof AdminBanksBankIdUploadRoute
 }
 
 const AdminBanksRouteChildren: AdminBanksRouteChildren = {
+  AdminBanksCreateRoute: AdminBanksCreateRoute,
   AdminBanksBankIdQuestionsRoute: AdminBanksBankIdQuestionsRouteWithChildren,
   AdminBanksBankIdUploadRoute: AdminBanksBankIdUploadRoute,
 }
@@ -1210,13 +1231,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
