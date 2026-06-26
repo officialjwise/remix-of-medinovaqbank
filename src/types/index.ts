@@ -1,7 +1,10 @@
 export type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN";
 
 export interface User {
+  /** Internal record id (uuid) — kept internal, not shown in the UI. */
   id: string;
+  /** Public-facing, human-friendly account id shown to the user. */
+  publicId?: string;
   email: string;
   name: string;
   avatarUrl?: string;

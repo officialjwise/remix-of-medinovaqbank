@@ -178,6 +178,9 @@ function UserDetail() {
             </span>
             <h2 className="mt-4 text-xl font-bold text-foreground">{user.name}</h2>
             <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
+            <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-0.5 font-mono text-[11px] font-semibold text-muted-foreground" title="Public account ID">
+              {user.publicId}
+            </p>
 
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <RolePill role={user.role} />

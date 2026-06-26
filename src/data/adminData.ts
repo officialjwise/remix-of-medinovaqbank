@@ -34,7 +34,10 @@ export type UserStatus = "active" | "trial" | "expired" | "suspended" | "none";
 export type PlanLabel = "Trial" | "Monthly" | "3-Month" | "6-Month" | "12-Month" | "—";
 
 export interface AdminUser {
+  /** Internal record id (uuid-like) — used for routing/lookups, never displayed. */
   id: string;
+  /** Public-facing, human-friendly id shown in the UI. */
+  publicId: string;
   name: string;
   email: string;
   initials: string;
@@ -88,6 +91,7 @@ export const adminUsers: AdminUser[] = (() => {
 
     return {
       id: `u-${1000 + i}`,
+      publicId: `MQB-U-${String(1042 + i).padStart(6, "0")}`,
       name,
       email: `${first.toLowerCase()}.${last.toLowerCase()}${i}@example.com`,
       initials: `${first[0]}${last[0]}`,
@@ -121,6 +125,7 @@ export const getUserById = (id: string) => adminUsers.find((u) => u.id === id);
 
 export interface LoginSession {
   id: string;
+  publicId: string;
   userId: string;
   userName: string;
   email: string;
@@ -157,6 +162,7 @@ export const loginSessions: LoginSession[] = (() => {
     const bank = questionBanks[Math.floor(rnd() * questionBanks.length)];
     return {
       id: `ls-${5000 + i}`,
+      publicId: `MQB-SES-${String(5000 + i).padStart(6, "0")}`,
       userId: u.id,
       userName: u.name,
       email: u.email,
@@ -188,6 +194,7 @@ export const activeSessions = loginSessions.filter((s) => s.status === "active")
 
 export interface AdminQuizSession {
   id: string;
+  publicId: string;
   userId: string;
   userName: string;
   initials: string;
@@ -213,6 +220,7 @@ export const adminQuizSessions: AdminQuizSession[] = (() => {
     const answered = status === "completed" ? total : Math.floor(rnd() * total);
     return {
       id: `qs-${8000 + i}`,
+      publicId: `MQB-QZ-${String(8000 + i).padStart(6, "0")}`,
       userId: u.id,
       userName: u.name,
       initials: u.initials,

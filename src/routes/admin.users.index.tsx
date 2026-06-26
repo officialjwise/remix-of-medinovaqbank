@@ -40,7 +40,7 @@ export const Route = createFileRoute("/admin/users/")({
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-const ROW_HEIGHT = 64;
+const ROW_HEIGHT = 76;
 const GRID = "grid-cols-[40px_minmax(220px,2fr)_140px_120px_110px_130px_minmax(140px,1fr)_120px_120px_90px_56px]";
 
 function deviceType(device: string): "Desktop" | "Mobile" | "Tablet" {
@@ -432,6 +432,7 @@ function UserRow({
             {u.name}
           </button>
           <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+          <p className="truncate font-mono text-[10px] text-muted-foreground/70">{u.publicId}</p>
         </div>
       </div>
 

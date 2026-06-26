@@ -6,17 +6,28 @@ export interface AuthResult {
   user: User;
 }
 
-const mockPractitioner = (email = "doctor@medinova.app", name = "Dr. Bright Nketia"): User => ({
-  id: crypto.randomUUID(),
-  email,
-  name,
-  specialty: "Internal Medicine",
-  role: "USER",
-  createdAt: new Date().toISOString(),
-});
+/** Friendly public id derived from the internal uuid (uuid stays internal). */
+const publicIdFor = (uuid: string, prefix: string) =>
+  `MQB-${prefix}-${parseInt(uuid.replace(/[^0-9a-f]/gi, "").slice(0, 6), 16).toString().padStart(6, "0")}`;
 
-const mockAdmin = (email = "admin@medinova.app"): User => ({
-  id: crypto.randomUUID(),
+const mockPractitioner = (email = "doctor@medinova.app", name = "Dr. Bright Nketia"): User => {
+  const id = crypto.randomUUID();
+  return {
+    id,
+    publicId: publicIdFor(id, "U"),
+    email,
+    name,
+    specialty: "Internal Medicine",
+    role: "USER",
+    createdAt: new Date().toISOString(),
+  };
+};
+
+const mockAdmin = (email = "admin@medinova.app"): User => {
+  const id = crypto.randomUUID();
+  return {
+  id,
+  publicId: publicIdFor(id, "ADM"),
   email,
   // The admin console is the super-admin control center; the demo admin login
   // gets full access so System Settings, Subscription Plans, Feature Catalog,
@@ -24,7 +35,8 @@ const mockAdmin = (email = "admin@medinova.app"): User => ({
   name: /super/i.test(email) ? "Super Admin" : "Admin Console",
   role: "SUPER_ADMIN",
   createdAt: new Date().toISOString(),
-});
+  };
+};
 
 export const authApi = {
   // Practitioners only — Google OAuth
