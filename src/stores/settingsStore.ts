@@ -42,6 +42,7 @@ export interface PaymentSettings {
   mode: "test" | "live";
   webhookUrl: string;
   status: IntegrationStatus;
+  lastTestedAt?: string;
 }
 
 export interface OAuthSettings {
@@ -49,6 +50,7 @@ export interface OAuthSettings {
   clientSecret: string;
   callbackUrl: string;
   status: IntegrationStatus;
+  lastTestedAt?: string;
 }
 
 export interface SmtpSettings {
@@ -60,6 +62,7 @@ export interface SmtpSettings {
   fromName: string;
   fromEmail: string;
   status: IntegrationStatus;
+  lastTestedAt?: string;
 }
 
 export interface EmailTemplate {
