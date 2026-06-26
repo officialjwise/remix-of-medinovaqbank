@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Globe2,
   Layers,
+  Bell,
   Menu,
   PanelLeftClose,
   PanelLeft,
@@ -38,7 +39,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useBranding } from "@/hooks/useBranding";
 import { useClickOutside } from "@/hooks/useClickOutside";
-import { NotificationsBell, type HeaderNotification } from "@/components/layout/header/NotificationsBell";
+import { NotificationsBell } from "@/components/layout/header/NotificationsBell";
 import { HeaderSearch, type SearchItem } from "@/components/layout/header/HeaderSearch";
 import { AvatarMenu } from "@/components/layout/header/AvatarMenu";
 import { questionBanks } from "@/data/banks";
@@ -66,28 +67,22 @@ const sectionUsers = [
   { to: "/admin/roles", label: "Roles & Permissions", icon: ShieldCheck, superOnly: true },
 ] as const;
 
-const sectionRevenue = [
+const sectionBilling = [
   { to: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard },
+  { to: "/admin/subscriptions/plans", label: "Subscription Plans", icon: Folder, superOnly: true },
+  { to: "/admin/settings/features", label: "Feature Catalog", icon: Layers, superOnly: true },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
   { to: "/admin/reports", label: "Revenue Reports", icon: FileText },
-  { to: "/admin/settings/plans", label: "Pricing Plans", icon: Folder, superOnly: true },
-  { to: "/admin/settings/features", label: "Feature Catalog", icon: Layers, superOnly: true },
 ] as const;
 
 const sectionSystem = [
   { to: "/admin/settings/system", label: "System Settings", icon: Settings, superOnly: true },
   { to: "/admin/api", label: "API Keys", icon: Key, superOnly: true },
+  { to: "/admin/notifications", label: "Notifications", icon: Bell },
   { to: "/admin/audit-logs", label: "Activity Logs", icon: Activity },
 ] as const;
 
-const allItems = [...sectionPlatform, ...sectionContent, ...sectionUsers, ...sectionRevenue, ...sectionSystem];
-
-const adminNotifications: HeaderNotification[] = [
-  { id: "a1", title: "New signups today", body: "32 new accounts created in the last 24 hours.", time: "10m ago", unread: true, tone: "success" },
-  { id: "a2", title: "Payment failed", body: "A 12-Month subscription charge failed for kofi.adu12@example.com.", time: "1h ago", unread: true, tone: "error" },
-  { id: "a3", title: "Question flagged", body: "Q-1421 in Surgery Core was flagged for review.", time: "3h ago", unread: true, tone: "warning" },
-  { id: "a4", title: "API usage at 80%", body: "Gemini monthly quota is approaching its limit.", time: "1d ago", unread: false, tone: "warning" },
-];
+const allItems = [...sectionPlatform, ...sectionContent, ...sectionUsers, ...sectionBilling, ...sectionSystem];
 
 export function AdminShell({ children }: { children: ReactNode }) {
   useBranding();
@@ -178,7 +173,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <Section title="Platform" items={sectionPlatform} collapsed={collapsed} />
         <Section title="Content" items={sectionContent} collapsed={collapsed} />
         <Section title="People" items={sectionUsers} collapsed={collapsed} />
-        <Section title="Revenue" items={sectionRevenue} collapsed={collapsed} />
+        <Section title="Billing & Subscriptions" items={sectionBilling} collapsed={collapsed} />
         <Section title="System" items={sectionSystem} collapsed={collapsed} />
       </nav>
 
@@ -304,7 +299,7 @@ function AdminHeader({
           <HeaderSearch placeholder="Search users, banks, questions…" items={searchItems} />
           <QuickActionsMenu />
           <SystemStatus healthy={systemHealthy} />
-          <NotificationsBell notifications={adminNotifications} />
+          <NotificationsBell audience="admin" viewAllHref="/admin/notifications" />
           <ThemeToggle />
           <AvatarMenu
             name={userName}

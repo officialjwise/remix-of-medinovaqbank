@@ -23,7 +23,7 @@ import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuthStore } from "@/stores/authStore";
 import { useBranding } from "@/hooks/useBranding";
-import { NotificationsBell, type HeaderNotification } from "@/components/layout/header/NotificationsBell";
+import { NotificationsBell } from "@/components/layout/header/NotificationsBell";
 import { HeaderSearch, type SearchItem } from "@/components/layout/header/HeaderSearch";
 import { AvatarMenu } from "@/components/layout/header/AvatarMenu";
 import { SubscriptionChip, TrialBanner } from "@/components/shared/SubscriptionStatus";
@@ -53,12 +53,6 @@ const titleMap: Record<string, string> = {
   "/profile": "Profile",
   "/subscription": "Subscription",
 };
-
-const userNotifications: HeaderNotification[] = [
-  { id: "n1", title: "Trial expiring soon", body: "Your free trial ends in 5 days. Upgrade to keep your progress.", time: "2h ago", unread: true, tone: "warning" },
-  { id: "n2", title: "New question bank added", body: "Emergency Medicine is now available to practise.", time: "1d ago", unread: true, tone: "default" },
-  { id: "n3", title: "Achievement unlocked 🏆", body: "You completed a 7-day study streak.", time: "3d ago", unread: false, tone: "success" },
-];
 
 export function AppShell({ children }: { children: ReactNode }) {
   useBranding();
@@ -253,7 +247,7 @@ function Topbar({
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <HeaderSearch placeholder="Search question banks, topics…" items={searchItems} />
           <SubscriptionChip />
-          <NotificationsBell notifications={userNotifications} />
+          <NotificationsBell audience="user" viewAllHref="/notifications" />
           <Link
             to="/help"
             className="hidden rounded-lg p-2 text-muted-foreground hover:bg-surface-alt hover:text-foreground sm:inline-flex"

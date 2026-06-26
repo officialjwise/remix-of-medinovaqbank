@@ -36,6 +36,7 @@ import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminQuizAnalyticsRouteImport } from './routes/admin.quiz-analytics'
 import { Route as AdminProfileRouteImport } from './routes/admin.profile'
+import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminNotesRouteImport } from './routes/admin.notes'
 import { Route as AdminFlagsRouteImport } from './routes/admin.flags'
 import { Route as AdminExamTypesRouteImport } from './routes/admin.exam-types'
@@ -210,6 +211,11 @@ const AdminQuizAnalyticsRoute = AdminQuizAnalyticsRouteImport.update({
 const AdminProfileRoute = AdminProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminNotesRoute = AdminNotesRouteImport.update({
@@ -457,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/admin/exam-types': typeof AdminExamTypesRoute
   '/admin/flags': typeof AdminFlagsRoute
   '/admin/notes': typeof AdminNotesRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/quiz-analytics': typeof AdminQuizAnalyticsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -526,6 +533,7 @@ export interface FileRoutesByTo {
   '/admin/exam-types': typeof AdminExamTypesRoute
   '/admin/flags': typeof AdminFlagsRoute
   '/admin/notes': typeof AdminNotesRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/quiz-analytics': typeof AdminQuizAnalyticsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -596,6 +604,7 @@ export interface FileRoutesById {
   '/admin/exam-types': typeof AdminExamTypesRoute
   '/admin/flags': typeof AdminFlagsRoute
   '/admin/notes': typeof AdminNotesRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/quiz-analytics': typeof AdminQuizAnalyticsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -667,6 +676,7 @@ export interface FileRouteTypes {
     | '/admin/exam-types'
     | '/admin/flags'
     | '/admin/notes'
+    | '/admin/notifications'
     | '/admin/profile'
     | '/admin/quiz-analytics'
     | '/admin/reports'
@@ -736,6 +746,7 @@ export interface FileRouteTypes {
     | '/admin/exam-types'
     | '/admin/flags'
     | '/admin/notes'
+    | '/admin/notifications'
     | '/admin/profile'
     | '/admin/quiz-analytics'
     | '/admin/reports'
@@ -805,6 +816,7 @@ export interface FileRouteTypes {
     | '/admin/exam-types'
     | '/admin/flags'
     | '/admin/notes'
+    | '/admin/notifications'
     | '/admin/profile'
     | '/admin/quiz-analytics'
     | '/admin/reports'
@@ -1052,6 +1064,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/admin/profile'
       preLoaderRoute: typeof AdminProfileRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/notes': {
@@ -1383,6 +1402,7 @@ interface AdminRouteChildren {
   AdminExamTypesRoute: typeof AdminExamTypesRoute
   AdminFlagsRoute: typeof AdminFlagsRoute
   AdminNotesRoute: typeof AdminNotesRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminProfileRoute: typeof AdminProfileRoute
   AdminQuizAnalyticsRoute: typeof AdminQuizAnalyticsRoute
   AdminReportsRoute: typeof AdminReportsRoute
@@ -1422,6 +1442,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminExamTypesRoute: AdminExamTypesRoute,
   AdminFlagsRoute: AdminFlagsRoute,
   AdminNotesRoute: AdminNotesRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminProfileRoute: AdminProfileRoute,
   AdminQuizAnalyticsRoute: AdminQuizAnalyticsRoute,
   AdminReportsRoute: AdminReportsRoute,
