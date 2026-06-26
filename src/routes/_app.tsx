@@ -10,7 +10,7 @@ import { useEffect } from "react";
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
     if (typeof window === "undefined") return;
-    
+
     if (!useAuthStore.persist.hasHydrated()) {
       await new Promise<void>((resolve) => {
         const unsub = useAuthStore.persist.onFinishHydration(() => {
@@ -37,7 +37,7 @@ function AppLayout() {
   const fingerprint = useDeviceFingerprint();
 
   // When maintenance mode is on, non-admins see the maintenance page.
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const isAdmin = user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     // Device binding only applies to trial users, and only when the admin policy is on.

@@ -10,10 +10,76 @@ function seeded(seed: number) {
   return () => (s = (s * 16807) % 2147483647) / 2147483647;
 }
 
-const FIRST = ["Akua", "Kwame", "Adjoa", "Yaw", "Ama", "Kojo", "Efua", "Kofi", "Esi", "Nana", "Abena", "Kwesi", "Adwoa", "Kwabena", "Akosua", "Yaa", "Fiifi", "Maabena", "Selorm", "Edem", "Afia", "Kuukua"];
-const LAST = ["Mensah", "Boateng", "Owusu", "Asante", "Darko", "Annan", "Asare", "Adu", "Quaye", "Appiah", "Frimpong", "Nyarko", "Sarpong", "Agyeman", "Ofori", "Tetteh", "Bediako", "Acheampong", "Donkor", "Amoah"];
-const SPECIALTIES = ["Cardiology", "Neurology", "Surgery", "Internal Medicine", "Paediatrics", "OB/GYN", "Psychiatry", "Anaesthesia", "Radiology", "Family Medicine", "Emergency Medicine", "Pathology"];
-const INSTITUTIONS = ["Korle Bu Teaching Hospital", "Komfo Anokye Teaching Hospital", "Tamale Teaching Hospital", "Cape Coast Teaching Hospital", "37 Military Hospital", "University of Ghana Medical School", "KNUST School of Medicine", "Ho Teaching Hospital"];
+const FIRST = [
+  "Akua",
+  "Kwame",
+  "Adjoa",
+  "Yaw",
+  "Ama",
+  "Kojo",
+  "Efua",
+  "Kofi",
+  "Esi",
+  "Nana",
+  "Abena",
+  "Kwesi",
+  "Adwoa",
+  "Kwabena",
+  "Akosua",
+  "Yaa",
+  "Fiifi",
+  "Maabena",
+  "Selorm",
+  "Edem",
+  "Afia",
+  "Kuukua",
+];
+const LAST = [
+  "Mensah",
+  "Boateng",
+  "Owusu",
+  "Asante",
+  "Darko",
+  "Annan",
+  "Asare",
+  "Adu",
+  "Quaye",
+  "Appiah",
+  "Frimpong",
+  "Nyarko",
+  "Sarpong",
+  "Agyeman",
+  "Ofori",
+  "Tetteh",
+  "Bediako",
+  "Acheampong",
+  "Donkor",
+  "Amoah",
+];
+const SPECIALTIES = [
+  "Cardiology",
+  "Neurology",
+  "Surgery",
+  "Internal Medicine",
+  "Paediatrics",
+  "OB/GYN",
+  "Psychiatry",
+  "Anaesthesia",
+  "Radiology",
+  "Family Medicine",
+  "Emergency Medicine",
+  "Pathology",
+];
+const INSTITUTIONS = [
+  "Korle Bu Teaching Hospital",
+  "Komfo Anokye Teaching Hospital",
+  "Tamale Teaching Hospital",
+  "Cape Coast Teaching Hospital",
+  "37 Military Hospital",
+  "University of Ghana Medical School",
+  "KNUST School of Medicine",
+  "Ho Teaching Hospital",
+];
 const GH_CITIES = [
   { city: "Accra", region: "Greater Accra" },
   { city: "Kumasi", region: "Ashanti" },
@@ -28,7 +94,14 @@ const FOREIGN = [
   { city: "Nairobi", region: "Nairobi", country: "Kenya" },
   { city: "New York", region: "New York", country: "United States" },
 ];
-const DEVICES = ["Chrome on Windows", "Safari on iOS", "Chrome on Android", "Edge on Windows", "Safari on macOS", "Firefox on Linux"];
+const DEVICES = [
+  "Chrome on Windows",
+  "Safari on iOS",
+  "Chrome on Android",
+  "Edge on Windows",
+  "Safari on macOS",
+  "Firefox on Linux",
+];
 
 export type UserStatus = "active" | "trial" | "expired" | "suspended" | "none";
 export type PlanLabel = "Trial" | "Monthly" | "3-Month" | "6-Month" | "12-Month" | "—";
@@ -43,7 +116,7 @@ export interface AdminUser {
   initials: string;
   specialty: string;
   institution: string;
-  role: "USER" | "ADMIN" | "SUPER_ADMIN";
+  role: "USER" | "SUPER_ADMIN";
   status: UserStatus;
   plan: PlanLabel;
   planEndsAt?: string;
@@ -69,7 +142,16 @@ const PLAN_BY_STATUS: Record<UserStatus, PlanLabel> = {
   none: "—",
 };
 
-const STATUSES: UserStatus[] = ["active", "active", "active", "trial", "trial", "expired", "suspended", "none"];
+const STATUSES: UserStatus[] = [
+  "active",
+  "active",
+  "active",
+  "trial",
+  "trial",
+  "expired",
+  "suspended",
+  "none",
+];
 
 function isoDaysAgo(days: number) {
   return new Date(Date.now() - days * 86_400_000).toISOString();
@@ -83,9 +165,11 @@ export const adminUsers: AdminUser[] = (() => {
     const name = `${first} ${last}`;
     const status = i === 0 ? "active" : STATUSES[Math.floor(rnd() * STATUSES.length)];
     const foreign = rnd() > 0.78;
-    const loc = foreign ? FOREIGN[Math.floor(rnd() * FOREIGN.length)] : { ...GH_CITIES[Math.floor(rnd() * GH_CITIES.length)], country: "Ghana" };
-    const role: AdminUser["role"] = i % 41 === 0 ? "ADMIN" : "USER";
-    const planLabel = role !== "USER" ? "—" : PLAN_BY_STATUS[status];
+    const loc = foreign
+      ? FOREIGN[Math.floor(rnd() * FOREIGN.length)]
+      : { ...GH_CITIES[Math.floor(rnd() * GH_CITIES.length)], country: "Ghana" };
+    const role: AdminUser["role"] = "USER";
+    const planLabel = PLAN_BY_STATUS[status];
     const regDays = 10 + Math.floor(rnd() * 500);
     const plans: PlanLabel[] = ["Monthly", "3-Month", "6-Month", "12-Month"];
 
@@ -105,9 +189,13 @@ export const adminUsers: AdminUser[] = (() => {
       region: loc.region,
       city: loc.city,
       device: DEVICES[Math.floor(rnd() * DEVICES.length)],
-      deviceFingerprint: Math.floor(rnd() * 0xffffffffff).toString(16).padStart(12, "0"),
+      deviceFingerprint: Math.floor(rnd() * 0xffffffffff)
+        .toString(16)
+        .padStart(12, "0"),
       registeredAt: isoDaysAgo(regDays),
-      lastActiveAt: isoDaysAgo(status === "suspended" ? 30 + Math.floor(rnd() * 40) : Math.floor(rnd() * 6)),
+      lastActiveAt: isoDaysAgo(
+        status === "suspended" ? 30 + Math.floor(rnd() * 40) : Math.floor(rnd() * 6),
+      ),
       lifetimeQuestions: Math.floor(rnd() * 4200),
       avgScore: 52 + Math.floor(rnd() * 44),
       sessionsCount: Math.floor(rnd() * 160),
@@ -237,5 +325,7 @@ export const adminQuizSessions: AdminQuizSession[] = (() => {
   });
 })();
 
-export const quizSessionsByUser = (userId: string) => adminQuizSessions.filter((s) => s.userId === userId);
-export const loginSessionsByUser = (userId: string) => loginSessions.filter((s) => s.userId === userId);
+export const quizSessionsByUser = (userId: string) =>
+  adminQuizSessions.filter((s) => s.userId === userId);
+export const loginSessionsByUser = (userId: string) =>
+  loginSessions.filter((s) => s.userId === userId);
