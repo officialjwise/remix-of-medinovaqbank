@@ -6,7 +6,6 @@ import {
   GraduationCap,
   Trash2,
   Edit3,
-  Power,
   Stethoscope,
   Globe,
   Award,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useExamTypesStore, type ExamTypeRecord } from "@/stores/examTypesStore";
 
@@ -135,13 +135,9 @@ function ExamTypesPage() {
                     >
                       <Edit3 className="h-3.5 w-3.5" /> Edit
                     </button>
-                    <button
-                      onClick={() => toggle(et.id)}
-                      title={et.active ? "Deactivate" : "Activate"}
-                      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"
-                    >
-                      <Power className="h-3.5 w-3.5" />
-                    </button>
+                    <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5" title={et.active ? "Active — click to deactivate" : "Inactive — click to activate"}>
+                      <ToggleSwitch size="sm" checked={et.active} ariaLabel={`Toggle ${et.name}`} onChange={() => { toggle(et.id); toast.success(`${et.name} ${et.active ? "deactivated" : "activated"}`); }} />
+                    </span>
                     <button
                       onClick={() => {
                         if (et.bankCount > 0) {

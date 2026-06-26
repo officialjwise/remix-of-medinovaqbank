@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { EditUserModal, ComposeEmailModal, FlagAccountModal } from "@/components/admin/UserActionModals";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   getUserById,
@@ -133,6 +134,8 @@ function UserDetail() {
   const [showOverride, setShowOverride] = useState(false);
   const [confirmSuspend, setConfirmSuspend] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [actionModal, setActionModal] = useState<null | "edit" | "email" | "flag" | "clearLock">(null);
+  const [flagged, setFlagged] = useState(false);
 
   const quizSessions = useMemo(() => (user ? quizSessionsByUser(user.id) : []), [user]);
   const loginSessions = useMemo(() => (user ? loginSessionsByUser(user.id) : []), [user]);
@@ -214,11 +217,11 @@ function UserDetail() {
 
           {/* Quick actions */}
           <div className="space-y-2 rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
-            <ActionBtn icon={Pencil} onClick={() => toast(`Editing ${user.name}`)}>Edit profile</ActionBtn>
+            <ActionBtn icon={Pencil} onClick={() => setActionModal("edit")}>Edit profile</ActionBtn>
             <ActionBtn icon={ToggleLeft} onClick={() => setShowOverride(true)}>Override subscription</ActionBtn>
-            <ActionBtn icon={Mail} onClick={() => toast.success(`Email sent to ${user.email}`)}>Send email</ActionBtn>
-            <ActionBtn icon={Smartphone} onClick={() => toast.success("Device lock cleared")}>Clear device lock</ActionBtn>
-            <ActionBtn icon={Flag} onClick={() => toast("Account flagged for review")}>Flag account</ActionBtn>
+            <ActionBtn icon={Mail} onClick={() => setActionModal("email")}>Send email</ActionBtn>
+            <ActionBtn icon={Smartphone} onClick={() => setActionModal("clearLock")}>Clear device lock</ActionBtn>
+            <ActionBtn icon={Flag} onClick={() => setActionModal("flag")}>{flagged ? "Flagged ✓" : "Flag account"}</ActionBtn>
             <ActionBtn icon={suspended ? UserCheck : Ban} tone="warning" onClick={() => setConfirmSuspend(true)}>
               {suspended ? "Reactivate account" : "Suspend account"}
             </ActionBtn>
@@ -256,6 +259,19 @@ function UserDetail() {
 
       {/* Override modal */}
       {showOverride && <OverrideModal user={user} onClose={() => setShowOverride(false)} />}
+
+      {/* Quick-action modals */}
+      {actionModal === "edit" && <EditUserModal user={user} onClose={() => setActionModal(null)} onSave={() => {}} />}
+      {actionModal === "email" && <ComposeEmailModal user={user} onClose={() => setActionModal(null)} />}
+      {actionModal === "flag" && <FlagAccountModal user={user} onClose={() => setActionModal(null)} onFlag={() => setFlagged(true)} />}
+      <ConfirmDialog
+        open={actionModal === "clearLock"}
+        title="Clear device lock?"
+        description={<span>This lets <strong>{user.name}</strong> sign in from a new device. Their bound device ({user.device}) will be released.</span>}
+        confirmLabel="Clear device lock"
+        onCancel={() => setActionModal(null)}
+        onConfirm={() => { setActionModal(null); toast.success("Device lock cleared — user can re-bind on next login"); }}
+      />
 
       <ConfirmDialog
         open={confirmSuspend}

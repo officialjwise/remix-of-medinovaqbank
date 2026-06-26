@@ -21,6 +21,7 @@ import {
   ChevronDown,
   CheckSquare,
   Square,
+  Flag,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { VirtualRows } from "@/components/shared/VirtualRows";
 import { useDebounce } from "@/hooks/useDebounce";
 import { adminUsers, type AdminUser } from "@/data/adminData";
+import { EditUserModal, ComposeEmailModal, FlagAccountModal } from "@/components/admin/UserActionModals";
 
 export const Route = createFileRoute("/admin/users/")({
   head: () => ({ meta: [{ title: "Admin · Users — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
@@ -453,6 +455,8 @@ function UserRow({
 
 function RowActions({ user, onView, onDelete }: { user: AdminUser; onView: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
+  const [modal, setModal] = useState<null | "edit" | "email" | "flag" | "clearLock">(null);
+  const [flagged, setFlagged] = useState(false);
 
   function act(fn: () => void) {
     setOpen(false);
@@ -460,25 +464,43 @@ function RowActions({ user, onView, onDelete }: { user: AdminUser; onView: () =>
   }
 
   return (
-    <div className="relative inline-block text-left">
+    <div className="relative inline-flex items-center gap-1.5 text-left">
+      {flagged && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning" title="Flagged for review">
+          <Flag className="h-3 w-3" /> Flagged
+        </span>
+      )}
       <button onClick={() => setOpen((v) => !v)} className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground" aria-label="Actions">
         <MoreHorizontal className="h-4 w-4" />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-40 mt-1 w-52 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-xl">
+          <div className="absolute right-0 top-8 z-40 mt-1 w-52 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-xl">
             <MenuItem icon={Eye} onClick={() => act(onView)}>View profile</MenuItem>
-            <MenuItem icon={Pencil} onClick={() => act(() => toast(`Editing ${user.name}`))}>Edit</MenuItem>
+            <MenuItem icon={Pencil} onClick={() => act(() => setModal("edit"))}>Edit profile</MenuItem>
             <MenuItem icon={ToggleLeft} onClick={() => act(() => toast("Override subscription panel opened"))}>Override subscription</MenuItem>
-            <MenuItem icon={Smartphone} onClick={() => act(() => toast.success("Device lock cleared"))}>Clear device lock</MenuItem>
-            <MenuItem icon={Mail} onClick={() => act(() => toast.success(`Email sent to ${user.email}`))}>Send email</MenuItem>
+            <MenuItem icon={Smartphone} onClick={() => act(() => setModal("clearLock"))}>Clear device lock</MenuItem>
+            <MenuItem icon={Mail} onClick={() => act(() => setModal("email"))}>Send email</MenuItem>
+            <MenuItem icon={Flag} onClick={() => act(() => setModal("flag"))}>Flag account</MenuItem>
             <div className="my-1 border-t border-border" />
-            <MenuItem icon={Ban} onClick={() => act(() => toast("Account deactivated"))}>Deactivate</MenuItem>
+            <MenuItem icon={Ban} onClick={() => act(() => toast.success(`${user.name} deactivated`))}>Deactivate</MenuItem>
             <MenuItem icon={Trash2} tone="error" onClick={() => act(onDelete)}>Delete</MenuItem>
           </div>
         </>
       )}
+
+      {modal === "edit" && <EditUserModal user={user} onClose={() => setModal(null)} onSave={() => {}} />}
+      {modal === "email" && <ComposeEmailModal user={user} onClose={() => setModal(null)} />}
+      {modal === "flag" && <FlagAccountModal user={user} onClose={() => setModal(null)} onFlag={() => setFlagged(true)} />}
+      <ConfirmDialog
+        open={modal === "clearLock"}
+        title="Clear device lock?"
+        description={<span>This lets <strong>{user.name}</strong> sign in from a new device. Their current bound device ({user.device}) will be released.</span>}
+        confirmLabel="Clear device lock"
+        onCancel={() => setModal(null)}
+        onConfirm={() => { setModal(null); toast.success("Device lock cleared — user can re-bind on next login"); }}
+      />
     </div>
   );
 }

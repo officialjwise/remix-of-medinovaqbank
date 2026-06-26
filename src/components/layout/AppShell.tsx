@@ -130,8 +130,8 @@ function SidebarInner({ onNavigate, collapsed = false }: { onNavigate?: () => vo
       {!collapsed && (
         <div className="border-y border-border px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-semibold text-white">
-              {(user?.name ?? "U").slice(0, 1)}
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent text-sm font-semibold text-white">
+              {user?.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" /> : (user?.name ?? "U").slice(0, 1)}
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{user?.name ?? "Practitioner"}</p>
@@ -259,6 +259,7 @@ function Topbar({
           <AvatarMenu
             name={user?.name ?? "Practitioner"}
             email={user?.email ?? ""}
+            avatarUrl={user?.avatarUrl}
             items={[
               { label: "Profile", icon: UserIcon, to: "/profile" },
               { label: "Subscription", icon: CreditCard, to: "/subscription" },

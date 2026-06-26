@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Edit, Plus, Trash2, FileText, Upload, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { questionBanks } from "@/data/banks";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import type { Difficulty, ExamType } from "@/types";
 
 export const Route = createFileRoute("/admin/banks/")({
@@ -128,19 +129,18 @@ function AdminBanks() {
                     >
                       {b.subject}
                     </span>
-                    <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-                      <span className={`h-2 w-2 rounded-full ${isActive ? "bg-success" : "bg-muted-foreground/40"}`} />
-                      <input
-                        type="checkbox"
-                        className="sr-only"
+                    <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
+                      <ToggleSwitch
+                        size="sm"
                         checked={isActive}
+                        ariaLabel={`Toggle ${b.name} active`}
                         onChange={() => {
                           setActiveFilters((f) => ({ ...f, [b.id]: !isActive }));
                           toast.success(`${b.name} ${!isActive ? "activated" : "paused"}`);
                         }}
                       />
                       {isActive ? "Active" : "Paused"}
-                    </label>
+                    </span>
                   </div>
 
                   <h3 className="mt-3 text-lg font-bold tracking-tight text-foreground">{b.name}</h3>

@@ -156,8 +156,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
       {!collapsed && (
         <div className="border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-sm font-bold text-white shadow-sm">
-              {initials}
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary to-accent text-sm font-bold text-white shadow-sm">
+              {user?.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" /> : initials}
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{user?.name ?? "Administrator"}</p>
@@ -228,6 +228,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           onLogout={handleLogout}
           userName={user?.name ?? "Administrator"}
           userEmail={user?.email ?? ""}
+          userAvatar={user?.avatarUrl}
         />
         <main className="flex-1 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="animate-in fade-in duration-300">{children}</div>
@@ -246,6 +247,7 @@ function AdminHeader({
   onLogout,
   userName,
   userEmail,
+  userAvatar,
 }: {
   breadcrumb: string;
   onMenu: () => void;
@@ -255,6 +257,7 @@ function AdminHeader({
   onLogout: () => void;
   userName: string;
   userEmail: string;
+  userAvatar?: string;
 }) {
   const navigate = useNavigate();
   const ai = useSettingsStore((s) => s.settings.ai.status);
@@ -304,6 +307,7 @@ function AdminHeader({
           <AvatarMenu
             name={userName}
             email={userEmail}
+            avatarUrl={userAvatar}
             roleLabel={isSuper ? "Super Admin" : "Admin"}
             items={[
               { label: "Profile", icon: UserCog, to: "/admin/profile" },

@@ -14,12 +14,14 @@ export function AvatarMenu({
   name,
   email,
   roleLabel,
+  avatarUrl,
   items,
   onLogout,
 }: {
   name: string;
   email: string;
   roleLabel?: string;
+  avatarUrl?: string;
   items: AvatarMenuItem[];
   onLogout: () => void;
 }) {
@@ -32,10 +34,10 @@ export function AvatarMenu({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-white shadow-sm ring-2 ring-transparent transition hover:ring-accent/30"
+        className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-white shadow-sm ring-2 ring-transparent transition hover:ring-accent/30"
         aria-label="Account menu"
       >
-        {initials}
+        {avatarUrl ? <img src={avatarUrl} alt={name} className="h-full w-full object-cover" /> : initials}
       </button>
 
       {open && (
