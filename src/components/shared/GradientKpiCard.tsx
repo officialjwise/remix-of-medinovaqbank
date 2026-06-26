@@ -1,7 +1,15 @@
 import type { LucideIcon } from "lucide-react";
 import { TrendingDown, TrendingUp } from "lucide-react";
 
-export type KpiGradient = "navy" | "teal" | "blue" | "emerald" | "amber" | "rose" | "violet" | "indigo";
+export type KpiGradient =
+  | "navy"
+  | "teal"
+  | "blue"
+  | "emerald"
+  | "amber"
+  | "rose"
+  | "violet"
+  | "indigo";
 
 const GRADIENTS: Record<KpiGradient, string> = {
   navy: "from-[#0F2B4C] to-[#0E7C7B]",
@@ -38,7 +46,10 @@ export function GradientKpiCard({
     <div
       className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${GRADIENTS[gradient]} p-5 text-white shadow-[var(--shadow-card)] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]`}
     >
-      <div aria-hidden className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/10 blur-xl" />
+      <div
+        aria-hidden
+        className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/10 blur-xl"
+      />
       <div className="relative flex items-start justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/75">{label}</p>
@@ -50,8 +61,14 @@ export function GradientKpiCard({
         </span>
       </div>
       {trend && (
-        <p className={`relative mt-3 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold ${trend.up ? "text-white" : "text-white"}`}>
-          {trend.up ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+        <p
+          className={`relative mt-3 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold ${trend.up ? "text-white" : "text-white"}`}
+        >
+          {trend.up ? (
+            <TrendingUp className="h-3.5 w-3.5" />
+          ) : (
+            <TrendingDown className="h-3.5 w-3.5" />
+          )}
           {trend.value}
         </p>
       )}

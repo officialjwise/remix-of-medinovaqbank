@@ -11,7 +11,13 @@ export interface GlobeMarker {
  * traffic origins as markers sized by volume. Lazy-loaded by the traffic page
  * so three-free WebGL setup never blocks initial paint.
  */
-export function TrafficGlobe({ markers, dark = false }: { markers: GlobeMarker[]; dark?: boolean }) {
+export function TrafficGlobe({
+  markers,
+  dark = false,
+}: {
+  markers: GlobeMarker[];
+  dark?: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerInteracting = useRef<number | null>(null);
   const pointerMovement = useRef(0);

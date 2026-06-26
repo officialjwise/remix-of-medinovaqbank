@@ -12,7 +12,12 @@ export const Route = createFileRoute("/admin/api")({
       throw redirect({ to: "/admin/dashboard" });
     }
   },
-  head: () => ({ meta: [{ title: "Admin · API Management — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Admin · API Management — Medinovaqbank" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: APIPage,
 });
 
@@ -26,9 +31,30 @@ interface APIKey {
 }
 
 const initial: APIKey[] = [
-  { id: "k1", name: "Mobile App (iOS / Android)", prefix: "mqb_live_8a3f", scopes: ["read:banks", "read:questions"], lastUsed: "2h ago", createdAt: "2025-09-12" },
-  { id: "k2", name: "Internal Analytics ETL", prefix: "mqb_live_44ce", scopes: ["read:sessions", "read:users"], lastUsed: "5m ago", createdAt: "2025-11-04" },
-  { id: "k3", name: "Marketing Website (read-only)", prefix: "mqb_live_b211", scopes: ["read:plans"], lastUsed: "1d ago", createdAt: "2026-01-18" },
+  {
+    id: "k1",
+    name: "Mobile App (iOS / Android)",
+    prefix: "mqb_live_8a3f",
+    scopes: ["read:banks", "read:questions"],
+    lastUsed: "2h ago",
+    createdAt: "2025-09-12",
+  },
+  {
+    id: "k2",
+    name: "Internal Analytics ETL",
+    prefix: "mqb_live_44ce",
+    scopes: ["read:sessions", "read:users"],
+    lastUsed: "5m ago",
+    createdAt: "2025-11-04",
+  },
+  {
+    id: "k3",
+    name: "Marketing Website (read-only)",
+    prefix: "mqb_live_b211",
+    scopes: ["read:plans"],
+    lastUsed: "1d ago",
+    createdAt: "2026-01-18",
+  },
 ];
 
 function APIPage() {
@@ -56,7 +82,10 @@ function APIPage() {
       <section className="mt-6 rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
         <ul className="divide-y divide-border">
           {keys.map((k) => (
-            <li key={k.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <li
+              key={k.id}
+              className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"
+            >
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0E7C7B]/15 to-[#2BC97F]/15 text-[#0E7C7B]">
                   <Key className="h-5 w-5" />
@@ -64,7 +93,9 @@ function APIPage() {
                 <div>
                   <p className="font-bold text-foreground">{k.name}</p>
                   <div className="mt-1 flex items-center gap-2">
-                    <code className="rounded bg-surface-alt px-2 py-0.5 font-mono text-xs">{k.prefix}••••••••</code>
+                    <code className="rounded bg-surface-alt px-2 py-0.5 font-mono text-xs">
+                      {k.prefix}••••••••
+                    </code>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(k.prefix);
@@ -77,7 +108,10 @@ function APIPage() {
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {k.scopes.map((s) => (
-                      <span key={s} className="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+                      <span
+                        key={s}
+                        className="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-mono text-muted-foreground"
+                      >
                         {s}
                       </span>
                     ))}
@@ -114,7 +148,9 @@ function APIPage() {
         </p>
         <div className="mt-4 rounded-xl border border-dashed border-border bg-surface-alt/50 p-6 text-center">
           <p className="text-sm font-semibold text-foreground">No webhooks configured yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Add an endpoint to receive `subscription.activated`, `session.completed`, and more.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Add an endpoint to receive `subscription.activated`, `session.completed`, and more.
+          </p>
           <button
             onClick={() => toast.message("Webhook editor coming soon")}
             className="mt-3 inline-flex h-9 items-center justify-center rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-xs font-semibold text-white"
@@ -161,20 +197,41 @@ function APIPage() {
   );
 }
 
-function CreateKeyDialog({ onClose, onCreate }: { onClose: () => void; onCreate: (name: string, scopes: string[]) => void }) {
+function CreateKeyDialog({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (name: string, scopes: string[]) => void;
+}) {
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState<string[]>(["read:banks"]);
-  const allScopes = ["read:banks", "read:questions", "read:sessions", "read:users", "read:plans", "write:banks"];
+  const allScopes = [
+    "read:banks",
+    "read:questions",
+    "read:sessions",
+    "read:users",
+    "read:plans",
+    "write:banks",
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-20" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-20"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-surface shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="border-b border-border px-5 py-4">
           <h3 className="text-base font-bold text-foreground">New API key</h3>
         </header>
         <div className="space-y-4 p-5">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Name</span>
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Name
+            </span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -183,14 +240,21 @@ function CreateKeyDialog({ onClose, onCreate }: { onClose: () => void; onCreate:
             />
           </label>
           <div>
-            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Scopes</span>
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Scopes
+            </span>
             <div className="grid grid-cols-2 gap-2">
               {allScopes.map((s) => (
-                <label key={s} className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs">
+                <label
+                  key={s}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs"
+                >
                   <input
                     type="checkbox"
                     checked={scopes.includes(s)}
-                    onChange={() => setScopes(scopes.includes(s) ? scopes.filter((x) => x !== s) : [...scopes, s])}
+                    onChange={() =>
+                      setScopes(scopes.includes(s) ? scopes.filter((x) => x !== s) : [...scopes, s])
+                    }
                     className="accent-[#2BC97F]"
                   />
                   <code>{s}</code>
@@ -200,7 +264,10 @@ function CreateKeyDialog({ onClose, onCreate }: { onClose: () => void; onCreate:
           </div>
         </div>
         <footer className="flex justify-end gap-2 border-t border-border px-5 py-3">
-          <button onClick={onClose} className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt">
+          <button
+            onClick={onClose}
+            className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"
+          >
             Cancel
           </button>
           <button

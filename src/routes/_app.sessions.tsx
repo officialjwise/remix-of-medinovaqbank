@@ -7,10 +7,7 @@ import { Eye, FileSearch, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sessions")({
   head: () => ({
-    meta: [
-      { title: "My Sessions — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "My Sessions — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: SessionsPage,
 });
@@ -61,16 +58,32 @@ function SessionsPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground drop-shadow-sm">My Sessions</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground drop-shadow-sm">
+          My Sessions
+        </h1>
         <p className="mt-2 text-[15px] font-medium text-muted-foreground">
-          {filtered.length} session{filtered.length !== 1 ? "s" : ""} · sortable by bank, mode, and score
+          {filtered.length} session{filtered.length !== 1 ? "s" : ""} · sortable by bank, mode, and
+          score
         </p>
       </div>
 
       {/* Filters */}
       <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-white/5 bg-surface/50 p-4 shadow-[0_4px_20px_-10px_rgb(0_0_0_/_0.3)] backdrop-blur">
-        <FilterSelect label="Bank" value={bank} onChange={setBank} options={["All", ...questionBanks.map((b) => b.id)]} optionLabels={(v) => v === "All" ? "All" : questionBanks.find((b) => b.id === v)?.name ?? v} />
-        <FilterSelect label="Mode" value={mode} onChange={(v) => setMode(v as "All" | QuizMode)} options={["All", "TUTOR", "QUIZ"]} />
+        <FilterSelect
+          label="Bank"
+          value={bank}
+          onChange={setBank}
+          options={["All", ...questionBanks.map((b) => b.id)]}
+          optionLabels={(v) =>
+            v === "All" ? "All" : (questionBanks.find((b) => b.id === v)?.name ?? v)
+          }
+        />
+        <FilterSelect
+          label="Mode"
+          value={mode}
+          onChange={(v) => setMode(v as "All" | QuizMode)}
+          options={["All", "TUTOR", "QUIZ"]}
+        />
         <label className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#00D4C8] ml-auto">
           Min Score
           <input
@@ -96,25 +109,35 @@ function SessionsPage() {
           <span className="text-right">Actions</span>
         </div>
         {filtered.length === 0 && (
-          <div className="px-6 py-16 text-center text-[15px] font-medium text-muted-foreground">No sessions match these filters.</div>
+          <div className="px-6 py-16 text-center text-[15px] font-medium text-muted-foreground">
+            No sessions match these filters.
+          </div>
         )}
         {filtered.map((s) => (
           <div
             key={s.id}
             className="group grid grid-cols-1 gap-3 border-b border-white/5 px-6 py-4 last:border-b-0 md:grid-cols-[110px_minmax(0,1fr)_84px_72px_112px_210px] md:items-center hover:bg-surface-alt/30 transition-colors"
           >
-            <span className="text-[14px] font-medium text-muted-foreground">{new Date(s.completedAt).toLocaleDateString()}</span>
+            <span className="text-[14px] font-medium text-muted-foreground">
+              {new Date(s.completedAt).toLocaleDateString()}
+            </span>
             <span className="truncate text-[15px] font-semibold text-primary">{s.bankName}</span>
             <span>
               <span
                 className={`inline-flex rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${
-                  s.mode === "TUTOR" ? "bg-[#3B82F6]/10 text-[#3B82F6]" : "bg-warning/10 text-warning"
+                  s.mode === "TUTOR"
+                    ? "bg-[#3B82F6]/10 text-[#3B82F6]"
+                    : "bg-warning/10 text-warning"
                 }`}
               >
                 {s.mode}
               </span>
             </span>
-            <span className={`font-mono text-[15px] font-bold tabular-nums ${s.scorePct >= 80 ? "text-success" : s.scorePct >= 60 ? "text-warning" : "text-error"}`}>{s.scorePct}%</span>
+            <span
+              className={`font-mono text-[15px] font-bold tabular-nums ${s.scorePct >= 80 ? "text-success" : s.scorePct >= 60 ? "text-warning" : "text-error"}`}
+            >
+              {s.scorePct}%
+            </span>
             <span>
               {s.inProgress ? (
                 <span className="inline-flex rounded-md bg-warning/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-warning border border-warning/20">

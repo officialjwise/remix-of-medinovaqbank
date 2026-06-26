@@ -79,7 +79,9 @@ function CreateBankPage() {
       </Link>
 
       <header className="mt-4">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Create New Question Bank</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+          Create New Question Bank
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Define the metadata for a new bank. You can add questions next via upload or manual entry.
         </p>
@@ -101,7 +103,9 @@ function CreateBankPage() {
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
             className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm sm:max-w-xs"
           >
-            {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
+            {SUBJECTS.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
           </select>
         </Field>
 
@@ -110,14 +114,20 @@ function CreateBankPage() {
             <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
               Exam Types <span className="text-error">*</span>
             </span>
-            <Link to="/admin/exam-types" className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">
+            <Link
+              to="/admin/exam-types"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+            >
               <Plus className="h-3 w-3" /> Add new exam type
             </Link>
           </div>
           {examTypes.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border bg-surface-alt/40 px-3 py-3 text-xs text-muted-foreground">
               No active exam types yet.{" "}
-              <Link to="/admin/exam-types" className="font-semibold text-accent hover:underline">Create one first</Link>.
+              <Link to="/admin/exam-types" className="font-semibold text-accent hover:underline">
+                Create one first
+              </Link>
+              .
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -129,7 +139,9 @@ function CreateBankPage() {
                     type="button"
                     onClick={() => toggleExamType(et.id)}
                     className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                      on ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface text-muted-foreground hover:text-foreground"
+                      on
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border bg-surface text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     <span className="h-2 w-2 rounded-full" style={{ background: et.color }} />
@@ -167,7 +179,9 @@ function CreateBankPage() {
               onChange={(e) => setForm({ ...form, difficulty: e.target.value as Difficulty })}
               className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             >
-              {DIFFICULTIES.map((s) => <option key={s}>{s}</option>)}
+              {DIFFICULTIES.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
             </select>
           </Field>
           <Field label="Status">
@@ -212,7 +226,15 @@ function CreateBankPage() {
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">

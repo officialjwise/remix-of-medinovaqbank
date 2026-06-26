@@ -8,7 +8,10 @@ export function SubscriptionChip() {
 
   if (subscription?.status === "ACTIVE") {
     const renews = subscription.renewsAt
-      ? new Date(subscription.renewsAt).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+      ? new Date(subscription.renewsAt).toLocaleDateString(undefined, {
+          month: "short",
+          year: "numeric",
+        })
       : "active";
     return (
       <Link
@@ -61,7 +64,9 @@ export function TrialBanner() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-foreground">Your free trial has ended</p>
-          <p className="text-xs text-muted-foreground">Subscribe to unlock the full library, analytics, and multi-device access.</p>
+          <p className="text-xs text-muted-foreground">
+            Subscribe to unlock the full library, analytics, and multi-device access.
+          </p>
         </div>
         <Link
           to="/subscription"
@@ -80,9 +85,12 @@ export function TrialBanner() {
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold text-foreground">
-          Free Trial — {daysLeft} {daysLeft === 1 ? "day" : "days"} and {questionsLeft} questions remaining
+          Free Trial — {daysLeft} {daysLeft === 1 ? "day" : "days"} and {questionsLeft} questions
+          remaining
         </p>
-        <p className="text-xs text-muted-foreground">Upgrade to unlock every bank, full analytics, the leaderboard, and access from any device.</p>
+        <p className="text-xs text-muted-foreground">
+          Upgrade to unlock every bank, full analytics, the leaderboard, and access from any device.
+        </p>
       </div>
       <Link
         to="/subscription"

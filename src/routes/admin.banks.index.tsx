@@ -7,7 +7,9 @@ import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import type { Difficulty, ExamType } from "@/types";
 
 export const Route = createFileRoute("/admin/banks/")({
-  head: () => ({ meta: [{ title: "Admin · Banks — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Admin · Banks — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+  }),
   component: AdminBanks,
 });
 
@@ -30,7 +32,17 @@ const emptyDraft: BankDraft = {
   isActive: true,
 };
 
-const SUBJECTS = ["Internal Medicine", "Surgery", "OB/GYN", "Paediatrics", "Pharmacology", "Pathology", "Radiology", "Psychiatry", "Anatomy"];
+const SUBJECTS = [
+  "Internal Medicine",
+  "Surgery",
+  "OB/GYN",
+  "Paediatrics",
+  "Pharmacology",
+  "Pathology",
+  "Radiology",
+  "Psychiatry",
+  "Anatomy",
+];
 const EXAM_TYPES: ExamType[] = ["USMLE", "PLAB", "MDCN", "MEDICAL COUNCIL", "GENERAL"];
 const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
 
@@ -54,7 +66,8 @@ function AdminBanks() {
     if (difficultyFilter !== "All" && b.difficulty !== difficultyFilter) return false;
     if (query.trim()) {
       const s = query.toLowerCase();
-      if (!b.name.toLowerCase().includes(s) && !b.description.toLowerCase().includes(s)) return false;
+      if (!b.name.toLowerCase().includes(s) && !b.description.toLowerCase().includes(s))
+        return false;
     }
     return true;
   });
@@ -66,7 +79,8 @@ function AdminBanks() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Question Banks</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{activeBanks} banks</span> · {totalQuestions.toLocaleString()} questions · {activeBanks} active
+            <span className="font-semibold text-foreground">{activeBanks} banks</span> ·{" "}
+            {totalQuestions.toLocaleString()} questions · {activeBanks} active
           </p>
         </div>
         <Link
@@ -93,7 +107,11 @@ function AdminBanks() {
           onChange={(e) => setSubjectFilter(e.target.value)}
           className="h-10 rounded-lg border border-border bg-surface px-3 text-sm"
         >
-          {subjects.map((s) => <option key={s} value={s}>{s === "All" ? "All subjects" : s}</option>)}
+          {subjects.map((s) => (
+            <option key={s} value={s}>
+              {s === "All" ? "All subjects" : s}
+            </option>
+          ))}
         </select>
         <select
           value={difficultyFilter}
@@ -101,7 +119,11 @@ function AdminBanks() {
           className="h-10 rounded-lg border border-border bg-surface px-3 text-sm"
         >
           <option value="All">All difficulties</option>
-          {DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}
+          {DIFFICULTIES.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -114,7 +136,8 @@ function AdminBanks() {
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((b) => {
             const isActive = activeFilters[b.id] !== false;
-            const difficultyPct = b.difficulty === "Beginner" ? 33 : b.difficulty === "Intermediate" ? 66 : 100;
+            const difficultyPct =
+              b.difficulty === "Beginner" ? 33 : b.difficulty === "Intermediate" ? 66 : 100;
             return (
               <article
                 key={b.id}
@@ -143,8 +166,12 @@ function AdminBanks() {
                     </span>
                   </div>
 
-                  <h3 className="mt-3 text-lg font-bold tracking-tight text-foreground">{b.name}</h3>
-                  <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{b.description}</p>
+                  <h3 className="mt-3 text-lg font-bold tracking-tight text-foreground">
+                    {b.name}
+                  </h3>
+                  <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">
+                    {b.description}
+                  </p>
 
                   <div className="my-4 border-t border-border" />
 
@@ -213,11 +240,23 @@ function AdminBanks() {
       {confirmDelete && (
         <Modal title="Delete bank?" onClose={() => setConfirmDelete(null)}>
           <p className="text-sm text-muted-foreground">
-            This will permanently remove the bank and all its questions. This action cannot be undone.
+            This will permanently remove the bank and all its questions. This action cannot be
+            undone.
           </p>
           <div className="mt-6 flex justify-end gap-2">
-            <button onClick={() => setConfirmDelete(null)} className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">Cancel</button>
-            <button onClick={() => { toast.success("Bank deleted"); setConfirmDelete(null); }} className="inline-flex h-10 items-center rounded-lg bg-error px-4 text-sm font-semibold text-white hover:bg-error/90">
+            <button
+              onClick={() => setConfirmDelete(null)}
+              className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                toast.success("Bank deleted");
+                setConfirmDelete(null);
+              }}
+              className="inline-flex h-10 items-center rounded-lg bg-error px-4 text-sm font-semibold text-white hover:bg-error/90"
+            >
               <Trash2 className="mr-1.5 h-4 w-4" /> Delete
             </button>
           </div>
@@ -227,13 +266,33 @@ function AdminBanks() {
   );
 }
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function Modal({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-2xl bg-surface shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <h3 className="text-base font-bold text-foreground">{title}</h3>
-          <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground">
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </header>
@@ -246,7 +305,9 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );

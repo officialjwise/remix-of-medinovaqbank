@@ -24,7 +24,10 @@ function makeRef() {
   return `PSK-${t}-${r}`;
 }
 
-export async function initializePayment(plan: DurationPlan, email: string): Promise<InitializeResponse> {
+export async function initializePayment(
+  plan: DurationPlan,
+  email: string,
+): Promise<InitializeResponse> {
   await sleep(450);
   const reference = makeRef();
   return {
@@ -34,7 +37,12 @@ export async function initializePayment(plan: DurationPlan, email: string): Prom
   };
 }
 
-export async function verifyPayment(reference: string, planId: DurationPlan["id"], amount: number, channel: VerifyResponse["channel"] = "card"): Promise<VerifyResponse> {
+export async function verifyPayment(
+  reference: string,
+  planId: DurationPlan["id"],
+  amount: number,
+  channel: VerifyResponse["channel"] = "card",
+): Promise<VerifyResponse> {
   await sleep(700);
   // Mock: 100% success unless reference contains "FAIL"
   const ok = !reference.includes("FAIL");

@@ -4,7 +4,9 @@ import { Save } from "lucide-react";
 import { durationPlans } from "@/data/plans";
 
 export const Route = createFileRoute("/admin/settings/pricing")({
-  head: () => ({ meta: [{ title: "Admin · Pricing — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Admin · Pricing — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+  }),
   component: AdminPricing,
 });
 
@@ -19,13 +21,20 @@ function AdminPricing() {
   return (
     <div>
       <h2 className="text-2xl font-bold tracking-tight text-foreground">Pricing Plans</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Configure subscription tiers and pricing in GHS.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Configure subscription tiers and pricing in GHS.
+      </p>
 
       <div className="mt-6 space-y-3">
         {plans.map((p) => (
-          <div key={p.id} className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-[1fr_120px_120px_140px]">
+          <div
+            key={p.id}
+            className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-[1fr_120px_120px_140px]"
+          >
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{p.name}</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                {p.name}
+              </p>
               <p className="text-sm font-semibold text-foreground">{p.durationLabel}</p>
             </div>
             <Field label="Price (GHS)">
@@ -37,7 +46,12 @@ function AdminPricing() {
               />
             </Field>
             <Field label="Months">
-              <input type="number" value={p.months} readOnly className="input cursor-not-allowed bg-surface-alt" />
+              <input
+                type="number"
+                value={p.months}
+                readOnly
+                className="input cursor-not-allowed bg-surface-alt"
+              />
             </Field>
             <Field label="Save %">
               <input
@@ -52,10 +66,17 @@ function AdminPricing() {
       </div>
 
       <div className="mt-6 flex items-center justify-end gap-3">
-        {saved && <span className="rounded-full bg-success-light px-3 py-1 text-xs font-semibold text-success">✓ Saved</span>}
+        {saved && (
+          <span className="rounded-full bg-success-light px-3 py-1 text-xs font-semibold text-success">
+            ✓ Saved
+          </span>
+        )}
         <button
           type="button"
-          onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 1800); }}
+          onClick={() => {
+            setSaved(true);
+            setTimeout(() => setSaved(false), 1800);
+          }}
           className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
         >
           <Save className="h-4 w-4" /> Save Changes
@@ -73,7 +94,9 @@ function AdminPricing() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       <div className="mt-1">{children}</div>
     </label>
   );

@@ -26,10 +26,7 @@ import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 
 export const Route = createFileRoute("/_app/leaderboard")({
   head: () => ({
-    meta: [
-      { title: "Leaderboard — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Leaderboard — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: LeaderboardPage,
 });
@@ -73,12 +70,15 @@ function deriveBoard(period: Period, bankId: string): DerivedRow[] {
 
   const enriched = BASE_ROWS.map((r, idx) => {
     // Assign every practitioner a "home" bank deterministically.
-    const homeBank = questionBanks[Math.floor(seededHash(`${r.name}|home`) * questionBanks.length)].id;
+    const homeBank =
+      questionBanks[Math.floor(seededHash(`${r.name}|home`) * questionBanks.length)].id;
     // Seeded score offset per (name + period + bank) so tabs reshuffle stably.
     const offset = seededDelta(`${r.name}|${period}|${bankId}`, 9);
     // Practitioners stronger in the selected bank get a positive nudge.
     const bankBoost = bankId !== "All" && homeBank === bankId ? 7 : 0;
-    const periodVolume = Math.round(r.questions / (period === "weekly" ? 14 : period === "monthly" ? 4 : 1));
+    const periodVolume = Math.round(
+      r.questions / (period === "weekly" ? 14 : period === "monthly" ? 4 : 1),
+    );
 
     const rawScore = r.isYou
       ? r.avgScore // keep the user's headline score stable across tabs
@@ -88,9 +88,12 @@ function deriveBoard(period: Period, bankId: string): DerivedRow[] {
       ...r,
       avgScore: rawScore,
       questions: periodVolume,
-      sessions: Math.max(1, Math.round(r.sessions / (period === "weekly" ? 12 : period === "monthly" ? 3 : 1))),
+      sessions: Math.max(
+        1,
+        Math.round(r.sessions / (period === "weekly" ? 12 : period === "monthly" ? 3 : 1)),
+      ),
       bankId: homeBank,
-      _sortScore: rawScore * periodWeight + (r.isYou ? 0 : seededHash(`${r.name}|tiebreak`) ),
+      _sortScore: rawScore * periodWeight + (r.isYou ? 0 : seededHash(`${r.name}|tiebreak`)),
     };
   });
 
@@ -232,8 +235,12 @@ function LeaderboardPage() {
             <Lock className="h-5 w-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold text-foreground">You can view, but not yet compete</span>
-            <span className="block text-xs text-muted-foreground">Trial accounts don't appear in the rankings. Subscribe to claim your spot.</span>
+            <span className="block text-sm font-bold text-foreground">
+              You can view, but not yet compete
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Trial accounts don't appear in the rankings. Subscribe to claim your spot.
+            </span>
           </span>
           <span className="hidden flex-shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-r from-primary to-accent px-3 py-2 text-xs font-bold text-white sm:inline-flex">
             <Sparkles className="h-3.5 w-3.5" /> Upgrade
@@ -249,7 +256,14 @@ function LeaderboardPage() {
           icon={Crown}
           gradient="navy"
           sub={`of ${total.toLocaleString()} ranked`}
-          trend={you.movement !== 0 ? { value: `${Math.abs(you.movement)} this ${period === "all" ? "season" : period}`, up: you.movement > 0 } : undefined}
+          trend={
+            you.movement !== 0
+              ? {
+                  value: `${Math.abs(you.movement)} this ${period === "all" ? "season" : period}`,
+                  up: you.movement > 0,
+                }
+              : undefined
+          }
         />
         <GradientKpiCard
           label="Percentile"
@@ -282,14 +296,19 @@ function LeaderboardPage() {
             🏆
           </span>
           <div className="flex-1 min-w-[12rem]">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#00D4C8] mb-1">Your Current Rank</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-[#00D4C8] mb-1">
+              Your Current Rank
+            </p>
             <p className="text-4xl font-extrabold tracking-tight drop-shadow-md flex items-center gap-3">
               #{you.rank}
-              <span className="text-sm font-bold"><MovementBadge value={you.movement} /></span>
+              <span className="text-sm font-bold">
+                <MovementBadge value={you.movement} />
+              </span>
             </p>
             <p className="mt-2 text-sm text-white/80 font-medium">
-              Score <span className="font-bold text-white text-[15px]">{you.avgScore}%</span> <span className="text-white/40 mx-1">•</span>{" "}
-              {you.questions.toLocaleString()} questions answered
+              Score <span className="font-bold text-white text-[15px]">{you.avgScore}%</span>{" "}
+              <span className="text-white/40 mx-1">•</span> {you.questions.toLocaleString()}{" "}
+              questions answered
             </p>
             <p className="mt-2 max-w-xl text-xs text-[#9FE8E2]">{climbHint}</p>
           </div>
@@ -307,10 +326,22 @@ function LeaderboardPage() {
           const isFirst = r.rank === 1;
           const medal =
             r.rank === 1
-              ? { ring: "from-[#F59E0B] to-[#FCD34D]", glow: "shadow-[0_0_24px_rgba(245,158,11,0.35)]", icon: <Trophy className="h-5 w-5" /> }
+              ? {
+                  ring: "from-[#F59E0B] to-[#FCD34D]",
+                  glow: "shadow-[0_0_24px_rgba(245,158,11,0.35)]",
+                  icon: <Trophy className="h-5 w-5" />,
+                }
               : r.rank === 2
-                ? { ring: "from-[#94A3B8] to-[#CBD5E1]", glow: "shadow-[0_0_20px_rgba(148,163,184,0.3)]", icon: <Medal className="h-5 w-5" /> }
-                : { ring: "from-[#B45309] to-[#D97706]", glow: "shadow-[0_0_20px_rgba(217,119,6,0.3)]", icon: <Medal className="h-5 w-5" /> };
+                ? {
+                    ring: "from-[#94A3B8] to-[#CBD5E1]",
+                    glow: "shadow-[0_0_20px_rgba(148,163,184,0.3)]",
+                    icon: <Medal className="h-5 w-5" />,
+                  }
+                : {
+                    ring: "from-[#B45309] to-[#D97706]",
+                    glow: "shadow-[0_0_20px_rgba(217,119,6,0.3)]",
+                    icon: <Medal className="h-5 w-5" />,
+                  };
           return (
             <button
               key={order}
@@ -320,15 +351,23 @@ function LeaderboardPage() {
                 isFirst ? "border-warning/40 sm:-mt-3" : "border-border"
               } ${r.isYou ? "ring-2 ring-[#00D4C8]" : ""}`}
             >
-              <span className={`mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${medal.ring} text-white ${medal.glow}`}>
+              <span
+                className={`mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${medal.ring} text-white ${medal.glow}`}
+              >
                 {medal.icon}
               </span>
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">#{r.rank}</p>
-              <p className={`mt-1 truncate text-sm font-bold ${r.isYou ? "text-accent" : "text-foreground"}`}>
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                #{r.rank}
+              </p>
+              <p
+                className={`mt-1 truncate text-sm font-bold ${r.isYou ? "text-accent" : "text-foreground"}`}
+              >
                 {r.isYou ? "You" : r.name}
               </p>
               <p className="text-xs text-muted-foreground">{r.specialty}</p>
-              <p className="mt-2 font-mono text-lg font-extrabold tabular-nums text-foreground">{r.avgScore}%</p>
+              <p className="mt-2 font-mono text-lg font-extrabold tabular-nums text-foreground">
+                {r.avgScore}%
+              </p>
               <MovementBadge value={r.movement} />
             </button>
           );
@@ -345,7 +384,9 @@ function LeaderboardPage() {
                 type="button"
                 onClick={() => changeView(() => setPeriod(p))}
                 className={`rounded-md px-4 py-2 capitalize transition-all duration-300 ${
-                  period === p ? "bg-[#00D4C8]/10 text-[#00D4C8] shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-surface-alt"
+                  period === p
+                    ? "bg-[#00D4C8]/10 text-[#00D4C8] shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-surface-alt"
                 }`}
               >
                 {p === "all" ? "All Time" : p}
@@ -367,7 +408,9 @@ function LeaderboardPage() {
           <button
             onClick={() => changeView(() => setBank("All"))}
             className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-all duration-300 border-b-2 whitespace-nowrap ${
-              bank === "All" ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground"
+              bank === "All"
+                ? "border-accent text-accent"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             All Banks
@@ -377,7 +420,9 @@ function LeaderboardPage() {
               key={b.id}
               onClick={() => changeView(() => setBank(b.id))}
               className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-all duration-300 border-b-2 whitespace-nowrap ${
-                bank === b.id ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground"
+                bank === b.id
+                  ? "border-accent text-accent"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
               {b.name}
@@ -410,7 +455,9 @@ function LeaderboardPage() {
               type="button"
               onClick={() => setSelected(r)}
               className={`grid w-full grid-cols-1 items-center gap-3 border-b border-white/5 px-6 py-4 text-left last:border-b-0 md:grid-cols-[70px_1fr_140px_70px_110px_100px_90px] md:gap-4 transition-colors ${
-                r.isYou ? "bg-[#00D4C8]/5 relative before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[#00D4C8]" : "hover:bg-surface-alt/30"
+                r.isYou
+                  ? "bg-[#00D4C8]/5 relative before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[#00D4C8]"
+                  : "hover:bg-surface-alt/30"
               }`}
             >
               <span className="flex items-center gap-2 font-extrabold text-foreground text-lg">
@@ -433,20 +480,34 @@ function LeaderboardPage() {
                 )}
               </span>
               <div className="flex items-center gap-3 min-w-0">
-                <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold shadow-sm ${
-                  r.isYou ? "bg-gradient-to-br from-[#3B82F6] to-[#00D4C8] text-white" : "bg-surface-alt text-foreground border border-white/5"
-                }`}>
+                <span
+                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold shadow-sm ${
+                    r.isYou
+                      ? "bg-gradient-to-br from-[#3B82F6] to-[#00D4C8] text-white"
+                      : "bg-surface-alt text-foreground border border-white/5"
+                  }`}
+                >
                   {r.initials}
                 </span>
-                <span className={`truncate text-[15px] ${r.isYou ? "font-bold text-[#00D4C8]" : "font-semibold text-foreground"}`}>
+                <span
+                  className={`truncate text-[15px] ${r.isYou ? "font-bold text-[#00D4C8]" : "font-semibold text-foreground"}`}
+                >
                   {r.isYou ? "YOU" : r.name}
                 </span>
               </div>
               <span className="text-xs font-medium text-muted-foreground">{r.specialty}</span>
-              <span className="flex justify-center md:justify-center"><MovementBadge value={r.movement} /></span>
-              <span className={`text-right font-mono text-sm font-bold tabular-nums ${c.text}`}>{r.avgScore}%</span>
-              <span className="text-right font-mono text-sm font-medium tabular-nums text-foreground/80">{r.questions.toLocaleString()}</span>
-              <span className="text-right font-mono text-sm font-medium tabular-nums text-foreground/80">{r.sessions}</span>
+              <span className="flex justify-center md:justify-center">
+                <MovementBadge value={r.movement} />
+              </span>
+              <span className={`text-right font-mono text-sm font-bold tabular-nums ${c.text}`}>
+                {r.avgScore}%
+              </span>
+              <span className="text-right font-mono text-sm font-medium tabular-nums text-foreground/80">
+                {r.questions.toLocaleString()}
+              </span>
+              <span className="text-right font-mono text-sm font-medium tabular-nums text-foreground/80">
+                {r.sessions}
+              </span>
             </button>
           );
         })}
@@ -455,7 +516,8 @@ function LeaderboardPage() {
       {/* Pagination */}
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          Showing {slice.length} of {filtered.length.toLocaleString()} · Page {safePage} of {totalPages}
+          Showing {slice.length} of {filtered.length.toLocaleString()} · Page {safePage} of{" "}
+          {totalPages}
         </span>
         <div className="flex items-center gap-2">
           <button
@@ -496,13 +558,19 @@ function LeaderboardPage() {
                 <X className="h-4 w-4" />
               </button>
               <div className="flex items-center gap-4">
-                <span className={`flex h-14 w-14 items-center justify-center rounded-2xl text-base font-bold ${
-                  selected.isYou ? "bg-gradient-to-br from-[#3B82F6] to-[#00D4C8] text-white" : "bg-white/15 text-white"
-                }`}>
+                <span
+                  className={`flex h-14 w-14 items-center justify-center rounded-2xl text-base font-bold ${
+                    selected.isYou
+                      ? "bg-gradient-to-br from-[#3B82F6] to-[#00D4C8] text-white"
+                      : "bg-white/15 text-white"
+                  }`}
+                >
                   {selected.initials}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-lg font-bold">{selected.isYou ? "You" : selected.name}</p>
+                  <p className="truncate text-lg font-bold">
+                    {selected.isYou ? "You" : selected.name}
+                  </p>
                   <p className="text-sm text-white/75">{selected.specialty}</p>
                 </div>
               </div>
@@ -512,7 +580,9 @@ function LeaderboardPage() {
               <DetailStat
                 label="Movement"
                 value={
-                  selected.movement === 0 ? "No change" : `${selected.movement > 0 ? "▲" : "▼"} ${Math.abs(selected.movement)}`
+                  selected.movement === 0
+                    ? "No change"
+                    : `${selected.movement > 0 ? "▲" : "▼"} ${Math.abs(selected.movement)}`
                 }
                 tone={selected.movement === 0 ? "muted" : selected.movement > 0 ? "up" : "down"}
               />
@@ -549,7 +619,13 @@ function DetailStat({
   tone?: "default" | "up" | "down" | "muted";
 }) {
   const toneClass =
-    tone === "up" ? "text-success" : tone === "down" ? "text-error" : tone === "muted" ? "text-muted-foreground" : "text-foreground";
+    tone === "up"
+      ? "text-success"
+      : tone === "down"
+        ? "text-error"
+        : tone === "muted"
+          ? "text-muted-foreground"
+          : "text-foreground";
   return (
     <div className="bg-surface p-4">
       <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>

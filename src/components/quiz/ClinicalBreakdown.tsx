@@ -24,7 +24,11 @@ export interface ClinicalBreakdownProps {
  * wrong (with the scenario that would flip it), key learning pearl, related
  * topics. All colours come from semantic tokens so it is dark-mode safe.
  */
-export function ClinicalBreakdown({ question, selected, variant = "active" }: ClinicalBreakdownProps) {
+export function ClinicalBreakdown({
+  question,
+  selected,
+  variant = "active",
+}: ClinicalBreakdownProps) {
   const correctOpt = question.options.find((o) => o.key === question.correctKey);
   const isCorrect = selected === question.correctKey;
   const distractors = question.options.filter((o) => o.key !== question.correctKey);
@@ -99,7 +103,9 @@ export function ClinicalBreakdown({ question, selected, variant = "active" }: Cl
               <p className="mt-1 text-sm font-semibold text-foreground">
                 {question.correctKey}. {correctOpt?.text}
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-foreground/90">{question.whyCorrect}</p>
+              <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+                {question.whyCorrect}
+              </p>
             </div>
           </div>
         </div>
@@ -207,7 +213,11 @@ export function ClinicalBreakdown({ question, selected, variant = "active" }: Cl
 function wouldBeScenario(opt: { key: string; text: string }, question: Question): string {
   const rationale = question.whyWrong[opt.key as OptionKey] ?? "";
   if (/would|when|if|in which|patients with/i.test(rationale)) {
-    const tail = rationale.split(/—|\.|;/).filter(Boolean).slice(-1)[0]?.trim();
+    const tail = rationale
+      .split(/—|\.|;/)
+      .filter(Boolean)
+      .slice(-1)[0]
+      ?.trim();
     if (tail && tail.length > 20) return tail.replace(/^(?:would|when)\s*/i, "the patient ");
   }
   return `the clinical picture pointed instead to ${opt.text.toLowerCase()} as the underlying mechanism or required next step.`;

@@ -11,19 +11,33 @@ export const Route = createFileRoute("/admin/ai-settings")({
       throw redirect({ to: "/admin/dashboard" });
     }
   },
-  head: () => ({ meta: [{ title: "Admin · AI Settings — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Admin · AI Settings — Medinovaqbank" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: AISettingsPage,
 });
 
 const providers = [
-  { id: "lovable", name: "Lovable AI Gateway", note: "Default — managed, no key required.", recommended: true },
+  {
+    id: "lovable",
+    name: "Lovable AI Gateway",
+    note: "Default — managed, no key required.",
+    recommended: true,
+  },
   { id: "openai", name: "OpenAI", note: "GPT-4o, GPT-5 family." },
   { id: "anthropic", name: "Anthropic", note: "Claude 3.5 / 4 models." },
   { id: "google", name: "Google", note: "Gemini family." },
 ];
 
 const models: Record<string, string[]> = {
-  lovable: ["google/gemini-2.5-flash (fast)", "google/gemini-2.5-pro (quality)", "openai/gpt-5-mini"],
+  lovable: [
+    "google/gemini-2.5-flash (fast)",
+    "google/gemini-2.5-pro (quality)",
+    "openai/gpt-5-mini",
+  ],
   openai: ["gpt-4o-mini", "gpt-4o", "gpt-5"],
   anthropic: ["claude-haiku-4", "claude-sonnet-4"],
   google: ["gemini-2.5-flash", "gemini-2.5-pro"],
@@ -52,14 +66,17 @@ function AISettingsPage() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">AI Configuration</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Choose which AI provider powers answer explanations. Users never see provider names — explanations appear simply as "Answer Explanation."
+            Choose which AI provider powers answer explanations. Users never see provider names —
+            explanations appear simply as "Answer Explanation."
           </p>
         </div>
       </header>
 
       {/* Provider grid */}
       <section className="mt-8">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Provider</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+          Provider
+        </h3>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {providers.map((p) => (
             <button
@@ -103,7 +120,8 @@ function AISettingsPage() {
           </select>
 
           <h3 className="mt-6 text-sm font-bold uppercase tracking-wide text-muted-foreground">
-            API Key {provider === "lovable" && <span className="font-normal normal-case">— managed</span>}
+            API Key{" "}
+            {provider === "lovable" && <span className="font-normal normal-case">— managed</span>}
           </h3>
           <div className="mt-3 flex gap-2">
             <input
@@ -123,12 +141,15 @@ function AISettingsPage() {
             </button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Keys are encrypted at rest and only used server-side. Never embedded in the client bundle.
+            Keys are encrypted at rest and only used server-side. Never embedded in the client
+            bundle.
           </p>
         </div>
 
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Temperature</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+            Temperature
+          </h3>
           <div className="mt-3 flex items-center gap-4">
             <input
               type="range"
@@ -144,10 +165,13 @@ function AISettingsPage() {
             </span>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Lower = more deterministic; higher = more creative. 0.3–0.5 recommended for clinical content.
+            Lower = more deterministic; higher = more creative. 0.3–0.5 recommended for clinical
+            content.
           </p>
 
-          <h3 className="mt-6 text-sm font-bold uppercase tracking-wide text-muted-foreground">System prompt</h3>
+          <h3 className="mt-6 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+            System prompt
+          </h3>
           <textarea
             rows={6}
             value={systemPrompt}
@@ -155,7 +179,8 @@ function AISettingsPage() {
             className="mt-3 w-full rounded-lg border border-border bg-surface p-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            Appears as the system message. Keep instructions consistent with the user-facing branding (no AI name).
+            Appears as the system message. Keep instructions consistent with the user-facing
+            branding (no AI name).
           </p>
         </div>
       </section>

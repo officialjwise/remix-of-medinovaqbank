@@ -3,10 +3,19 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { questionBanks } from "@/data/banks";
 import { getQuestionsForBank } from "@/data/questions";
-import { QuestionForm, type QuestionFormValues, type OptKey } from "@/components/admin/QuestionForm";
+import {
+  QuestionForm,
+  type QuestionFormValues,
+  type OptKey,
+} from "@/components/admin/QuestionForm";
 
 export const Route = createFileRoute("/admin/banks/$bankId/questions/$questionId")({
-  head: () => ({ meta: [{ title: "Admin · Edit Question — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Admin · Edit Question — Medinovaqbank" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: EditQuestionPage,
 });
 
@@ -32,7 +41,11 @@ function EditQuestionPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to="/admin/banks/$bankId/questions" params={{ bankId }} className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
+        <Link
+          to="/admin/banks/$bankId/questions"
+          params={{ bankId }}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to questions
         </Link>
         <h2 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Edit question</h2>

@@ -76,7 +76,8 @@ export const useSessionStore = create<SessionState>()(
           if (i < correctTarget) {
             answers[q.id] = q.correctKey;
           } else {
-            const wrong = (q.options.find((o) => o.key !== q.correctKey)?.key ?? q.correctKey) as OptKey;
+            const wrong = (q.options.find((o) => o.key !== q.correctKey)?.key ??
+              q.correctKey) as OptKey;
             answers[q.id] = wrong;
           }
           if (!summary.inProgress || i < summary.questionsAnswered) submitted[q.id] = true;
@@ -99,13 +100,23 @@ export const useSessionStore = create<SessionState>()(
       selectAnswer: (sessionId, qid, key) => {
         const s = get().sessions[sessionId];
         if (!s || s.submitted[qid]) return;
-        set({ sessions: { ...get().sessions, [sessionId]: { ...s, answers: { ...s.answers, [qid]: key } } } });
+        set({
+          sessions: {
+            ...get().sessions,
+            [sessionId]: { ...s, answers: { ...s.answers, [qid]: key } },
+          },
+        });
       },
       submitAnswer: (sessionId, qid) => {
         const s = get().sessions[sessionId];
         if (!s) return;
         if (!s.answers[qid]) return;
-        set({ sessions: { ...get().sessions, [sessionId]: { ...s, submitted: { ...s.submitted, [qid]: true } } } });
+        set({
+          sessions: {
+            ...get().sessions,
+            [sessionId]: { ...s, submitted: { ...s.submitted, [qid]: true } },
+          },
+        });
       },
       toggleBookmark: (sessionId, qid) => {
         const s = get().sessions[sessionId];

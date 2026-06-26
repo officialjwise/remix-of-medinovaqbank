@@ -42,7 +42,9 @@ export function ProtectedSurface({
       onDragStart={(e) => e.preventDefault()}
     >
       {/* Protected content (blurred when the tab loses focus / on PrintScreen) */}
-      <div className={`transition-[filter] duration-150 ${blurred ? "pointer-events-none blur-xl" : ""}`}>
+      <div
+        className={`transition-[filter] duration-150 ${blurred ? "pointer-events-none blur-xl" : ""}`}
+      >
         {children}
       </div>
 
@@ -54,7 +56,9 @@ export function ProtectedSurface({
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/40 backdrop-blur-sm">
           <div className="rounded-xl border border-warning/30 bg-surface px-4 py-3 text-center shadow-lg">
             <p className="text-sm font-bold text-foreground">Protected content hidden</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Return focus to this tab to continue.</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Return focus to this tab to continue.
+            </p>
           </div>
         </div>
       )}

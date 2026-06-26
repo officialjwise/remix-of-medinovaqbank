@@ -25,7 +25,9 @@ export function AccessRestricted({ restriction }: { restriction: Restriction }) 
         <span className="absolute inset-0 animate-ping rounded-full bg-error/15" />
         <ShieldAlert className="h-9 w-9" />
       </span>
-      <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Access temporarily restricted</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
+        Access temporarily restricted
+      </h1>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
         Protected content is locked on your account following repeated screen-capture attempts.
       </p>
@@ -37,7 +39,9 @@ export function AccessRestricted({ restriction }: { restriction: Restriction }) 
           <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
             <Clock className="h-3.5 w-3.5" /> Unlocks in
           </span>
-          <span className="font-mono text-lg font-bold tabular-nums text-error">{countdown(restriction.unlockAt)}</span>
+          <span className="font-mono text-lg font-bold tabular-nums text-error">
+            {countdown(restriction.unlockAt)}
+          </span>
         </div>
       </div>
 
@@ -57,7 +61,9 @@ export function AccessRestricted({ restriction }: { restriction: Restriction }) 
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3 text-sm">
-      <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       <span className="text-right font-medium text-foreground">{value}</span>
     </div>
   );

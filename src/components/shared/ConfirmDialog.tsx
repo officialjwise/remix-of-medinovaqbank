@@ -52,8 +52,16 @@ export function ConfirmDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16" role="dialog" aria-modal="true" onClick={handleCancel}>
-      <div className="w-full max-w-md rounded-2xl bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16"
+      role="dialog"
+      aria-modal="true"
+      onClick={handleCancel}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-surface shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="flex items-start gap-3">
             {destructive && (
@@ -63,7 +71,11 @@ export function ConfirmDialog({
             )}
             <h3 className="mt-1 text-base font-bold text-foreground">{title}</h3>
           </div>
-          <button onClick={handleCancel} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground">
+          <button
+            onClick={handleCancel}
+            aria-label="Close"
+            className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </header>
@@ -72,7 +84,11 @@ export function ConfirmDialog({
           {typedConfirmation && (
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold text-foreground">
-                Type <code className="rounded bg-surface-alt px-1 font-mono text-foreground">{typedConfirmation}</code> to confirm.
+                Type{" "}
+                <code className="rounded bg-surface-alt px-1 font-mono text-foreground">
+                  {typedConfirmation}
+                </code>{" "}
+                to confirm.
               </span>
               <input
                 value={typed}

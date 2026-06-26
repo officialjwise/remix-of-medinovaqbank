@@ -91,7 +91,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       {/* Main column */}
-      <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-[72px]" : "lg:pl-60"}`}>
+      <div
+        className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-[72px]" : "lg:pl-60"}`}
+      >
         <Topbar
           title={title}
           onMenu={() => setMobileOpen(true)}
@@ -109,7 +111,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-function SidebarInner({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
+function SidebarInner({
+  onNavigate,
+  collapsed = false,
+}: {
+  onNavigate?: () => void;
+  collapsed?: boolean;
+}) {
   const { user, subscription, logout } = useAuthStore();
   const navigate = useNavigate();
 
@@ -122,7 +130,12 @@ function SidebarInner({ onNavigate, collapsed = false }: { onNavigate?: () => vo
   return (
     <div className="flex h-full flex-col">
       <div className={`flex h-16 items-center ${collapsed ? "justify-center px-2" : "px-5"}`}>
-        <Link to="/" className="flex items-center" onClick={onNavigate} aria-label="Medinovaqbank home">
+        <Link
+          to="/"
+          className="flex items-center"
+          onClick={onNavigate}
+          aria-label="Medinovaqbank home"
+        >
           <Logo size={34} markOnly={collapsed} />
         </Link>
       </div>
@@ -131,10 +144,16 @@ function SidebarInner({ onNavigate, collapsed = false }: { onNavigate?: () => vo
         <div className="border-y border-border px-5 py-4">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent text-sm font-semibold text-white">
-              {user?.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" /> : (user?.name ?? "U").slice(0, 1)}
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+              ) : (
+                (user?.name ?? "U").slice(0, 1)
+              )}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{user?.name ?? "Practitioner"}</p>
+              <p className="truncate text-sm font-semibold text-foreground">
+                {user?.name ?? "Practitioner"}
+              </p>
               {user?.specialty && (
                 <span className="mt-0.5 inline-flex rounded-full bg-accent-light px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
                   {user.specialty}
@@ -212,7 +231,12 @@ function Topbar({
       group: "Question Banks",
       onSelect: () => navigate({ to: "/banks" }),
     })),
-    ...nav.map((n) => ({ id: n.to, label: n.label, group: "Pages", onSelect: () => navigate({ to: n.to }) })),
+    ...nav.map((n) => ({
+      id: n.to,
+      label: n.label,
+      group: "Pages",
+      onSelect: () => navigate({ to: n.to }),
+    })),
   ];
 
   return (

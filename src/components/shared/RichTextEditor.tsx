@@ -6,7 +6,15 @@ import { Bold, Italic, List, ListOrdered, Heading2, Link2, Underline } from "luc
  * Emits HTML. Good enough for CMS articles/legal copy without pulling in a
  * heavy editor framework.
  */
-export function RichTextEditor({ value, onChange, minHeight = 180 }: { value: string; onChange: (html: string) => void; minHeight?: number }) {
+export function RichTextEditor({
+  value,
+  onChange,
+  minHeight = 180,
+}: {
+  value: string;
+  onChange: (html: string) => void;
+  minHeight?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   // Sync external value only when it diverges (avoids clobbering the caret).

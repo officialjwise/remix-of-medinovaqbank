@@ -87,8 +87,12 @@ function MockAnalytics() {
     <div className="grid h-full grid-cols-3 gap-3 p-5">
       <div className="col-span-3 flex items-end gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Performance</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">82% <span className="text-sm font-medium text-emerald-600">+6%</span></p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            Performance
+          </p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">
+            82% <span className="text-sm font-medium text-emerald-600">+6%</span>
+          </p>
         </div>
         <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
           <BarChart3 className="h-3 w-3" /> Top 12%
@@ -97,7 +101,9 @@ function MockAnalytics() {
 
       {/* Bell curve */}
       <div className="col-span-2 rounded-xl border border-slate-200 bg-white p-3">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Cohort distribution</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+          Cohort distribution
+        </p>
         <svg viewBox="0 0 200 80" className="mt-1 h-24 w-full">
           <defs>
             <linearGradient id="bellFill" x1="0" x2="0" y1="0" y2="1">
@@ -105,12 +111,30 @@ function MockAnalytics() {
               <stop offset="100%" stopColor="#2BC97F" stopOpacity="0.05" />
             </linearGradient>
           </defs>
-          <path d="M0,75 C40,75 70,10 100,10 C130,10 160,75 200,75 L200,80 L0,80 Z" fill="url(#bellFill)" />
-          <path d="M0,75 C40,75 70,10 100,10 C130,10 160,75 200,75" fill="none" stroke="#0E7C7B" strokeWidth="1.5" />
-          <line x1="150" y1="20" x2="150" y2="75" stroke="#2BC97F" strokeDasharray="3 3" strokeWidth="1.5" />
+          <path
+            d="M0,75 C40,75 70,10 100,10 C130,10 160,75 200,75 L200,80 L0,80 Z"
+            fill="url(#bellFill)"
+          />
+          <path
+            d="M0,75 C40,75 70,10 100,10 C130,10 160,75 200,75"
+            fill="none"
+            stroke="#0E7C7B"
+            strokeWidth="1.5"
+          />
+          <line
+            x1="150"
+            y1="20"
+            x2="150"
+            y2="75"
+            stroke="#2BC97F"
+            strokeDasharray="3 3"
+            strokeWidth="1.5"
+          />
           <circle cx="150" cy="20" r="3" fill="#2BC97F" />
         </svg>
-        <p className="mt-1 text-[10px] text-slate-500">You scored higher than <span className="font-bold text-emerald-700">88%</span> of peers</p>
+        <p className="mt-1 text-[10px] text-slate-500">
+          You scored higher than <span className="font-bold text-emerald-700">88%</span> of peers
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -122,8 +146,17 @@ function MockAnalytics() {
   );
 }
 
-function ScoreTile({ label, pct, tint }: { label: string; pct: number; tint: "emerald" | "teal" | "amber" }) {
-  const bar = tint === "emerald" ? "bg-emerald-500" : tint === "teal" ? "bg-teal-500" : "bg-amber-500";
+function ScoreTile({
+  label,
+  pct,
+  tint,
+}: {
+  label: string;
+  pct: number;
+  tint: "emerald" | "teal" | "amber";
+}) {
+  const bar =
+    tint === "emerald" ? "bg-emerald-500" : tint === "teal" ? "bg-teal-500" : "bg-amber-500";
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-2">
       <div className="flex items-center justify-between text-[10px] font-semibold text-slate-700">
@@ -147,16 +180,22 @@ function MockQuiz() {
   return (
     <div className="flex h-full flex-col gap-3 p-5">
       <div className="flex items-center justify-between">
-        <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700">Tutor mode</span>
+        <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700">
+          Tutor mode
+        </span>
         <span className="text-[10px] font-mono font-bold text-slate-500">14 / 30</span>
       </div>
       <div className="h-1 w-full rounded-full bg-slate-100">
-        <div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500" style={{ width: "46%" }} />
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500"
+          style={{ width: "46%" }}
+        />
       </div>
       <div className="rounded-xl border border-slate-200 bg-white p-3">
         <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Question 14</p>
         <p className="mt-1 text-[12px] leading-snug text-slate-700">
-          58-year-old hypertensive male, sudden tearing chest pain radiating to back. BP 180/110 right arm, 140/90 left. Most likely diagnosis?
+          58-year-old hypertensive male, sudden tearing chest pain radiating to back. BP 180/110
+          right arm, 140/90 left. Most likely diagnosis?
         </p>
       </div>
       <div className="space-y-1.5">
@@ -169,9 +208,13 @@ function MockQuiz() {
                 : "border-slate-200 bg-white text-slate-700"
             }`}
           >
-            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
-              o.state === "correct" ? "bg-emerald-500 text-white" : "border border-slate-300 text-slate-500"
-            }`}>
+            <span
+              className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
+                o.state === "correct"
+                  ? "bg-emerald-500 text-white"
+                  : "border border-slate-300 text-slate-500"
+              }`}
+            >
               {o.state === "correct" ? <Check className="h-3 w-3" /> : o.k}
             </span>
             {o.t}
@@ -194,7 +237,9 @@ function MockLeaderboard() {
     <div className="flex h-full flex-col gap-2 p-5">
       <div className="flex items-center gap-2">
         <Trophy className="h-4 w-4 text-amber-500" />
-        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">Top performers · This week</p>
+        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">
+          Top performers · This week
+        </p>
       </div>
       <div className="flex-1 space-y-1.5">
         {rows.map((row) => (
@@ -206,15 +251,26 @@ function MockLeaderboard() {
                 : "border-slate-200 bg-white"
             }`}
           >
-            <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${
-              row.badge === "gold" ? "bg-amber-400 text-white" :
-              row.badge === "silver" ? "bg-slate-300 text-white" :
-              row.badge === "bronze" ? "bg-amber-700 text-white" :
-              row.you ? "bg-teal-500 text-white" : "bg-slate-100 text-slate-600"
-            }`}>
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${
+                row.badge === "gold"
+                  ? "bg-amber-400 text-white"
+                  : row.badge === "silver"
+                    ? "bg-slate-300 text-white"
+                    : row.badge === "bronze"
+                      ? "bg-amber-700 text-white"
+                      : row.you
+                        ? "bg-teal-500 text-white"
+                        : "bg-slate-100 text-slate-600"
+              }`}
+            >
               {row.badge ? <Crown className="h-3 w-3" /> : row.r}
             </span>
-            <span className={`flex-1 font-semibold ${row.you ? "text-teal-800" : "text-slate-700"}`}>{row.n}</span>
+            <span
+              className={`flex-1 font-semibold ${row.you ? "text-teal-800" : "text-slate-700"}`}
+            >
+              {row.n}
+            </span>
             <span className="font-mono font-bold text-slate-700">{row.s}%</span>
           </div>
         ))}

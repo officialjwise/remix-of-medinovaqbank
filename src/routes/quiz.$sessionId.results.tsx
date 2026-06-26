@@ -32,10 +32,7 @@ export const Route = createFileRoute("/quiz/$sessionId/results")({
     if (!useAuthStore.getState().isAuthenticated) throw redirect({ to: "/login" });
   },
   head: () => ({
-    meta: [
-      { title: "Session Results — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Session Results — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: ResultsPage,
 });
@@ -106,8 +103,12 @@ function ResultsPage() {
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <Chip icon={<Check className="h-3.5 w-3.5" />}>{results.correct} Correct</Chip>
                 <Chip icon={<X className="h-3.5 w-3.5" />}>{results.incorrect} Incorrect</Chip>
-                <Chip icon={<SkipForward className="h-3.5 w-3.5" />}>{results.skipped} Skipped</Chip>
-                <Chip icon={<Clock className="h-3.5 w-3.5" />}>{formatDuration(results.durationSec)}</Chip>
+                <Chip icon={<SkipForward className="h-3.5 w-3.5" />}>
+                  {results.skipped} Skipped
+                </Chip>
+                <Chip icon={<Clock className="h-3.5 w-3.5" />}>
+                  {formatDuration(results.durationSec)}
+                </Chip>
               </div>
 
               {/* Percentile line */}
@@ -166,15 +167,29 @@ function ResultsPage() {
         {/* Quick stat cards */}
         <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Score" value={`${results.scorePct}%`} tone={sc.text} />
-          <StatCard label="Correct" value={`${results.correct}/${results.total}`} tone="text-success" />
-          <StatCard label="Accuracy" value={`${results.answered ? Math.round((results.correct / results.answered) * 100) : 0}%`} tone="text-primary" />
-          <StatCard label="Time" value={formatDuration(results.durationSec)} tone="text-foreground" />
+          <StatCard
+            label="Correct"
+            value={`${results.correct}/${results.total}`}
+            tone="text-success"
+          />
+          <StatCard
+            label="Accuracy"
+            value={`${results.answered ? Math.round((results.correct / results.answered) * 100) : 0}%`}
+            tone="text-primary"
+          />
+          <StatCard
+            label="Time"
+            value={formatDuration(results.durationSec)}
+            tone="text-foreground"
+          />
         </section>
 
         {/* Performance breakdown */}
         <section className="mt-6 rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold tracking-tight text-foreground">Performance Breakdown</h2>
+            <h2 className="text-lg font-bold tracking-tight text-foreground">
+              Performance Breakdown
+            </h2>
             <div className="flex rounded-lg bg-surface-alt p-1 text-xs font-semibold">
               {(
                 [
@@ -203,7 +218,11 @@ function ResultsPage() {
             {tab === "subject" && (
               <div className="h-72 w-full">
                 <ResponsiveContainer>
-                  <BarChart data={results.bySubject} layout="vertical" margin={{ left: 20, right: 20 }}>
+                  <BarChart
+                    data={results.bySubject}
+                    layout="vertical"
+                    margin={{ left: 20, right: 20 }}
+                  >
                     <CartesianGrid horizontal={false} stroke="var(--color-border)" />
                     <XAxis
                       type="number"
@@ -237,7 +256,8 @@ function ResultsPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {results.byDifficulty.map((d) => {
                   const dc = scoreColor(d.pct);
-                  const barBg = d.pct >= 70 ? "bg-success" : d.pct >= 50 ? "bg-warning" : "bg-error";
+                  const barBg =
+                    d.pct >= 70 ? "bg-success" : d.pct >= 50 ? "bg-warning" : "bg-error";
                   return (
                     <div key={d.name} className={`rounded-xl border border-border p-5 ${dc.bg}`}>
                       <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -261,13 +281,21 @@ function ResultsPage() {
             {tab === "timeline" && (
               <div className="h-72 w-full">
                 <ResponsiveContainer>
-                  <LineChart data={results.timeline} margin={{ left: 0, right: 20, top: 10, bottom: 0 }}>
+                  <LineChart
+                    data={results.timeline}
+                    margin={{ left: 0, right: 20, top: 10, bottom: 0 }}
+                  >
                     <CartesianGrid stroke="var(--color-border)" />
                     <XAxis
                       dataKey="q"
                       stroke="var(--color-muted-foreground)"
                       fontSize={12}
-                      label={{ value: "Question #", position: "insideBottom", offset: -2, fontSize: 11 }}
+                      label={{
+                        value: "Question #",
+                        position: "insideBottom",
+                        offset: -2,
+                        fontSize: 11,
+                      }}
                     />
                     <YAxis
                       stroke="var(--color-muted-foreground)"
@@ -339,14 +367,17 @@ function ResultsPage() {
                     </span>
                     <span className="flex items-center justify-end gap-1 font-mono text-xs text-muted-foreground">
                       {time}s
-                      <ChevronDown className={`h-3.5 w-3.5 transition ${open ? "rotate-180" : ""}`} />
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 transition ${open ? "rotate-180" : ""}`}
+                      />
                     </span>
                   </button>
                   {open && (
                     <div className="border-t border-border bg-surface-alt/40 px-5 py-4 animate-in fade-in slide-in-from-top-1">
                       <p className="text-sm text-foreground">{q.stem}</p>
                       <p className="mt-3 text-xs font-bold uppercase tracking-wide text-success">
-                        Correct: {q.correctKey}. {q.options.find((o) => o.key === q.correctKey)?.text}
+                        Correct: {q.correctKey}.{" "}
+                        {q.options.find((o) => o.key === q.correctKey)?.text}
                       </p>
                       <p className="mt-2 text-sm text-muted-foreground">{q.whyCorrect}</p>
                       <p className="mt-3 rounded-lg bg-gradient-to-br from-primary/10 to-accent/15 p-3 text-sm">
@@ -395,7 +426,14 @@ function ScoreRing({ pct }: { pct: number }) {
   return (
     <div className="relative h-40 w-40 flex-shrink-0">
       <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="10" />
+        <circle
+          cx="70"
+          cy="70"
+          r={r}
+          fill="none"
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth="10"
+        />
         <circle
           cx="70"
           cy="70"
@@ -410,7 +448,9 @@ function ScoreRing({ pct }: { pct: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-4xl font-bold tabular-nums text-white">{shown}%</span>
-        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">Score</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">
+          Score
+        </span>
       </div>
     </div>
   );

@@ -3,7 +3,12 @@ import { Download, Search } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/admin/transactions")({
-  head: () => ({ meta: [{ title: "Admin · Transactions — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Admin · Transactions — Medinovaqbank" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: TransactionsPage,
 });
 
@@ -20,10 +25,23 @@ interface Tx {
 }
 
 const seed: Tx[] = Array.from({ length: 24 }, (_, i) => {
-  const statuses: Tx["status"][] = ["successful", "successful", "successful", "successful", "pending", "failed", "refunded"];
+  const statuses: Tx["status"][] = [
+    "successful",
+    "successful",
+    "successful",
+    "successful",
+    "pending",
+    "failed",
+    "refunded",
+  ];
   const channels: Tx["channel"][] = ["card", "mobile_money", "bank"];
   const plans = ["Monthly", "3 Months", "6 Months", "12 Months"];
-  const prices: Record<string, number> = { Monthly: 99, "3 Months": 249, "6 Months": 449, "12 Months": 799 };
+  const prices: Record<string, number> = {
+    Monthly: 99,
+    "3 Months": 249,
+    "6 Months": 449,
+    "12 Months": 799,
+  };
   const plan = plans[i % plans.length];
   return {
     id: `tx-${i + 1}`,
@@ -58,7 +76,9 @@ function TransactionsPage() {
         t.email.toLowerCase().includes(query.toLowerCase())),
   );
 
-  const totalRevenue = seed.filter((t) => t.status === "successful").reduce((s, t) => s + t.amount, 0);
+  const totalRevenue = seed
+    .filter((t) => t.status === "successful")
+    .reduce((s, t) => s + t.amount, 0);
 
   return (
     <div>
@@ -70,9 +90,21 @@ function TransactionsPage() {
       </header>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <Card label="Successful" value={`${seed.filter((t) => t.status === "successful").length}`} sub={`GHS ${totalRevenue.toLocaleString()}`} />
-        <Card label="Pending" value={`${seed.filter((t) => t.status === "pending").length}`} sub="Awaiting confirmation" />
-        <Card label="Failed / refunded" value={`${seed.filter((t) => t.status === "failed" || t.status === "refunded").length}`} sub="Manual review" />
+        <Card
+          label="Successful"
+          value={`${seed.filter((t) => t.status === "successful").length}`}
+          sub={`GHS ${totalRevenue.toLocaleString()}`}
+        />
+        <Card
+          label="Pending"
+          value={`${seed.filter((t) => t.status === "pending").length}`}
+          sub="Awaiting confirmation"
+        />
+        <Card
+          label="Failed / refunded"
+          value={`${seed.filter((t) => t.status === "failed" || t.status === "refunded").length}`}
+          sub="Manual review"
+        />
       </div>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -132,17 +164,25 @@ function TransactionsPage() {
                   <td className="px-4 py-3 text-right font-bold text-foreground">GHS {t.amount}</td>
                   <td className="px-4 py-3 text-muted-foreground">{t.channel.replace("_", " ")}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusStyle[t.status]}`}>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusStyle[t.status]}`}
+                    >
                       {t.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(t.date).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {new Date(t.date).toLocaleString()}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && <p className="py-12 text-center text-sm text-muted-foreground">No transactions match these filters.</p>}
+        {filtered.length === 0 && (
+          <p className="py-12 text-center text-sm text-muted-foreground">
+            No transactions match these filters.
+          </p>
+        )}
       </div>
     </div>
   );

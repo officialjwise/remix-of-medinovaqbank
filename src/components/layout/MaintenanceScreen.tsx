@@ -12,9 +12,12 @@ export function MaintenanceScreen() {
       <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-warning/10 text-warning">
         <Wrench className="h-9 w-9" />
       </span>
-      <h1 className="mt-6 text-2xl font-extrabold tracking-tight text-foreground">We'll be right back</h1>
+      <h1 className="mt-6 text-2xl font-extrabold tracking-tight text-foreground">
+        We'll be right back
+      </h1>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-        {platformName} is undergoing scheduled maintenance to bring you a better experience. Please check back shortly.
+        {platformName} is undergoing scheduled maintenance to bring you a better experience. Please
+        check back shortly.
       </p>
       <p className="mt-4 text-xs text-muted-foreground">
         Need help? Contact{" "}

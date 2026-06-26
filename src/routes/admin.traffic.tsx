@@ -48,10 +48,7 @@ const TrafficGlobe = lazy(() =>
 
 export const Route = createFileRoute("/admin/traffic")({
   head: () => ({
-    meta: [
-      { title: "Admin · Traffic — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Admin · Traffic — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: TrafficPage,
 });
@@ -81,8 +78,7 @@ const palette = {
   slate: "#94A3B8",
 } as const;
 
-const cardClass =
-  "rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]";
+const cardClass = "rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]";
 
 const gradients: Record<string, string> = {
   teal: "from-[#0E7C7B] to-[#15A89C]",
@@ -112,8 +108,7 @@ const totalSessions = countryTraffic.reduce((acc, c) => acc + c.sessions, 0);
 const topCountry = [...countryTraffic].sort((a, b) => b.users - a.users)[0];
 const avgSessionsPerVisitor = (totalSessions / totalVisitors).toFixed(1);
 const signupsToday = signupsByLocation[signupsByLocation.length - 1];
-const newSignupsToday =
-  signupsToday.Ghana + signupsToday.Nigeria + signupsToday.Other;
+const newSignupsToday = signupsToday.Ghana + signupsToday.Nigeria + signupsToday.Other;
 
 const cityMaxPct = Math.max(...ghanaCities.map((c) => c.pct));
 const trafficTotal = trafficSources.reduce((acc, s) => acc + s.value, 0);
@@ -168,12 +163,8 @@ function Panel({
   return (
     <section className={`${cardClass} ${className ?? ""}`}>
       <div>
-        <h3 className="text-sm font-bold tracking-tight text-foreground">
-          {title}
-        </h3>
-        {subtitle && (
-          <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
-        )}
+        <h3 className="text-sm font-bold tracking-tight text-foreground">{title}</h3>
+        {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       {children}
     </section>
@@ -201,9 +192,7 @@ function KpiCard({
         className={`absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${gradients[tone]} opacity-15 blur-xl`}
       />
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
         <span
           className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${gradients[tone]} text-white`}
         >
@@ -217,9 +206,7 @@ function KpiCard({
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#1FA968]" />
           </span>
         )}
-        <p className="text-2xl font-bold tracking-tight text-foreground">
-          {value}
-        </p>
+        <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
       </div>
       {hint && (
         <p
@@ -247,15 +234,10 @@ function Donut({
   title: string;
   data: { name: string; value: number; fill: string }[];
 }) {
-  const total = useMemo(
-    () => data.reduce((acc, d) => acc + d.value, 0),
-    [data],
-  );
+  const total = useMemo(() => data.reduce((acc, d) => acc + d.value, 0), [data]);
   return (
     <div className={cardClass}>
-      <h3 className="text-sm font-bold tracking-tight text-foreground">
-        {title}
-      </h3>
+      <h3 className="text-sm font-bold tracking-tight text-foreground">{title}</h3>
       <div className="mt-3 h-44 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -273,19 +255,13 @@ function Donut({
                 <Cell key={d.name} fill={d.fill} />
               ))}
             </Pie>
-            <Tooltip
-              formatter={(v: number) => v.toLocaleString()}
-              contentStyle={tooltipStyle}
-            />
+            <Tooltip formatter={(v: number) => v.toLocaleString()} contentStyle={tooltipStyle} />
           </PieChart>
         </ResponsiveContainer>
       </div>
       <div className="mt-2 space-y-1.5">
         {data.map((d) => (
-          <div
-            key={d.name}
-            className="flex items-center gap-2 text-xs text-muted-foreground"
-          >
+          <div key={d.name} className="flex items-center gap-2 text-xs text-muted-foreground">
             <span
               className="h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: d.fill }}
@@ -323,14 +299,8 @@ function TrafficPage() {
     return () => observer.disconnect();
   }, []);
 
-  const sortedCountries = useMemo(
-    () => [...countryTraffic].sort((a, b) => b.users - a.users),
-    [],
-  );
-  const countryPctMax = useMemo(
-    () => Math.max(...countryTraffic.map((c) => c.pct)),
-    [],
-  );
+  const sortedCountries = useMemo(() => [...countryTraffic].sort((a, b) => b.users - a.users), []);
+  const countryPctMax = useMemo(() => Math.max(...countryTraffic.map((c) => c.pct)), []);
   // Memoize the markers array so the globe effect doesn't re-init each render.
   const markers = useMemo(() => globeMarkers, []);
 
@@ -481,7 +451,11 @@ function TrafficPage() {
         </section>
 
         {/* Active users right now */}
-        <Panel title="Active users right now" subtitle="Real-time activity feed" className="flex flex-col">
+        <Panel
+          title="Active users right now"
+          subtitle="Real-time activity feed"
+          className="flex flex-col"
+        >
           <div className="mt-3 flex items-center gap-3">
             <span className="relative flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#1FA968] opacity-75" />
@@ -519,10 +493,7 @@ function TrafficPage() {
 
       {/* Countries table + Cities */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel
-          title="Top countries / regions"
-          subtitle="Traffic share by country"
-        >
+        <Panel title="Top countries / regions" subtitle="Traffic share by country">
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -536,22 +507,13 @@ function TrafficPage() {
               </thead>
               <tbody>
                 {sortedCountries.map((c) => (
-                  <tr
-                    key={c.code}
-                    className="border-b border-border/60 last:border-0"
-                  >
+                  <tr key={c.code} className="border-b border-border/60 last:border-0">
                     <td className="py-2.5 pr-4">
                       <span className="inline-flex items-center gap-2">
-                        <span
-                          className="text-base leading-none"
-                          aria-hidden
-                          title={c.country}
-                        >
+                        <span className="text-base leading-none" aria-hidden title={c.country}>
                           {flagForCountry(c.country)}
                         </span>
-                        <span className="font-medium text-foreground">
-                          {c.country}
-                        </span>
+                        <span className="font-medium text-foreground">{c.country}</span>
                         <span className="rounded bg-surface-alt px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                           {c.code}
                         </span>
@@ -573,9 +535,7 @@ function TrafficPage() {
                             }}
                           />
                         </div>
-                        <span className="tabular-nums text-xs text-muted-foreground">
-                          {c.pct}%
-                        </span>
+                        <span className="tabular-nums text-xs text-muted-foreground">{c.pct}%</span>
                       </div>
                     </td>
                     <td className="py-2.5 text-right">
@@ -602,12 +562,8 @@ function TrafficPage() {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <MapPin className="h-3.5 w-3.5 text-[#0E7C7B]" />
-                    <span className="font-medium text-foreground">
-                      {c.city}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {c.region}
-                    </span>
+                    <span className="font-medium text-foreground">{c.city}</span>
+                    <span className="text-xs text-muted-foreground">{c.region}</span>
                   </div>
                   <span className="tabular-nums text-foreground">
                     {c.users.toLocaleString()}{" "}
@@ -655,10 +611,7 @@ function TrafficPage() {
           </div>
           <div className="mt-2 space-y-1.5">
             {trafficSources.map((s) => (
-              <div
-                key={s.name}
-                className="flex items-center gap-2 text-xs text-muted-foreground"
-              >
+              <div key={s.name} className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: s.fill }}
@@ -697,11 +650,7 @@ function TrafficPage() {
                     <stop offset="100%" stopColor={palette.amber} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={gridStroke}
-                  vertical={false}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                 <XAxis
                   dataKey="day"
                   stroke={axisStroke}
@@ -710,16 +659,8 @@ function TrafficPage() {
                   axisLine={false}
                   interval={1}
                 />
-                <YAxis
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  cursor={{ stroke: gridStroke }}
-                />
+                <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: gridStroke }} />
                 <Area
                   type="monotone"
                   dataKey="Ghana"
@@ -754,10 +695,7 @@ function TrafficPage() {
               { name: "Other", color: palette.amber },
             ].map((s) => (
               <span key={s.name} className="inline-flex items-center gap-1.5">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: s.color }}
-                />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
                 {s.name}
               </span>
             ))}
@@ -766,10 +704,7 @@ function TrafficPage() {
       </div>
 
       {/* Traffic over time */}
-      <Panel
-        title="Traffic over time"
-        subtitle="Visits &amp; sessions across the last 30 days"
-      >
+      <Panel title="Traffic over time" subtitle="Visits &amp; sessions across the last 30 days">
         <div className="mt-4 h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={trafficOverTime}>
@@ -779,23 +714,11 @@ function TrafficPage() {
                   <stop offset="100%" stopColor={palette.teal} stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gSessions" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0%"
-                    stopColor={palette.emerald}
-                    stopOpacity={0.35}
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor={palette.emerald}
-                    stopOpacity={0}
-                  />
+                  <stop offset="0%" stopColor={palette.emerald} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={palette.emerald} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={gridStroke}
-                vertical={false}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
               <XAxis
                 dataKey="label"
                 stroke={axisStroke}
@@ -810,9 +733,7 @@ function TrafficPage() {
                 tickLine={false}
                 axisLine={false}
                 width={42}
-                tickFormatter={(v: number) =>
-                  v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`
-                }
+                tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`)}
               />
               <Tooltip
                 contentStyle={tooltipStyle}
@@ -844,10 +765,7 @@ function TrafficPage() {
             { name: "Sessions", color: palette.emerald },
           ].map((s) => (
             <span key={s.name} className="inline-flex items-center gap-1.5">
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: s.color }}
-              />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
               {s.name}
             </span>
           ))}

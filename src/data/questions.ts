@@ -16,7 +16,8 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "Left main coronary artery" },
     ],
     correctKey: "B",
-    whyCorrect: "The RCA supplies the inferior wall of the left ventricle (leads II, III, aVF). ST elevation in these leads localises ischaemia to the inferior territory, which is RCA-dependent in roughly 80% of patients.",
+    whyCorrect:
+      "The RCA supplies the inferior wall of the left ventricle (leads II, III, aVF). ST elevation in these leads localises ischaemia to the inferior territory, which is RCA-dependent in roughly 80% of patients.",
     whyWrong: {
       A: "LAD supplies the anterior wall and septum (leads V1–V4). It would not cause inferior ST elevation.",
       C: "Circumflex supplies the lateral wall (leads I, aVL, V5–V6).",
@@ -39,14 +40,16 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "Intubation and mechanical ventilation" },
     ],
     correctKey: "B",
-    whyCorrect: "First-line in acute asthma is high-dose inhaled short-acting beta-2 agonist (salbutamol nebuliser driven by oxygen).",
+    whyCorrect:
+      "First-line in acute asthma is high-dose inhaled short-acting beta-2 agonist (salbutamol nebuliser driven by oxygen).",
     whyWrong: {
       A: "Oral steroids are given but are not the immediate priority over bronchodilation.",
       C: "IV magnesium is reserved for severe/life-threatening asthma not responding to first-line.",
       D: "IV hydrocortisone is added if patient cannot tolerate PO; not the first-line bronchodilator.",
       E: "Intubation is for impending respiratory failure, not initial therapy.",
     },
-    keyPoint: "Acute asthma → oxygen + nebulised salbutamol first, steroids next, magnesium for severe.",
+    keyPoint:
+      "Acute asthma → oxygen + nebulised salbutamol first, steroids next, magnesium for severe.",
     related: ["Asthma Severity", "BTS Guidelines", "Bronchodilators"],
   },
   {
@@ -85,7 +88,8 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "McBurney's point tenderness" },
     ],
     correctKey: "B",
-    whyCorrect: "Rovsing's sign — RIF pain elicited by palpation of the LIF — is classic for acute appendicitis.",
+    whyCorrect:
+      "Rovsing's sign — RIF pain elicited by palpation of the LIF — is classic for acute appendicitis.",
     whyWrong: {
       A: "Murphy's sign indicates acute cholecystitis (RUQ).",
       C: "Cullen's sign (periumbilical bruising) suggests retroperitoneal haemorrhage / pancreatitis.",
@@ -108,7 +112,8 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "IVC filter placement" },
     ],
     correctKey: "C",
-    whyCorrect: "Massive (haemodynamically unstable) PE with right heart strain is an indication for systemic thrombolysis.",
+    whyCorrect:
+      "Massive (haemodynamically unstable) PE with right heart strain is an indication for systemic thrombolysis.",
     whyWrong: {
       A: "LMWH alone is appropriate for stable PE, not haemodynamically compromised PE.",
       B: "UFH is reasonable bridge but does not address the obstructing clot in shock.",
@@ -131,7 +136,8 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "Cefalexin" },
     ],
     correctKey: "B",
-    whyCorrect: "Lower UTI in children >3 months is typically treated with trimethoprim or nitrofurantoin per local guidance.",
+    whyCorrect:
+      "Lower UTI in children >3 months is typically treated with trimethoprim or nitrofurantoin per local guidance.",
     whyWrong: {
       A: "Ciprofloxacin is avoided in children due to tendinopathy risk.",
       C: "Amoxicillin has high resistance rates among uropathogens.",
@@ -154,7 +160,8 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "Severe hypertension" },
     ],
     correctKey: "C",
-    whyCorrect: "GI upset (nausea, diarrhoea) is the most common early adverse effect of SSRIs and usually settles within 1–2 weeks.",
+    whyCorrect:
+      "GI upset (nausea, diarrhoea) is the most common early adverse effect of SSRIs and usually settles within 1–2 weeks.",
     whyWrong: {
       A: "Anticholinergic effects are typical of TCAs.",
       B: "Some SSRIs cause weight gain over time but not in the first 2 weeks predominantly.",
@@ -200,7 +207,8 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "Subarachnoid haemorrhage" },
     ],
     correctKey: "B",
-    whyCorrect: "Neutrophilic pleocytosis with low glucose (<2/3 serum) and high protein is the classic bacterial meningitis profile.",
+    whyCorrect:
+      "Neutrophilic pleocytosis with low glucose (<2/3 serum) and high protein is the classic bacterial meningitis profile.",
     whyWrong: {
       A: "Viral: lymphocytic, normal glucose, mildly raised protein.",
       C: "TB: lymphocytic, very low glucose, very high protein (more chronic).",
@@ -223,7 +231,8 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "Sodium nitroprusside" },
     ],
     correctKey: "A",
-    whyCorrect: "Labetalol is the first-line antihypertensive for severe hypertension in pre-eclampsia.",
+    whyCorrect:
+      "Labetalol is the first-line antihypertensive for severe hypertension in pre-eclampsia.",
     whyWrong: {
       B: "ACE inhibitors are contraindicated in pregnancy (teratogenic).",
       C: "Atenolol is associated with IUGR; not preferred.",
@@ -246,7 +255,8 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "Crigler-Najjar syndrome" },
     ],
     correctKey: "C",
-    whyCorrect: "Jaundice in the first 24 hours is pathological and most often due to haemolysis (e.g. ABO/Rh incompatibility, G6PD).",
+    whyCorrect:
+      "Jaundice in the first 24 hours is pathological and most often due to haemolysis (e.g. ABO/Rh incompatibility, G6PD).",
     whyWrong: {
       A: "Physiological jaundice appears after 24 hours.",
       B: "Breast milk jaundice peaks in the second week.",
@@ -269,7 +279,8 @@ const seed: Omit<Question, "bankId">[] = [
       { key: "E", text: "IV fluid bolus" },
     ],
     correctKey: "C",
-    whyCorrect: "IM adrenaline is the single most important intervention in anaphylaxis and should be given immediately.",
+    whyCorrect:
+      "IM adrenaline is the single most important intervention in anaphylaxis and should be given immediately.",
     whyWrong: {
       A: "Antihistamines treat urticaria but do not reverse shock or airway oedema.",
       B: "Steroids are slow-onset and adjunctive.",
@@ -281,7 +292,12 @@ const seed: Omit<Question, "bankId">[] = [
   },
 ];
 
-export function getQuestionsForBank(bankId: string, count: number, topicFilter?: string[], difficulty?: string): import("@/types").Question[] {
+export function getQuestionsForBank(
+  bankId: string,
+  count: number,
+  topicFilter?: string[],
+  difficulty?: string,
+): import("@/types").Question[] {
   let pool = seed;
   if (topicFilter && topicFilter.length > 0) {
     const filtered = pool.filter((q) => topicFilter.includes(q.topic));

@@ -10,9 +10,15 @@ export const Route = createFileRoute("/help")({
   head: () => ({
     meta: [
       { title: "Help Center — Medinovaqbank" },
-      { name: "description", content: "Guides, troubleshooting, and answers for Medinovaqbank users." },
+      {
+        name: "description",
+        content: "Guides, troubleshooting, and answers for Medinovaqbank users.",
+      },
       { property: "og:title", content: "Help Center — Medinovaqbank" },
-      { property: "og:description", content: "Guides, troubleshooting, and answers for Medinovaqbank users." },
+      {
+        property: "og:description",
+        content: "Guides, troubleshooting, and answers for Medinovaqbank users.",
+      },
     ],
   }),
   component: Help,
@@ -52,8 +58,12 @@ function Help() {
       <main className="container-page py-16">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-bold uppercase tracking-wide text-accent">Help Center</p>
-          <h1 className="mt-2 text-4xl font-bold tracking-tight text-foreground">How can we help?</h1>
-          <p className="mt-3 text-base text-muted-foreground">Browse guides or reach the team directly.</p>
+          <h1 className="mt-2 text-4xl font-bold tracking-tight text-foreground">
+            How can we help?
+          </h1>
+          <p className="mt-3 text-base text-muted-foreground">
+            Browse guides or reach the team directly.
+          </p>
 
           <div className="relative mt-8">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -71,12 +81,17 @@ function Help() {
           {groups.length === 0 ? (
             <p className="text-center text-sm text-muted-foreground">
               No articles match "{query}". Try a different search or{" "}
-              <Link to="/contact" className="text-accent hover:underline">contact support</Link>.
+              <Link to="/contact" className="text-accent hover:underline">
+                contact support
+              </Link>
+              .
             </p>
           ) : (
             groups.map(([category, articles]) => (
               <section key={category}>
-                <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{category}</h2>
+                <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                  {category}
+                </h2>
                 <div className="mt-3 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
                   {articles.map((a) => (
                     <ArticleItem key={a.id} article={a} defaultOpen={query.trim().length > 0} />
@@ -88,8 +103,18 @@ function Help() {
         </div>
 
         <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
-          <Link to="/faq" className="inline-flex h-11 items-center rounded-lg border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:bg-surface-alt">Read FAQ</Link>
-          <Link to="/contact" className="inline-flex h-11 items-center rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90">Contact support</Link>
+          <Link
+            to="/faq"
+            className="inline-flex h-11 items-center rounded-lg border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:bg-surface-alt"
+          >
+            Read FAQ
+          </Link>
+          <Link
+            to="/contact"
+            className="inline-flex h-11 items-center rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
+          >
+            Contact support
+          </Link>
         </div>
       </main>
       <PublicFooter />
@@ -108,7 +133,9 @@ function ArticleItem({ article, defaultOpen }: { article: HelpArticle; defaultOp
         aria-expanded={open}
       >
         {article.title}
-        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
       {open && (
         <div

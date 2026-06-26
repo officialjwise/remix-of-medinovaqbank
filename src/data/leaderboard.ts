@@ -32,7 +32,11 @@ const names = [
   ["Dr. J. Amoako", "Rheumatology"],
 ] as const;
 
-export function buildLeaderboard(yourScore = 78, yourQuestions = 1284, yourSessions = 32): LeaderboardRow[] {
+export function buildLeaderboard(
+  yourScore = 78,
+  yourQuestions = 1284,
+  yourSessions = 32,
+): LeaderboardRow[] {
   const rows: LeaderboardRow[] = [];
   for (let i = 0; i < 60; i++) {
     const [name, specialty] = names[i % names.length];

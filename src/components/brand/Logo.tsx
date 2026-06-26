@@ -17,11 +17,7 @@ interface LogoProps {
  */
 export function Logo({ markOnly = false, size = 36, tone = "auto", className = "" }: LogoProps) {
   const wordTone =
-    tone === "light"
-      ? "text-white"
-      : tone === "dark"
-        ? "text-foreground"
-        : "text-foreground";
+    tone === "light" ? "text-white" : tone === "dark" ? "text-foreground" : "text-foreground";
 
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
@@ -42,8 +38,13 @@ export function Logo({ markOnly = false, size = 36, tone = "auto", className = "
       </span>
       {!markOnly && (
         <span className={`text-base font-bold tracking-tight ${wordTone}`}>
-          Medi<span className="bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] bg-clip-text text-transparent">nova</span>
-          <span className={tone === "light" ? "text-white/70" : "text-muted-foreground"}>qbank</span>
+          Medi
+          <span className="bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] bg-clip-text text-transparent">
+            nova
+          </span>
+          <span className={tone === "light" ? "text-white/70" : "text-muted-foreground"}>
+            qbank
+          </span>
         </span>
       )}
     </span>

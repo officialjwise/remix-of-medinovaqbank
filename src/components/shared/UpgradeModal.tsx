@@ -42,7 +42,9 @@ export function UpgradeModal() {
         </div>
 
         <div className="px-6 py-5">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Every plan includes</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Every plan includes
+          </p>
           <ul className="mt-3 space-y-2.5">
             {PERKS.map((p) => (
               <li key={p} className="flex items-start gap-2.5 text-sm text-foreground">

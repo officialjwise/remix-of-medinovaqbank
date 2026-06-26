@@ -30,7 +30,16 @@ export const Route = createFileRoute("/admin/notes/upload")({
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
-const COVER_COLORS = ["#0E7C7B", "#2BC97F", "#0EA5E9", "#7C3AED", "#A855F7", "#EC4899", "#F97316", "#E11D48"];
+const COVER_COLORS = [
+  "#0E7C7B",
+  "#2BC97F",
+  "#0EA5E9",
+  "#7C3AED",
+  "#A855F7",
+  "#EC4899",
+  "#F97316",
+  "#E11D48",
+];
 
 const TIER_OPTIONS: {
   value: NoteTier;
@@ -115,7 +124,7 @@ function UploadNotePage() {
     setSubmitting(true);
 
     // Mock PDF → page-image processing. Page count is derived for the demo.
-    const pageCount = 8 + ((file.size % 5) || 1);
+    const pageCount = 8 + (file.size % 5 || 1);
     const mid = Math.ceil(pageCount / 2);
 
     const id = add({
@@ -128,7 +137,13 @@ function UploadNotePage() {
       pageCount,
       topics: [
         { id: "t1", name: "Core concepts", pageStart: 1, pageEnd: mid, hiddenForTrial: false },
-        { id: "t2", name: "Advanced", pageStart: mid + 1, pageEnd: pageCount, hiddenForTrial: false },
+        {
+          id: "t2",
+          name: "Advanced",
+          pageStart: mid + 1,
+          pageEnd: pageCount,
+          hiddenForTrial: false,
+        },
       ],
       active: true,
       source: [],
@@ -147,8 +162,9 @@ function UploadNotePage() {
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4 text-lg font-bold text-foreground">Processing your note…</p>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          We're converting <span className="font-semibold text-foreground">{file?.name}</span> into protected page images.
-          Conversion may take a moment — you'll be taken to the note as soon as it's queued.
+          We're converting <span className="font-semibold text-foreground">{file?.name}</span> into
+          protected page images. Conversion may take a moment — you'll be taken to the note as soon
+          as it's queued.
         </p>
       </div>
     );
@@ -164,16 +180,20 @@ function UploadNotePage() {
       </Link>
 
       <header className="mt-4">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Upload High-Yield Note</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+          Upload High-Yield Note
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Upload a PDF and we'll convert it into protected, watermarked page images. Users never receive the original
-          PDF — pages are streamed one at a time as images.
+          Upload a PDF and we'll convert it into protected, watermarked page images. Users never
+          receive the original PDF — pages are streamed one at a time as images.
         </p>
       </header>
 
       {/* PDF upload */}
       <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Source PDF</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+          Source PDF
+        </h3>
         {file ? (
           <div className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface-alt/40 p-4">
             <div className="flex min-w-0 items-center gap-3">
@@ -222,8 +242,12 @@ function UploadNotePage() {
             )}
           >
             <FileUp className="h-12 w-12 text-muted-foreground/60" />
-            <p className="mt-4 text-[15px] font-bold text-foreground">Drag and drop your PDF here</p>
-            <p className="mt-2 text-sm text-muted-foreground">or click to browse · PDF only · up to 50MB</p>
+            <p className="mt-4 text-[15px] font-bold text-foreground">
+              Drag and drop your PDF here
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              or click to browse · PDF only · up to 50MB
+            </p>
             <input
               ref={inputRef}
               type="file"
@@ -238,8 +262,8 @@ function UploadNotePage() {
         )}
         <p className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
           <ImageIcon className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
-          The PDF is never delivered to users. After conversion, each page is served as a protected image to prevent
-          downloading or printing the source.
+          The PDF is never delivered to users. After conversion, each page is served as a protected
+          image to prevent downloading or printing the source.
         </p>
       </section>
 
@@ -339,7 +363,9 @@ function UploadNotePage() {
 
       {/* Access tier */}
       <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Access Tier</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+          Access Tier
+        </h3>
         <p className="mt-1 text-xs text-muted-foreground">Who can open this note once it's live.</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {TIER_OPTIONS.map((opt) => {
@@ -365,7 +391,9 @@ function UploadNotePage() {
                     </span>
                   )}
                 </span>
-                <span className="mt-2 text-sm font-bold text-foreground">{TIER_LABELS[opt.value]}</span>
+                <span className="mt-2 text-sm font-bold text-foreground">
+                  {TIER_LABELS[opt.value]}
+                </span>
                 <span className="mt-1 text-xs text-muted-foreground">{opt.blurb}</span>
               </button>
             );
@@ -392,7 +420,15 @@ function UploadNotePage() {
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">

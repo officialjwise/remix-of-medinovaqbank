@@ -7,7 +7,9 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useCategoriesStore, type Category } from "@/stores/categoriesStore";
 
 export const Route = createFileRoute("/admin/categories")({
-  head: () => ({ meta: [{ title: "Admin · Categories — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Admin · Categories — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+  }),
   component: CategoriesPage,
 });
 
@@ -22,7 +24,10 @@ function CategoriesPage() {
   const filtered = useMemo(() => {
     const q = debounced.trim().toLowerCase();
     return categories.filter(
-      (c) => !q || c.name.toLowerCase().includes(q) || c.subcategories.some((s) => s.name.toLowerCase().includes(q)),
+      (c) =>
+        !q ||
+        c.name.toLowerCase().includes(q) ||
+        c.subcategories.some((s) => s.name.toLowerCase().includes(q)),
     );
   }, [categories, debounced]);
 
@@ -32,9 +37,12 @@ function CategoriesPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Categories &amp; Subcategories</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">
+            Categories &amp; Subcategories
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {categories.length} parent categories · {totalSubs} subcategories. Group banks &amp; questions properly.
+            {categories.length} parent categories · {totalSubs} subcategories. Group banks &amp;
+            questions properly.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -47,7 +55,10 @@ function CategoriesPage() {
               className="h-10 w-60 rounded-lg border border-border bg-surface pl-9 pr-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>
-          <button onClick={() => setCreating(true)} className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-sm font-semibold text-white shadow-md hover:opacity-95">
+          <button
+            onClick={() => setCreating(true)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-sm font-semibold text-white shadow-md hover:opacity-95"
+          >
             <Plus className="h-4 w-4" /> New category
           </button>
         </div>
@@ -57,12 +68,19 @@ function CategoriesPage() {
         <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
           <Tag className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 text-sm font-semibold text-foreground">No categories found</p>
-          <p className="mt-1 text-xs text-muted-foreground">Try a different search, or create a new category.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Try a different search, or create a new category.
+          </p>
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {filtered.map((cat) => (
-            <CategoryCard key={cat.id} category={cat} onEdit={() => setEditing(cat)} onDelete={() => setDeleting(cat)} />
+            <CategoryCard
+              key={cat.id}
+              category={cat}
+              onEdit={() => setEditing(cat)}
+              onDelete={() => setDeleting(cat)}
+            />
           ))}
         </div>
       )}
@@ -70,11 +88,20 @@ function CategoriesPage() {
       {(editing || creating) && (
         <CategoryEditor
           initial={editing}
-          onClose={() => { setEditing(null); setCreating(false); }}
+          onClose={() => {
+            setEditing(null);
+            setCreating(false);
+          }}
           onSave={(values) => {
-            if (editing) { updateCategory(editing.id, values); toast.success("Category updated"); }
-            else { addCategory(values); toast.success("Category created"); }
-            setEditing(null); setCreating(false);
+            if (editing) {
+              updateCategory(editing.id, values);
+              toast.success("Category updated");
+            } else {
+              addCategory(values);
+              toast.success("Category created");
+            }
+            setEditing(null);
+            setCreating(false);
           }}
         />
       )}
@@ -84,21 +111,35 @@ function CategoriesPage() {
         title={`Delete "${deleting?.name}"?`}
         description={
           <span>
-            This category has <strong>{deleting?.bankCount}</strong> banks, <strong>{deleting?.questionCount.toLocaleString()}</strong> questions and{" "}
-            <strong>{deleting?.subcategories.length}</strong> subcategories. They will become uncategorised.
+            This category has <strong>{deleting?.bankCount}</strong> banks,{" "}
+            <strong>{deleting?.questionCount.toLocaleString()}</strong> questions and{" "}
+            <strong>{deleting?.subcategories.length}</strong> subcategories. They will become
+            uncategorised.
           </span>
         }
         variant="destructive"
         typedConfirmation={deleting?.name}
         confirmLabel="Delete category"
         onCancel={() => setDeleting(null)}
-        onConfirm={() => { if (deleting) removeCategory(deleting.id); setDeleting(null); toast.success("Category deleted"); }}
+        onConfirm={() => {
+          if (deleting) removeCategory(deleting.id);
+          setDeleting(null);
+          toast.success("Category deleted");
+        }}
       />
     </div>
   );
 }
 
-function CategoryCard({ category, onEdit, onDelete }: { category: Category; onEdit: () => void; onDelete: () => void }) {
+function CategoryCard({
+  category,
+  onEdit,
+  onDelete,
+}: {
+  category: Category;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const { addSubcategory, updateSubcategory, removeSubcategory } = useCategoriesStore();
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -120,7 +161,10 @@ function CategoryCard({ category, onEdit, onDelete }: { category: Category; onEd
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm" style={{ background: category.color }}>
+            <span
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm"
+              style={{ background: category.color }}
+            >
               <FolderTree className="h-5 w-5" />
             </span>
             <div>
@@ -129,8 +173,18 @@ function CategoryCard({ category, onEdit, onDelete }: { category: Category; onEd
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={onEdit} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"><Edit3 className="h-3.5 w-3.5" /> Edit</button>
-            <button onClick={onDelete} className="inline-flex h-8 items-center justify-center rounded-lg border border-error/30 bg-error/5 px-2.5 text-error hover:bg-error/10"><Trash2 className="h-3.5 w-3.5" /></button>
+            <button
+              onClick={onEdit}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"
+            >
+              <Edit3 className="h-3.5 w-3.5" /> Edit
+            </button>
+            <button
+              onClick={onDelete}
+              className="inline-flex h-8 items-center justify-center rounded-lg border border-error/30 bg-error/5 px-2.5 text-error hover:bg-error/10"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
 
@@ -141,7 +195,10 @@ function CategoryCard({ category, onEdit, onDelete }: { category: Category; onEd
         </div>
 
         <div className="mt-4 border-t border-border pt-3">
-          <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between text-xs font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground">
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="flex w-full items-center justify-between text-xs font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+          >
             Subcategories ({category.subcategories.length})
             <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
           </button>
@@ -149,26 +206,68 @@ function CategoryCard({ category, onEdit, onDelete }: { category: Category; onEd
           {open && (
             <div className="mt-3 space-y-2">
               {category.subcategories.length === 0 && !adding && (
-                <p className="rounded-lg border border-dashed border-border py-3 text-center text-xs text-muted-foreground">No subcategories yet.</p>
+                <p className="rounded-lg border border-dashed border-border py-3 text-center text-xs text-muted-foreground">
+                  No subcategories yet.
+                </p>
               )}
               <div className="flex flex-wrap gap-2">
                 {category.subcategories.map((s) =>
                   editId === s.id ? (
-                    <span key={s.id} className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent/10 px-2 py-1">
+                    <span
+                      key={s.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent/10 px-2 py-1"
+                    >
                       <input
                         autoFocus
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") { updateSubcategory(category.id, s.id, editName.trim() || s.name); setEditId(null); toast.success("Subcategory updated"); } if (e.key === "Escape") setEditId(null); }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            updateSubcategory(category.id, s.id, editName.trim() || s.name);
+                            setEditId(null);
+                            toast.success("Subcategory updated");
+                          }
+                          if (e.key === "Escape") setEditId(null);
+                        }}
                         className="w-28 bg-transparent text-xs font-semibold text-foreground outline-none"
                       />
-                      <button onClick={() => { updateSubcategory(category.id, s.id, editName.trim() || s.name); setEditId(null); toast.success("Subcategory updated"); }} className="text-accent"><Check className="h-3.5 w-3.5" /></button>
+                      <button
+                        onClick={() => {
+                          updateSubcategory(category.id, s.id, editName.trim() || s.name);
+                          setEditId(null);
+                          toast.success("Subcategory updated");
+                        }}
+                        className="text-accent"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
                     </span>
                   ) : (
-                    <span key={s.id} className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-alt px-2.5 py-1 text-xs font-semibold text-foreground">
+                    <span
+                      key={s.id}
+                      className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-alt px-2.5 py-1 text-xs font-semibold text-foreground"
+                    >
                       {s.name}
-                      <button onClick={() => { setEditId(s.id); setEditName(s.name); }} className="text-muted-foreground hover:text-accent" aria-label="Edit subcategory"><Edit3 className="h-3 w-3" /></button>
-                      <button onClick={() => { removeSubcategory(category.id, s.id); toast.success("Subcategory removed"); }} className="text-muted-foreground hover:text-error" aria-label="Remove subcategory"><X className="h-3 w-3" /></button>
+                      <button
+                        onClick={() => {
+                          setEditId(s.id);
+                          setEditName(s.name);
+                        }}
+                        className="text-muted-foreground hover:text-accent"
+                        aria-label="Edit subcategory"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          removeSubcategory(category.id, s.id);
+                          toast.success("Subcategory removed");
+                        }}
+                        className="text-muted-foreground hover:text-error"
+                        aria-label="Remove subcategory"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </span>
                   ),
                 )}
@@ -180,15 +279,31 @@ function CategoryCard({ category, onEdit, onDelete }: { category: Category; onEd
                     autoFocus
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") submitNew(); if (e.key === "Escape") setAdding(false); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submitNew();
+                      if (e.key === "Escape") setAdding(false);
+                    }}
                     placeholder="Subcategory name…"
                     className="h-8 flex-1 rounded-lg border border-border bg-surface px-3 text-xs focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
-                  <button onClick={submitNew} className="inline-flex h-8 items-center rounded-lg bg-accent px-3 text-xs font-semibold text-accent-foreground">Add</button>
-                  <button onClick={() => setAdding(false)} className="inline-flex h-8 items-center rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold hover:bg-surface-alt">Cancel</button>
+                  <button
+                    onClick={submitNew}
+                    className="inline-flex h-8 items-center rounded-lg bg-accent px-3 text-xs font-semibold text-accent-foreground"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={() => setAdding(false)}
+                    className="inline-flex h-8 items-center rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold hover:bg-surface-alt"
+                  >
+                    Cancel
+                  </button>
                 </div>
               ) : (
-                <button onClick={() => setAdding(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-surface-alt hover:text-foreground">
+                <button
+                  onClick={() => setAdding(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+                >
                   <Plus className="h-3.5 w-3.5" /> Add subcategory
                 </button>
               )}
@@ -209,34 +324,75 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function CategoryEditor({ initial, onClose, onSave }: { initial: Category | null; onClose: () => void; onSave: (v: { name: string; slug: string; color: string }) => void }) {
+function CategoryEditor({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: Category | null;
+  onClose: () => void;
+  onSave: (v: { name: string; slug: string; color: string }) => void;
+}) {
   const [name, setName] = useState(initial?.name ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [color, setColor] = useState(initial?.color ?? "#0E7C7B");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 pt-20 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl border border-border bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 pt-20 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-border bg-surface shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="border-b border-border px-5 py-4">
-          <h3 className="text-base font-bold text-foreground">{initial ? "Edit category" : "New category"}</h3>
+          <h3 className="text-base font-bold text-foreground">
+            {initial ? "Edit category" : "New category"}
+          </h3>
         </header>
         <div className="space-y-4 p-5">
           <Field label="Name">
-            <input value={name} onChange={(e) => { setName(e.target.value); if (!initial) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-")); }} className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (!initial) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+              }}
+              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            />
           </Field>
           <Field label="Slug">
-            <input value={slug} onChange={(e) => setSlug(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-surface px-3 font-mono text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              className="h-10 w-full rounded-lg border border-border bg-surface px-3 font-mono text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            />
           </Field>
           <Field label="Accent colour">
             <div className="flex items-center gap-3">
-              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-surface" />
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-surface"
+              />
               <code className="rounded bg-surface-alt px-2 py-1 text-xs">{color}</code>
             </div>
           </Field>
         </div>
         <footer className="flex justify-end gap-2 border-t border-border px-5 py-3">
-          <button onClick={onClose} className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt">Cancel</button>
-          <button disabled={!name || !slug} onClick={() => onSave({ name, slug, color })} className="h-10 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-sm font-semibold text-white disabled:opacity-50">
+          <button
+            onClick={onClose}
+            className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"
+          >
+            Cancel
+          </button>
+          <button
+            disabled={!name || !slug}
+            onClick={() => onSave({ name, slug, color })}
+            className="h-10 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-sm font-semibold text-white disabled:opacity-50"
+          >
             {initial ? "Save changes" : "Create category"}
           </button>
         </footer>
@@ -248,7 +404,9 @@ function CategoryEditor({ initial, onClose, onSave }: { initial: Category | null
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );
