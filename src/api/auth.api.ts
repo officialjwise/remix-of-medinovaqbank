@@ -1,96 +1,108 @@
-import type { User } from "@/types";
-import { apiClient } from "./client";
-
-export interface AuthResult {
-  accessToken: string;
-  user: User;
-}
-
-/** Friendly public id derived from the internal uuid (uuid stays internal). */
-const publicIdFor = (uuid: string, prefix: string) =>
-  `MQB-${prefix}-${parseInt(uuid.replace(/[^0-9a-f]/gi, "").slice(0, 6), 16)
-    .toString()
-    .padStart(6, "0")}`;
-
-const mockPractitioner = (email = "doctor@medinova.app", name = "Dr. Bright Nketia"): User => {
-  const id = crypto.randomUUID();
-  return {
-    id,
-    publicId: publicIdFor(id, "U"),
-    email,
-    name,
-    specialty: "Internal Medicine",
-    role: "USER",
-    createdAt: new Date().toISOString(),
-  };
-};
-
-const mockAdmin = (email = "admin@medinova.app"): User => {
-  const id = crypto.randomUUID();
-  return {
-    id,
-    publicId: publicIdFor(id, "ADM"),
-    email,
-    // The admin console is the super-admin control center; the demo admin login
-    // gets full access so System Settings, Subscription Plans, Feature Catalog,
-    // etc. (all super-only) are visible. A real backend derives this per account.
-    name: /super/i.test(email) ? "Super Admin" : "Admin Console",
-    role: "SUPER_ADMIN",
-    createdAt: new Date().toISOString(),
-  };
-};
+import type { Subscription, User } from "@/types";
+import { apiClient, BASE_URL } from "./client";
+import { mapSubscription, mapUser } from "./mappers";
+import type {
+  AuthTokens,
+  BackendAuthMe,
+  BackendOnboardingState,
+  BackendSubscriptionSummary,
+  BackendUser,
+} from "./types";
+import { useAuthStore } from "@/stores/authStore";
 
 export interface RegisterInput {
   name: string;
   email: string;
   password: string;
   specialty?: string;
+  institution?: string;
+  country?: string;
+}
+
+export interface OnboardingStartInput {
+  email: string;
+  password: string;
+  name?: string;
+}
+
+export interface OnboardingStepInput {
+  step: "profile" | "preferences";
+  data?: Record<string, unknown>;
 }
 
 export const authApi = {
-  // Practitioner self-registration (email/password). Always creates a USER —
-  // the auth store then provisions a fresh trial off the admin trial policy.
-  register: ({ name, email, specialty }: RegisterInput) =>
-    apiClient.post<AuthResult>(
-      "/auth/register",
-      { name, email },
-      {
-        accessToken: "mock-signup-token-" + Date.now(),
-        user: { ...mockPractitioner(email, name), specialty: specialty || "General Practice" },
-      },
-    ),
+  login: (email: string, password: string) =>
+    apiClient.post<AuthTokens>("/auth/login", { email, password }),
 
-  // Practitioners only — Google OAuth
-  googleCallback: (token: string) =>
-    apiClient.post<AuthResult>(
-      "/auth/google/callback",
-      { token },
-      {
-        accessToken: token || "mock-google-token-" + Date.now(),
-        user: mockPractitioner(),
-      },
-    ),
+  register: (input: RegisterInput) => apiClient.post<AuthTokens>("/auth/register", input),
 
-  // Admin login (email/password OR Google)
-  adminLogin: (email: string, _password: string) =>
-    apiClient.post<AuthResult>(
-      "/auth/admin/login",
-      { email },
-      {
-        accessToken: "mock-admin-token-" + Date.now(),
-        user: mockAdmin(email),
-      },
-    ),
+  forgotPassword: (email: string) => apiClient.post<null>("/auth/forgot-password", { email }),
 
-  adminGoogleCallback: (token: string) =>
-    apiClient.post<AuthResult>(
-      "/auth/admin/google",
-      { token },
-      {
-        accessToken: token || "mock-admin-google-token",
-        user: mockAdmin(),
-      },
-    ),
+  resetPassword: (token: string, password: string) =>
+    apiClient.post<null>("/auth/reset-password", { token, password }),
 
-  me: () => apiClient.get<User>("/auth/me", mockPractitioner()),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiClient.post<null>("/auth/change-password", { currentPassword, newPassword }),
+
+  refresh: (refreshToken: string) => apiClient.post<AuthTokens>("/auth/refresh", { refreshToken }),
+
+  logout: () => apiClient.post<null>("/auth/logout"),
+
+  /** Current user (mapped). Throws if unauthenticated. */
+  async getMe(): Promise<User> {
+    const data = await apiClient.get<BackendAuthMe>("/auth/me");
+    return mapUser(data.user);
+  },
+
+  /** Profile via /users/me (mapped). */
+  async getProfile(): Promise<User> {
+    const data = await apiClient.get<BackendUser>("/users/me");
+    return mapUser(data);
+  },
+
+  /** Server-sourced subscription/trial status (mapped). */
+  async getSubscription(): Promise<Subscription> {
+    const data = await apiClient.get<BackendSubscriptionSummary>("/users/me/subscription");
+    return mapSubscription(data);
+  },
+
+  /** Full-page redirect entry point for Google OAuth. */
+  googleUrl: (): string => `${BASE_URL}/auth/google`,
+
+  // ── Resumable onboarding ──
+  onboardingStart: (input: OnboardingStartInput) =>
+    apiClient.post<BackendOnboardingState>("/auth/onboarding/start", input),
+
+  onboardingResume: (token: string) =>
+    apiClient.get<BackendOnboardingState>(`/auth/onboarding/${token}`),
+
+  onboardingSaveStep: (token: string, input: OnboardingStepInput) =>
+    apiClient.patch<BackendOnboardingState>(`/auth/onboarding/${token}/step`, input),
+
+  onboardingComplete: (token: string) =>
+    apiClient.post<AuthTokens>(`/auth/onboarding/${token}/complete`),
+
+  onboardingAbandon: (token: string) => apiClient.post<null>(`/auth/onboarding/${token}/abandon`),
 };
+
+/**
+ * Finalize a session from a freshly-issued token pair: persist tokens, load the
+ * user via /auth/me, then best-effort load subscription. Used by login, register,
+ * Google callback, and onboarding completion. Returns the mapped user.
+ */
+export async function establishSession(tokens: AuthTokens): Promise<User> {
+  const store = useAuthStore.getState();
+  // Set tokens first so the /auth/me request is authenticated.
+  store.setTokens(tokens.accessToken, tokens.refreshToken);
+  const user = await authApi.getMe();
+  useAuthStore.getState().login(tokens.accessToken, tokens.refreshToken, user);
+
+  // Subscription is best-effort — a failure must never block sign-in.
+  try {
+    const subscription = await authApi.getSubscription();
+    useAuthStore.getState().setSubscription(subscription);
+  } catch {
+    /* leave subscription null; surfaces fetch lazily elsewhere */
+  }
+  return user;
+}

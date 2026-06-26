@@ -1,33 +1,22 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useState, useEffect } from "react";
 import type { Subscription, User } from "@/types";
-import { useSettingsStore } from "@/stores/settingsStore";
-import { deviceLabel } from "@/lib/trial";
 
 interface AuthState {
   user: User | null;
   accessToken: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
+  /** Server-sourced subscription/trial status (never fabricated client-side). */
   subscription: Subscription | null;
-  login: (token: string, user: User) => void;
-  logout: () => void;
+  /** Establish a session from a token pair + the user fetched via /auth/me. */
+  login: (accessToken: string, refreshToken: string, user: User) => void;
+  /** Rotate tokens (used by the client's refresh flow). */
+  setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;
-  setSubscription: (s: Subscription) => void;
-}
-
-/** Build a fresh trial subscription using the admin-configured trial policy. */
-function buildTrial(): Subscription {
-  const { trialDays, trialQuestionLimit } = useSettingsStore.getState().settings.general;
-  const now = new Date();
-  const ends = new Date(now.getTime() + trialDays * 86_400_000);
-  return {
-    status: "TRIAL",
-    trialQuestionsLeft: trialQuestionLimit,
-    trialQuestionsTotal: trialQuestionLimit,
-    trialStartedAt: now.toISOString(),
-    trialEndsAt: ends.toISOString(),
-    boundDevice: deviceLabel(),
-  };
+  setSubscription: (s: Subscription | null) => void;
+  logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -35,25 +24,35 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       accessToken: null,
+      refreshToken: null,
       isAuthenticated: false,
       subscription: null,
-      login: (accessToken, user) =>
-        set({
-          accessToken,
-          user,
-          isAuthenticated: true,
-          subscription: user.role === "USER" ? buildTrial() : null,
-        }),
-      logout: () =>
-        set({ accessToken: null, user: null, isAuthenticated: false, subscription: null }),
+      login: (accessToken, refreshToken, user) =>
+        set({ accessToken, refreshToken, user, isAuthenticated: true }),
+      setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
       setUser: (user) => set({ user }),
       setSubscription: (subscription) => set({ subscription }),
+      logout: () =>
+        set({
+          accessToken: null,
+          refreshToken: null,
+          user: null,
+          isAuthenticated: false,
+          subscription: null,
+        }),
     }),
-    { name: "medinova-auth" },
+    {
+      name: "medinova-auth",
+      // Persist identity + tokens only; subscription is always re-fetched.
+      partialize: (s) => ({
+        user: s.user,
+        accessToken: s.accessToken,
+        refreshToken: s.refreshToken,
+        isAuthenticated: s.isAuthenticated,
+      }),
+    },
   ),
 );
-
-import { useState, useEffect } from "react";
 
 export function useAuthHydrated() {
   const [hydrated, setHydrated] = useState(false);

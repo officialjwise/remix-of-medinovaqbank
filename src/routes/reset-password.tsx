@@ -1,10 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/Logo";
+import { authApi } from "@/api/auth.api";
+import { ApiError } from "@/api/client";
+
+const searchSchema = z.object({ token: z.string().optional() });
 
 export const Route = createFileRoute("/reset-password")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [{ title: "Reset Password — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
@@ -13,6 +19,7 @@ export const Route = createFileRoute("/reset-password")({
 
 function ResetPassword() {
   const navigate = useNavigate();
+  const { token } = Route.useSearch();
   const [pwd, setPwd] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,6 +28,10 @@ function ResetPassword() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!token) {
+      toast.error("This reset link is invalid or has expired.");
+      return;
+    }
     if (pwd !== confirm) {
       toast.error("Passwords don't match");
       return;
@@ -30,10 +41,15 @@ function ResetPassword() {
       return;
     }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setLoading(false);
-    toast.success("Password updated. You can sign in.");
-    navigate({ to: "/login" });
+    try {
+      await authApi.resetPassword(token, pwd);
+      toast.success("Password updated. You can sign in.");
+      navigate({ to: "/login" });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not reset your password.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

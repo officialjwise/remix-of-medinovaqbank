@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Eye, EyeOff, Check, UserPlus, Loader2 } from "lucide-react";
 import { AuthSplit, AuthDivider, GoogleButton } from "@/components/auth/AuthSplit";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
-import { authApi } from "@/api/auth.api";
-import { useAuthStore } from "@/stores/authStore";
+import { authApi, establishSession } from "@/api/auth.api";
+import { ApiError } from "@/api/client";
 import { useGeneralSettings } from "@/stores/settingsStore";
 
 export const Route = createFileRoute("/register")({
@@ -39,7 +39,6 @@ const SPECIALTIES = [
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const login = useAuthStore((s) => s.login);
   const { trialDays, trialQuestionLimit } = useGeneralSettings();
 
   const [name, setName] = useState("");
@@ -53,8 +52,8 @@ function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
 
   function handleGoogle() {
-    // Real flow: window.location.href = `${API_URL}/api/auth/google`
-    navigate({ to: "/auth/callback", search: { token: "mock-google-signup-token" } });
+    // Full-page redirect to the backend OAuth entry point (new users land in onboarding).
+    window.location.href = authApi.googleUrl();
   }
 
   async function handleRegister(e: React.FormEvent) {
@@ -69,17 +68,18 @@ function RegisterPage() {
 
     setLoading(true);
     try {
-      const { accessToken, user } = await authApi.register({
+      const tokens = await authApi.register({
         name: name.trim(),
         email: email.trim(),
         password,
         specialty,
       });
-      localStorage.setItem("accessToken", accessToken);
-      login(accessToken, user);
-      navigate({ to: "/dashboard" });
-    } catch {
-      setError("Could not create your account. Please try again.");
+      const user = await establishSession(tokens);
+      navigate({ to: user.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard" });
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Could not create your account. Please try again.",
+      );
     } finally {
       setLoading(false);
     }

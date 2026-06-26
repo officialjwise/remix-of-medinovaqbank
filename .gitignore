@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Local env (Vite). Only .env.example is committed; real values stay local.
+.env
+.env.*
+!.env.example
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

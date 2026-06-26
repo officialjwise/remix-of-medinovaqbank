@@ -1,12 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { z } from "zod";
-import { authApi } from "@/api/auth.api";
-import { useAuthStore } from "@/stores/authStore";
+import { establishSession } from "@/api/auth.api";
 
+// The backend Google callback redirects here with a token pair for existing
+// users (new users are sent to /auth/onboarding instead).
 const searchSchema = z.object({
-  token: z.string().optional(),
-  refresh: z.string().optional(),
+  accessToken: z.string().optional(),
+  refreshToken: z.string().optional(),
+  error: z.string().optional(),
 });
 
 export const Route = createFileRoute("/auth/callback")({
@@ -21,19 +23,25 @@ export const Route = createFileRoute("/auth/callback")({
 });
 
 function AuthCallbackPage() {
-  const { token } = Route.useSearch();
+  const { accessToken, refreshToken, error } = Route.useSearch();
   const navigate = useNavigate();
-  const login = useAuthStore((s) => s.login);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (error || !accessToken || !refreshToken) {
+        navigate({ to: "/login" });
+        return;
+      }
       try {
-        const { accessToken, user } = await authApi.googleCallback(token ?? "");
+        const user = await establishSession({
+          accessToken,
+          refreshToken,
+          tokenType: "Bearer",
+          expiresIn: 0,
+        });
         if (cancelled) return;
-        localStorage.setItem("accessToken", accessToken);
-        login(accessToken, user);
-        navigate({ to: "/dashboard" });
+        navigate({ to: user.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard" });
       } catch {
         if (!cancelled) navigate({ to: "/login" });
       }
@@ -41,7 +49,7 @@ function AuthCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [token, login, navigate]);
+  }, [accessToken, refreshToken, error, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">

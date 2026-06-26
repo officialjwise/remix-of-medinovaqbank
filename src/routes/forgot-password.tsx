@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/Logo";
+import { authApi } from "@/api/auth.api";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({
@@ -19,10 +20,17 @@ function ForgotPassword() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setLoading(false);
-    setSent(true);
-    toast.success("Reset link sent");
+    try {
+      // The backend always responds generically (never reveals account existence).
+      await authApi.forgotPassword(email);
+      setSent(true);
+      toast.success("Reset link sent");
+    } catch {
+      // Keep the generic, non-enumerating UX even on transport errors.
+      setSent(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

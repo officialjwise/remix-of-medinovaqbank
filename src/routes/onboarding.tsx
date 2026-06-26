@@ -1,10 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { z } from "zod";
 import { ArrowRight, CheckCircle2, GraduationCap, Stethoscope, Target } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/Logo";
+import { authApi, establishSession } from "@/api/auth.api";
+import { ApiError } from "@/api/client";
+import { useAuthStore } from "@/stores/authStore";
+
+// New Google users are redirected here by the backend with a resumable
+// onboarding token; local sign-ups may also resume an in-progress session.
+const searchSchema = z.object({
+  onboardingToken: z.string().optional(),
+  provider: z.string().optional(),
+});
 
 export const Route = createFileRoute("/onboarding")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [{ title: "Welcome — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
@@ -35,8 +47,37 @@ const goals = [
 
 function Onboarding() {
   const navigate = useNavigate();
+  const { onboardingToken } = Route.useSearch();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [step, setStep] = useState(0);
   const [data, setData] = useState({ specialty: "", institution: "", goal: "", country: "Ghana" });
+  const [saving, setSaving] = useState(false);
+
+  // No onboarding session and not signed in → nothing to set up; start at register.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!onboardingToken && !isAuthenticated) {
+      navigate({ to: "/register" });
+      return;
+    }
+    // Resume an existing session to prefill what was already entered.
+    if (onboardingToken) {
+      void authApi
+        .onboardingResume(onboardingToken)
+        .then((state) => {
+          const d = (state.data ?? {}) as Record<string, string>;
+          setData((prev) => ({
+            specialty: d.specialty ?? prev.specialty,
+            institution: d.institution ?? prev.institution,
+            country: d.country ?? prev.country,
+            goal: d.goal ?? prev.goal,
+          }));
+        })
+        .catch(() => {
+          /* expired/invalid token — let the user proceed; complete will surface it */
+        });
+    }
+  }, [onboardingToken, isAuthenticated, navigate]);
 
   function next() {
     setStep((s) => Math.min(s + 1, 2));
@@ -45,9 +86,40 @@ function Onboarding() {
     setStep((s) => Math.max(s - 1, 0));
   }
 
-  function finish() {
-    toast.success("Profile set up. Let's go!");
-    navigate({ to: "/dashboard" });
+  async function finish() {
+    // Authenticated user without a session (post-register profile step) — the
+    // account already exists; profile can be refined later from /profile.
+    if (!onboardingToken) {
+      toast.success("Profile set up. Let's go!");
+      navigate({ to: "/dashboard" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await authApi.onboardingSaveStep(onboardingToken, {
+        step: "profile",
+        data: {
+          specialty: data.specialty,
+          institution: data.institution,
+          country: data.country,
+        },
+      });
+      await authApi.onboardingSaveStep(onboardingToken, {
+        step: "preferences",
+        data: { preferences: { goal: data.goal } },
+      });
+      const tokens = await authApi.onboardingComplete(onboardingToken);
+      const user = await establishSession(tokens);
+      toast.success("Welcome to Medinovaqbank!");
+      navigate({ to: user.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard" });
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not finish setting up your account.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -144,10 +216,10 @@ function Onboarding() {
             ) : (
               <button
                 onClick={finish}
-                disabled={!data.goal}
+                disabled={!data.goal || saving}
                 className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
               >
-                Go to dashboard <ArrowRight className="h-4 w-4" />
+                {saving ? "Finishing…" : "Go to dashboard"} <ArrowRight className="h-4 w-4" />
               </button>
             )}
           </div>

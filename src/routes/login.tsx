@@ -2,8 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
 import { AuthSplit, AuthDivider, GoogleButton } from "@/components/auth/AuthSplit";
-import { authApi } from "@/api/auth.api";
-import { useAuthStore } from "@/stores/authStore";
+import { authApi, establishSession } from "@/api/auth.api";
+import { ApiError } from "@/api/client";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -23,17 +23,16 @@ const DEV_MODE = import.meta.env.DEV;
 
 function LoginPage() {
   const navigate = useNavigate();
-  const login = useAuthStore((s) => s.login);
 
-  const [email, setEmail] = useState(DEV_MODE ? "admin@example.com" : "");
-  const [password, setPassword] = useState(DEV_MODE ? "any-password" : "");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function handleGoogle() {
-    // Real flow: window.location.href = `${API_URL}/api/auth/google`
-    navigate({ to: "/auth/callback", search: { token: "mock-google-token" } });
+    // Full-page redirect to the backend OAuth entry point.
+    window.location.href = authApi.googleUrl();
   }
 
   async function handleEmailLogin(e: React.FormEvent) {
@@ -41,9 +40,8 @@ function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const { accessToken, user } = await authApi.adminLogin(email, password);
-      localStorage.setItem("accessToken", accessToken);
-      login(accessToken, user);
+      const tokens = await authApi.login(email, password);
+      const user = await establishSession(tokens);
 
       // Redirect based on role
       if (user.role === "SUPER_ADMIN") {
@@ -51,8 +49,8 @@ function LoginPage() {
       } else {
         navigate({ to: "/dashboard" });
       }
-    } catch {
-      setError("Invalid credentials.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Invalid credentials.");
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,9 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { authApi } from "@/api/auth.api";
 
 import { SplashScreen } from "@/components/layout/SplashScreen";
 import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
@@ -31,10 +33,22 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const { user, subscription, setUser } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setSubscription = useAuthStore((s) => s.setSubscription);
   const deviceBinding = useSettingsStore((s) => s.settings.trial.deviceBinding);
   const maintenanceMode = useSettingsStore((s) => s.settings.general.maintenanceMode);
   const navigate = Route.useNavigate();
   const fingerprint = useDeviceFingerprint();
+
+  // Authoritative subscription/trial status from the server (never fabricated).
+  const { data: fetchedSubscription } = useQuery({
+    queryKey: ["me", "subscription"],
+    queryFn: authApi.getSubscription,
+    enabled: isAuthenticated,
+  });
+  useEffect(() => {
+    if (fetchedSubscription) setSubscription(fetchedSubscription);
+  }, [fetchedSubscription, setSubscription]);
 
   // When maintenance mode is on, non-admins see the maintenance page.
   const isAdmin = user?.role === "SUPER_ADMIN";
