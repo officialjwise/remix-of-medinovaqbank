@@ -1,12 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState, useMemo } from "react";
-import { ArrowLeft, Download, FileSpreadsheet, FileUp, Loader2, Check, AlertCircle, ArrowRight, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  FileSpreadsheet,
+  FileUp,
+  Loader2,
+  Check,
+  AlertCircle,
+  ArrowRight,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { questionBanks } from "@/data/banks";
 
 export const Route = createFileRoute("/admin/banks/$bankId/upload")({
-  head: () => ({ meta: [{ title: "Admin · Bulk Upload — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Admin · Bulk Upload — Medinovaqbank" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: AdminBankUpload,
 });
 
@@ -23,7 +38,9 @@ const OPT_LETTERS = ["A", "B", "C", "D", "E"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"];
 
 /** Normalise a header cell to one of our known fields. */
-function classifyHeader(h: string): "num" | "stem" | "options" | "correct" | "difficulty" | "topic" | null {
+function classifyHeader(
+  h: string,
+): "num" | "stem" | "options" | "correct" | "difficulty" | "topic" | null {
   const s = h.toLowerCase().trim();
   if (s.includes("number") || s === "#" || s === "no") return "num";
   if (s.includes("stem") || (s.includes("question") && !s.includes("number"))) return "stem";
@@ -72,14 +89,19 @@ const downloadCsv = () => {
   const sample = [
     {
       "question number": "1",
-      "question stem": "A 45-year-old male presents with inferior ST elevation (II, III, aVF). Which artery is most likely occluded?",
-      "options (A-D)": "A. Left anterior descending\nB. Right coronary artery\nC. Left circumflex\nD. Posterior descending",
+      "question stem":
+        "A 45-year-old male presents with inferior ST elevation (II, III, aVF). Which artery is most likely occluded?",
+      "options (A-D)":
+        "A. Left anterior descending\nB. Right coronary artery\nC. Left circumflex\nD. Posterior descending",
       "right option": "B",
       "difficulty (optional)": "Intermediate",
       "topic (optional)": "Cardiology",
     },
   ];
-  const csv = Papa.unparse({ fields: COLUMNS, data: sample.map((r) => COLUMNS.map((c) => (r as Record<string, string>)[c])) });
+  const csv = Papa.unparse({
+    fields: COLUMNS,
+    data: sample.map((r) => COLUMNS.map((c) => (r as Record<string, string>)[c])),
+  });
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -90,7 +112,9 @@ const downloadCsv = () => {
 };
 
 const downloadErrors = (errors: RowError[]) => {
-  const csv = "row,column,reason\n" + errors.map((e) => `${e.row},"${e.column ?? ""}","${e.reason.replace(/"/g, '""')}"`).join("\n");
+  const csv =
+    "row,column,reason\n" +
+    errors.map((e) => `${e.row},"${e.column ?? ""}","${e.reason.replace(/"/g, '""')}"`).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -116,33 +140,62 @@ function parseCsvText(text: string): { rows: PreviewRow[]; fatal?: string } {
     const field = classifyHeader(h);
     if (field && colIndex[field] === undefined) colIndex[field] = i;
   });
-  if (colIndex.stem === undefined || colIndex.options === undefined || colIndex.correct === undefined) {
-    return { rows: [], fatal: "Missing required columns. Expected: question stem, options (A-D), right option." };
+  if (
+    colIndex.stem === undefined ||
+    colIndex.options === undefined ||
+    colIndex.correct === undefined
+  ) {
+    return {
+      rows: [],
+      fatal: "Missing required columns. Expected: question stem, options (A-D), right option.",
+    };
   }
 
-  const at = (r: string[], field: string) => (colIndex[field] !== undefined ? String(r[colIndex[field]] ?? "").trim() : "");
+  const at = (r: string[], field: string) =>
+    colIndex[field] !== undefined ? String(r[colIndex[field]] ?? "").trim() : "";
 
   const rows: PreviewRow[] = grid.slice(1).map((r, idx) => {
     const rowNum = idx + 2; // +1 for header, +1 for 1-based
     const stem = at(r, "stem");
     const optionsCell = at(r, "options");
-    const correctRaw = at(r, "correct").toUpperCase().replace(/[^A-E]/g, "");
+    const correctRaw = at(r, "correct")
+      .toUpperCase()
+      .replace(/[^A-E]/g, "");
     const difficulty = at(r, "difficulty");
     const topic = at(r, "topic");
     const options = parseOptionsCell(optionsCell);
     const errors: RowError[] = [];
 
-    if (!stem) errors.push({ row: rowNum, column: "question stem", reason: "Question stem is required" });
-    if (options.length < 2) errors.push({ row: rowNum, column: "options (A-D)", reason: "At least 2 options are required (one per line, e.g. 'A. ...')" });
-    if (options.some((o) => !o.key)) errors.push({ row: rowNum, column: "options (A-D)", reason: "Each option line must start with its letter (A., B., …)" });
+    if (!stem)
+      errors.push({ row: rowNum, column: "question stem", reason: "Question stem is required" });
+    if (options.length < 2)
+      errors.push({
+        row: rowNum,
+        column: "options (A-D)",
+        reason: "At least 2 options are required (one per line, e.g. 'A. ...')",
+      });
+    if (options.some((o) => !o.key))
+      errors.push({
+        row: rowNum,
+        column: "options (A-D)",
+        reason: "Each option line must start with its letter (A., B., …)",
+      });
     const optionKeys = options.map((o) => o.key);
     if (!correctRaw || !OPT_LETTERS.includes(correctRaw)) {
       errors.push({ row: rowNum, column: "right option", reason: "Must be one of A, B, C, D, E" });
     } else if (!optionKeys.includes(correctRaw)) {
-      errors.push({ row: rowNum, column: "right option", reason: `Letter ${correctRaw} has no matching option` });
+      errors.push({
+        row: rowNum,
+        column: "right option",
+        reason: `Letter ${correctRaw} has no matching option`,
+      });
     }
     if (difficulty && !DIFFICULTIES.includes(difficulty)) {
-      errors.push({ row: rowNum, column: "difficulty", reason: "Must be Beginner, Intermediate, or Advanced" });
+      errors.push({
+        row: rowNum,
+        column: "difficulty",
+        reason: "Must be Beginner, Intermediate, or Advanced",
+      });
     }
 
     return {
@@ -182,7 +235,12 @@ function AdminBankUpload() {
     return (
       <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-card)]">
         <p className="text-sm text-muted-foreground">Bank not found.</p>
-        <Link to="/admin/banks" className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline">← Back to banks</Link>
+        <Link
+          to="/admin/banks"
+          className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline"
+        >
+          ← Back to banks
+        </Link>
       </div>
     );
   }
@@ -197,7 +255,9 @@ function AdminBankUpload() {
       return;
     }
     if (/\.xlsx$/i.test(f.name)) {
-      toast.error("XLSX parsing isn't supported in-browser — export your sheet as CSV and upload that.");
+      toast.error(
+        "XLSX parsing isn't supported in-browser — export your sheet as CSV and upload that.",
+      );
       return;
     }
     const reader = new FileReader();
@@ -242,35 +302,61 @@ function AdminBankUpload() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link to="/admin/banks" className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+      <Link
+        to="/admin/banks"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+      >
         <ArrowLeft className="h-3.5 w-3.5" /> Banks
       </Link>
-      <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">Upload Question Bank</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Bank: <span className="font-bold text-primary">{bank.name}</span></p>
+      <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">
+        Upload Question Bank
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Bank: <span className="font-bold text-primary">{bank.name}</span>
+      </p>
 
       {/* Step indicator */}
       <div className="mt-6 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        <span className={step === "upload" ? "text-primary" : "text-muted-foreground"}>1. Upload</span>
+        <span className={step === "upload" ? "text-primary" : "text-muted-foreground"}>
+          1. Upload
+        </span>
         <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
-        <span className={step === "preview" ? "text-primary" : "text-muted-foreground"}>2. Preview & Validate</span>
+        <span className={step === "preview" ? "text-primary" : "text-muted-foreground"}>
+          2. Preview & Validate
+        </span>
         <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
-        <span className={step === "importing" || step === "done" ? "text-primary" : "text-muted-foreground"}>3. Import</span>
+        <span
+          className={
+            step === "importing" || step === "done" ? "text-primary" : "text-muted-foreground"
+          }
+        >
+          3. Import
+        </span>
       </div>
 
       {/* STEP 1: Upload */}
       {step === "upload" && (
         <div className="mt-6 space-y-5 animate-slide-up">
           <div className="flex flex-wrap gap-2">
-            <button onClick={downloadCsv} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt hover:border-border-strong transition-all">
+            <button
+              onClick={downloadCsv}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt hover:border-border-strong transition-all"
+            >
               <Download className="h-4 w-4 text-primary" /> Download Template CSV
             </button>
-            <button onClick={() => toast.info("XLSX template — same columns")} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt hover:border-border-strong transition-all">
+            <button
+              onClick={() => toast.info("XLSX template — same columns")}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt hover:border-border-strong transition-all"
+            >
               <FileSpreadsheet className="h-4 w-4 text-accent" /> Download Template XLSX
             </button>
           </div>
 
           <div
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => {
               e.preventDefault();
@@ -284,14 +370,26 @@ function AdminBankUpload() {
             tabIndex={0}
           >
             <FileUp className="h-12 w-12 text-muted-foreground/60" />
-            <p className="mt-4 text-[15px] font-bold text-foreground">Drag and drop your .csv or .xlsx file here</p>
+            <p className="mt-4 text-[15px] font-bold text-foreground">
+              Drag and drop your .csv or .xlsx file here
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">or click to browse</p>
-            <input ref={inputRef} type="file" accept=".csv,.xlsx" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); }} />
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".csv,.xlsx"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onPick(f);
+              }}
+            />
           </div>
 
           <div className="rounded-2xl border border-border bg-surface-alt/30 p-5 shadow-sm">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Expected Columns</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+              Expected Columns
+            </p>
             <p className="break-all font-mono text-xs text-foreground/80 leading-relaxed">
               {COLUMNS.join(" │ ")}
             </p>
@@ -310,10 +408,15 @@ function AdminBankUpload() {
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">{file.name}</p>
-                <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB · {previewStats.total} rows detected</p>
+                <p className="text-xs text-muted-foreground">
+                  {(file.size / 1024).toFixed(1)} KB · {previewStats.total} rows detected
+                </p>
               </div>
             </div>
-            <button onClick={reset} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface-alt transition-all">
+            <button
+              onClick={reset}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface-alt transition-all"
+            >
               <X className="h-3.5 w-3.5" /> Replace file
             </button>
           </div>
@@ -336,13 +439,27 @@ function AdminBankUpload() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface-alt/30">
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-16">Row</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-10">✓</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground min-w-[250px]">Question</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Correct</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Difficulty</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Topic</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground min-w-[200px]">Issues</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-16">
+                      Row
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-10">
+                      ✓
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground min-w-[250px]">
+                      Question
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Correct
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Difficulty
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Topic
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground min-w-[200px]">
+                      Issues
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -350,8 +467,13 @@ function AdminBankUpload() {
                     const hasErrors = row.errors.length > 0;
                     const errorColumns = new Set(row.errors.map((e) => e.column));
                     return (
-                      <tr key={row.rowNum} className={`border-b border-border last:border-b-0 transition-colors ${hasErrors ? "bg-error/5 hover:bg-error/10" : "hover:bg-surface-alt/30"}`}>
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{row.rowNum}</td>
+                      <tr
+                        key={row.rowNum}
+                        className={`border-b border-border last:border-b-0 transition-colors ${hasErrors ? "bg-error/5 hover:bg-error/10" : "hover:bg-surface-alt/30"}`}
+                      >
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                          {row.rowNum}
+                        </td>
                         <td className="px-4 py-3">
                           {hasErrors ? (
                             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-error/10">
@@ -364,28 +486,42 @@ function AdminBankUpload() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`block max-w-[320px] truncate text-sm ${errorColumns.has("question stem") ? "font-bold text-error" : "text-foreground"}`}>
-                            {row.data.question_text || <span className="italic text-error">Empty</span>}
+                          <span
+                            className={`block max-w-[320px] truncate text-sm ${errorColumns.has("question stem") ? "font-bold text-error" : "text-foreground"}`}
+                          >
+                            {row.data.question_text || (
+                              <span className="italic text-error">Empty</span>
+                            )}
                           </span>
                           {row.data.options_preview && (
-                            <span className={`mt-0.5 block max-w-[320px] truncate text-xs ${errorColumns.has("options (A-D)") ? "text-error" : "text-muted-foreground"}`} title={row.data.options_preview}>
+                            <span
+                              className={`mt-0.5 block max-w-[320px] truncate text-xs ${errorColumns.has("options (A-D)") ? "text-error" : "text-muted-foreground"}`}
+                              title={row.data.options_preview}
+                            >
                               {row.data.options_preview}
                             </span>
                           )}
                         </td>
-                        <td className={`px-4 py-3 font-mono font-bold ${errorColumns.has("right option") ? "text-error" : "text-foreground"}`}>
+                        <td
+                          className={`px-4 py-3 font-mono font-bold ${errorColumns.has("right option") ? "text-error" : "text-foreground"}`}
+                        >
                           {row.data.correct_option || "—"}
                         </td>
-                        <td className={`px-4 py-3 text-sm ${errorColumns.has("difficulty") ? "font-bold text-error" : "text-foreground/80"}`}>
+                        <td
+                          className={`px-4 py-3 text-sm ${errorColumns.has("difficulty") ? "font-bold text-error" : "text-foreground/80"}`}
+                        >
                           {row.data.difficulty || "—"}
                         </td>
-                        <td className="px-4 py-3 text-sm text-foreground/80">{row.data.topic || "—"}</td>
+                        <td className="px-4 py-3 text-sm text-foreground/80">
+                          {row.data.topic || "—"}
+                        </td>
                         <td className="px-4 py-3">
                           {hasErrors ? (
                             <div className="space-y-1">
                               {row.errors.map((e, i) => (
                                 <p key={i} className="text-xs font-medium text-error">
-                                  <span className="font-bold text-error/70">{e.column}:</span> {e.reason}
+                                  <span className="font-bold text-error/70">{e.column}:</span>{" "}
+                                  {e.reason}
                                 </p>
                               ))}
                             </div>
@@ -403,13 +539,17 @@ function AdminBankUpload() {
 
           {/* Action buttons */}
           <div className="flex items-center justify-between pt-2">
-            <button onClick={reset} className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:bg-surface-alt transition-all">
+            <button
+              onClick={reset}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:bg-surface-alt transition-all"
+            >
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
             <div className="flex items-center gap-3">
               {previewStats.invalid > 0 && (
                 <p className="text-xs font-medium text-warning">
-                  {previewStats.invalid} row{previewStats.invalid !== 1 ? "s" : ""} will be skipped due to errors
+                  {previewStats.invalid} row{previewStats.invalid !== 1 ? "s" : ""} will be skipped
+                  due to errors
                 </p>
               )}
               <button
@@ -431,7 +571,10 @@ function AdminBankUpload() {
           <p className="mt-4 text-lg font-bold text-foreground">Importing questions…</p>
           <p className="mt-1 text-sm text-muted-foreground">{progress}% complete</p>
           <div className="mt-4 h-2 w-64 overflow-hidden rounded-full bg-surface-alt">
-            <div className="h-full bg-gradient-to-r from-primary to-accent transition-all" style={{ width: `${progress}%` }} />
+            <div
+              className="h-full bg-gradient-to-r from-primary to-accent transition-all"
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
       )}
@@ -452,7 +595,10 @@ function AdminBankUpload() {
                 )}
               </div>
               {result.errors.length > 0 && (
-                <button onClick={() => downloadErrors(result.errors)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt transition-all">
+                <button
+                  onClick={() => downloadErrors(result.errors)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt transition-all"
+                >
                   <Download className="h-3.5 w-3.5 text-primary" /> Export Errors CSV
                 </button>
               )}
@@ -465,9 +611,14 @@ function AdminBankUpload() {
                   <span>Reason</span>
                 </div>
                 {result.errors.map((e, i) => (
-                  <div key={i} className="grid grid-cols-[60px_100px_1fr] gap-4 border-b border-border px-6 py-3 last:border-b-0 hover:bg-surface-alt/20 transition-colors">
+                  <div
+                    key={i}
+                    className="grid grid-cols-[60px_100px_1fr] gap-4 border-b border-border px-6 py-3 last:border-b-0 hover:bg-surface-alt/20 transition-colors"
+                  >
                     <span className="font-mono text-xs font-bold text-foreground">{e.row}</span>
-                    <span className="font-mono text-xs text-accent font-semibold">{e.column || "—"}</span>
+                    <span className="font-mono text-xs text-accent font-semibold">
+                      {e.column || "—"}
+                    </span>
                     <span className="text-sm text-error font-medium">{e.reason}</span>
                   </div>
                 ))}
@@ -476,10 +627,16 @@ function AdminBankUpload() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={reset} className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:bg-surface-alt transition-all">
+            <button
+              onClick={reset}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:bg-surface-alt transition-all"
+            >
               Upload Another File
             </button>
-            <Link to="/admin/banks" className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-5 text-sm font-bold text-primary hover:bg-primary/20 transition-all">
+            <Link
+              to="/admin/banks"
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-5 text-sm font-bold text-primary hover:bg-primary/20 transition-all"
+            >
               Back to Banks
             </Link>
           </div>

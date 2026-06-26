@@ -113,7 +113,8 @@ function Reader({ note, isTrial }: { note: AdminNote; isTrial: boolean }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable))
+        return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
         goNext();
@@ -186,7 +187,9 @@ function Reader({ note, isTrial }: { note: AdminNote; isTrial: boolean }) {
 
       {/* Page stage */}
       <div className="flex flex-1 items-start justify-center px-3 py-6 sm:px-6 sm:py-10">
-        <div className={`w-full ${fit ? "max-w-3xl" : "max-w-xl"} transition-[max-width] duration-300`}>
+        <div
+          className={`w-full ${fit ? "max-w-3xl" : "max-w-xl"} transition-[max-width] duration-300`}
+        >
           <ProtectedSurface
             context="high_yield_note"
             contextId={note.id}
@@ -329,7 +332,8 @@ function PremiumWall({ note }: { note: AdminNote }) {
         </span>
         <h1 className="mt-3 text-xl font-bold text-foreground">{note.title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Premium high-yield notes are available on any paid plan. Subscribe to read this note in full.
+          Premium high-yield notes are available on any paid plan. Subscribe to read this note in
+          full.
         </p>
         <button
           type="button"

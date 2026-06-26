@@ -18,7 +18,8 @@ export const useFeatureCatalogStore = create<FeatureCatalogState>()(
     (set) => ({
       features: FEATURE_CATALOG,
       add: (feature) => set((s) => ({ features: [...s.features, feature] })),
-      update: (key, patch) => set((s) => ({ features: s.features.map((f) => (f.key === key ? { ...f, ...patch } : f)) })),
+      update: (key, patch) =>
+        set((s) => ({ features: s.features.map((f) => (f.key === key ? { ...f, ...patch } : f)) })),
       remove: (key) => set((s) => ({ features: s.features.filter((f) => f.key !== key) })),
     }),
     { name: "medinova-feature-catalog-v2", version: 1 },

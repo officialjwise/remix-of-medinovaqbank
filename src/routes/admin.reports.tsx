@@ -3,17 +3,49 @@ import { Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/reports")({
-  head: () => ({ meta: [{ title: "Admin · Reports — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Admin · Reports — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+  }),
   component: ReportsPage,
 });
 
 const reports = [
-  { id: "rev", title: "Revenue Summary", desc: "Subscriptions, MRR, ARR, churn — by plan and month.", lastRun: "2h ago" },
-  { id: "users", title: "User Cohort Analysis", desc: "Signup → first session → first paid subscription funnel.", lastRun: "1d ago" },
-  { id: "engagement", title: "Engagement Report", desc: "DAU, WAU, MAU, sessions per user, retention curves.", lastRun: "5h ago" },
-  { id: "content", title: "Content Performance", desc: "Hardest banks, most-flagged questions, mean accuracy by subject.", lastRun: "3d ago" },
-  { id: "exam", title: "Exam Readiness Report", desc: "Per-user readiness scores against USMLE / PLAB / MDCN benchmarks.", lastRun: "12h ago" },
-  { id: "ai", title: "AI Usage & Cost", desc: "Tokens consumed by explanation type, cost per active user.", lastRun: "1w ago" },
+  {
+    id: "rev",
+    title: "Revenue Summary",
+    desc: "Subscriptions, MRR, ARR, churn — by plan and month.",
+    lastRun: "2h ago",
+  },
+  {
+    id: "users",
+    title: "User Cohort Analysis",
+    desc: "Signup → first session → first paid subscription funnel.",
+    lastRun: "1d ago",
+  },
+  {
+    id: "engagement",
+    title: "Engagement Report",
+    desc: "DAU, WAU, MAU, sessions per user, retention curves.",
+    lastRun: "5h ago",
+  },
+  {
+    id: "content",
+    title: "Content Performance",
+    desc: "Hardest banks, most-flagged questions, mean accuracy by subject.",
+    lastRun: "3d ago",
+  },
+  {
+    id: "exam",
+    title: "Exam Readiness Report",
+    desc: "Per-user readiness scores against USMLE / PLAB / MDCN benchmarks.",
+    lastRun: "12h ago",
+  },
+  {
+    id: "ai",
+    title: "AI Usage & Cost",
+    desc: "Tokens consumed by explanation type, cost per active user.",
+    lastRun: "1w ago",
+  },
 ];
 
 function ReportsPage() {
@@ -22,7 +54,8 @@ function ReportsPage() {
       <header>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Reports</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pre-built reports for finance, growth, and content teams. Schedule for email delivery or export on demand.
+          Pre-built reports for finance, growth, and content teams. Schedule for email delivery or
+          export on demand.
         </p>
       </header>
 

@@ -4,10 +4,7 @@ import { Lock, ArrowRight, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sessions_/active")({
   head: () => ({
-    meta: [
-      { title: "Device Locked — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Device Locked — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: ActiveSessionPage,
 });
@@ -25,28 +22,37 @@ function ActiveSessionPage() {
           <ShieldAlert className="h-4 w-4 text-warning" />
         </div>
       </div>
-      
+
       <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
         Active Session Detected
       </h1>
       <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-        Your Medinovaqbank account is currently locked to another device. Trial users are limited to a single active device to prevent account sharing.
+        Your Medinovaqbank account is currently locked to another device. Trial users are limited to
+        a single active device to prevent account sharing.
       </p>
 
       <div className="mt-8 w-full space-y-4">
         <div className="rounded-xl border border-border bg-surface p-5 text-left shadow-sm">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-[#00D4C8]">How to unlock</h3>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-[#00D4C8]">
+            How to unlock
+          </h3>
           <ul className="mt-3 space-y-3 text-sm text-foreground">
             <li className="flex items-start gap-2.5">
-              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-surface-alt text-xs font-bold text-muted-foreground">1</span>
+              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-surface-alt text-xs font-bold text-muted-foreground">
+                1
+              </span>
               <span>Log out from your previous device.</span>
             </li>
             <li className="flex items-start gap-2.5">
-              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-surface-alt text-xs font-bold text-muted-foreground">2</span>
+              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-surface-alt text-xs font-bold text-muted-foreground">
+                2
+              </span>
               <span>Contact an administrator to clear your active device session.</span>
             </li>
             <li className="flex items-start gap-2.5">
-              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-surface-alt text-xs font-bold text-muted-foreground">3</span>
+              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-surface-alt text-xs font-bold text-muted-foreground">
+                3
+              </span>
               <span>Upgrade your subscription to unlock multi-device access.</span>
             </li>
           </ul>
@@ -58,7 +64,7 @@ function ActiveSessionPage() {
         >
           Upgrade Subscription <ArrowRight className="h-4 w-4" />
         </Link>
-        
+
         <button
           onClick={() => {
             useAuthStore.getState().logout();

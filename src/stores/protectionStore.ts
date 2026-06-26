@@ -99,7 +99,10 @@ const SEED_EVENTS: ProtectionEvent[] = (() => {
       userEmail: u.email,
       type: types[Math.floor(rnd() * types.length)],
       context: c,
-      contextId: c === "quiz_session" ? `qs-${8000 + Math.floor(rnd() * 50)}` : `note-${1 + Math.floor(rnd() * 6)}`,
+      contextId:
+        c === "quiz_session"
+          ? `qs-${8000 + Math.floor(rnd() * 50)}`
+          : `note-${1 + Math.floor(rnd() * 6)}`,
       page: c === "high_yield_note" ? 1 + Math.floor(rnd() * 12) : undefined,
       ip: `${10 + Math.floor(rnd() * 240)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}`,
       device: u.device,
@@ -114,7 +117,9 @@ const SEED_RESTRICTIONS: Restriction[] = (() => {
   return Array.from({ length: 5 }, (_, i) => {
     const u = adminUsers[Math.floor(rnd() * adminUsers.length)];
     const active = i < 2;
-    const restrictedAt = ago(active ? 120 + Math.floor(rnd() * 600) : 4000 + Math.floor(rnd() * 4000));
+    const restrictedAt = ago(
+      active ? 120 + Math.floor(rnd() * 600) : 4000 + Math.floor(rnd() * 4000),
+    );
     const unlockAt = new Date(new Date(restrictedAt).getTime() + 24 * 3600_000).toISOString();
     return {
       id: `rst-${100 + i}`,
@@ -125,7 +130,7 @@ const SEED_RESTRICTIONS: Restriction[] = (() => {
       strikes: 3,
       restrictedAt,
       unlockAt,
-      status: active ? "active" : (i % 2 === 0 ? "expired" : "lifted"),
+      status: active ? "active" : i % 2 === 0 ? "expired" : "lifted",
       manual: false,
     } as Restriction;
   });
@@ -154,14 +159,36 @@ interface ProtectionState {
   violationCount: (userId: string) => number;
   eventsForUser: (userId: string) => ProtectionEvent[];
   liftRestriction: (id: string) => void;
-  manualRestrict: (input: { userId: string; userName: string; userEmail: string; reason: string; hours: number }) => void;
+  manualRestrict: (input: {
+    userId: string;
+    userName: string;
+    userEmail: string;
+    reason: string;
+    hours: number;
+  }) => void;
 }
 
 function deviceLabel() {
   if (typeof navigator === "undefined") return "Unknown device";
   const ua = navigator.userAgent;
-  const browser = /Edg/.test(ua) ? "Edge" : /Chrome/.test(ua) ? "Chrome" : /Firefox/.test(ua) ? "Firefox" : /Safari/.test(ua) ? "Safari" : "Browser";
-  const os = /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : "Unknown OS";
+  const browser = /Edg/.test(ua)
+    ? "Edge"
+    : /Chrome/.test(ua)
+      ? "Chrome"
+      : /Firefox/.test(ua)
+        ? "Firefox"
+        : /Safari/.test(ua)
+          ? "Safari"
+          : "Browser";
+  const os = /Windows/.test(ua)
+    ? "Windows"
+    : /Mac/.test(ua)
+      ? "macOS"
+      : /Android/.test(ua)
+        ? "Android"
+        : /iPhone|iPad/.test(ua)
+          ? "iOS"
+          : "Unknown OS";
   return `${browser} on ${os}`;
 }
 
@@ -220,7 +247,10 @@ export const useProtectionStore = create<ProtectionState>()(
           if (settings.enabled && settings.countedEvents.includes(type)) {
             const windowStart = Date.now() - settings.strikeWindowMin * 60_000;
             const strikes = events.filter(
-              (e) => e.userId === user.id && settings.countedEvents.includes(e.type) && new Date(e.createdAt).getTime() >= windowStart,
+              (e) =>
+                e.userId === user.id &&
+                settings.countedEvents.includes(e.type) &&
+                new Date(e.createdAt).getTime() >= windowStart,
             ).length;
 
             if (strikes >= settings.strikeThreshold) {
@@ -254,7 +284,9 @@ export const useProtectionStore = create<ProtectionState>()(
       eventsForUser: (userId) => get().events.filter((e) => e.userId === userId),
 
       liftRestriction: (id) =>
-        set((s) => ({ restrictions: s.restrictions.map((r) => (r.id === id ? { ...r, status: "lifted" } : r)) })),
+        set((s) => ({
+          restrictions: s.restrictions.map((r) => (r.id === id ? { ...r, status: "lifted" } : r)),
+        })),
 
       manualRestrict: ({ userId, userName, userEmail, reason, hours }) =>
         set((s) => {
@@ -272,7 +304,11 @@ export const useProtectionStore = create<ProtectionState>()(
             manual: true,
           };
           // supersede any existing active restriction
-          const restrictions = s.restrictions.map((r) => (r.userId === userId && r.status === "active" ? { ...r, status: "lifted" as RestrictionStatus } : r));
+          const restrictions = s.restrictions.map((r) =>
+            r.userId === userId && r.status === "active"
+              ? { ...r, status: "lifted" as RestrictionStatus }
+              : r,
+          );
           return { restrictions: [restriction, ...restrictions] };
         }),
     }),

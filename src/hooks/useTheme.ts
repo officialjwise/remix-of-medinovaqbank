@@ -28,7 +28,11 @@ export function useTheme() {
     setTheme((prev) => {
       const next: Theme = prev === "dark" ? "light" : "dark";
       apply(next);
-      try { window.localStorage.setItem(KEY, next); } catch { /* ignore */ }
+      try {
+        window.localStorage.setItem(KEY, next);
+      } catch {
+        /* ignore */
+      }
       return next;
     });
   }, []);

@@ -31,7 +31,9 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useDebounce } from "@/hooks/useDebounce";
 
 export const Route = createFileRoute("/admin/sessions")({
-  head: () => ({ meta: [{ title: "Admin · Sessions — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Admin · Sessions — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+  }),
   component: AdminSessionsPage,
 });
 
@@ -82,7 +84,13 @@ const Avatar = React.memo(function Avatar({ initials }: { initials: string }) {
   );
 });
 
-function Pill({ tone, children }: { tone: "success" | "warning" | "error" | "primary" | "muted"; children: React.ReactNode }) {
+function Pill({
+  tone,
+  children,
+}: {
+  tone: "success" | "warning" | "error" | "primary" | "muted";
+  children: React.ReactNode;
+}) {
   const tones: Record<string, string> = {
     success: "bg-success/10 text-success border border-success/20",
     warning: "bg-warning/10 text-warning border border-warning/20",
@@ -90,7 +98,13 @@ function Pill({ tone, children }: { tone: "success" | "warning" | "error" | "pri
     primary: "bg-primary/10 text-primary border border-primary/20",
     muted: "bg-surface-alt text-muted-foreground border border-border",
   };
-  return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}>{children}</span>;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
 }
 
 function TrialBadge({ trial }: { trial: boolean }) {
@@ -109,7 +123,10 @@ function Fingerprintish({ value }: { value: string }) {
 function ProgressBar({ value }: { value: number }) {
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-alt">
-      <div className="h-full rounded-full bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F]" style={{ width: `${Math.max(2, Math.min(100, value))}%` }} />
+      <div
+        className="h-full rounded-full bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F]"
+        style={{ width: `${Math.max(2, Math.min(100, value))}%` }}
+      />
     </div>
   );
 }
@@ -118,7 +135,15 @@ function EmptyState({ message }: { message: string }) {
   return <div className="px-6 py-16 text-center text-sm text-muted-foreground">{message}</div>;
 }
 
-function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+function SearchBox({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
   return (
     <div className="relative flex-1 sm:max-w-xs">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -132,7 +157,17 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
-function FilterSelect({ value, onChange, options, optionLabels }: { value: string; onChange: (v: string) => void; options: string[]; optionLabels?: (v: string) => string }) {
+function FilterSelect({
+  value,
+  onChange,
+  options,
+  optionLabels,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  optionLabels?: (v: string) => string;
+}) {
   return (
     <select
       value={value}
@@ -237,7 +272,9 @@ function KpiCard({
     <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface-alt ${tones[tone]}`}>
+        <span
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface-alt ${tones[tone]}`}
+        >
           <Icon className="h-4 w-4" />
         </span>
       </div>
@@ -282,7 +319,10 @@ function AdminSessionsPage() {
     const today = new Date().toDateString();
     return loginSessions.filter((s) => new Date(s.loginAt).toDateString() === today).length;
   }, []);
-  const quizInProgress = useMemo(() => adminQuizSessions.filter((s) => s.status === "in-progress").length, []);
+  const quizInProgress = useMemo(
+    () => adminQuizSessions.filter((s) => s.status === "in-progress").length,
+    [],
+  );
   const suspiciousSessions = useMemo(() => loginSessions.filter((s) => s.suspicious), []);
 
   const handleTerminate = () => {
@@ -297,16 +337,42 @@ function AdminSessionsPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Session Management</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Monitor active logins, historical sessions, quiz activity, and device security across the platform.
+          Monitor active logins, historical sessions, quiz activity, and device security across the
+          platform.
         </p>
       </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Active Sessions" value={activeSessions.length} icon={Activity} tone="success" live accent="live now" />
-        <KpiCard label="Sessions Today" value={sessionsToday} icon={Globe} tone="primary" accent="logins in last 24h" />
-        <KpiCard label="Quizzes In Progress" value={quizInProgress} icon={Monitor} tone="warning" accent="currently being taken" />
-        <KpiCard label="Suspicious Flags" value={suspiciousSessions.length} icon={ShieldAlert} tone="error" accent="needs review" />
+        <KpiCard
+          label="Active Sessions"
+          value={activeSessions.length}
+          icon={Activity}
+          tone="success"
+          live
+          accent="live now"
+        />
+        <KpiCard
+          label="Sessions Today"
+          value={sessionsToday}
+          icon={Globe}
+          tone="primary"
+          accent="logins in last 24h"
+        />
+        <KpiCard
+          label="Quizzes In Progress"
+          value={quizInProgress}
+          icon={Monitor}
+          tone="warning"
+          accent="currently being taken"
+        />
+        <KpiCard
+          label="Suspicious Flags"
+          value={suspiciousSessions.length}
+          icon={ShieldAlert}
+          tone="error"
+          accent="needs review"
+        />
       </div>
 
       {/* Device & trial controls */}
@@ -324,16 +390,25 @@ function AdminSessionsPage() {
             }`}
           >
             {t}
-            {tab === t && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[#0E7C7B]" />}
+            {tab === t && (
+              <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[#0E7C7B]" />
+            )}
           </button>
         ))}
       </div>
 
       {tab === "Active Sessions" && (
-        <ActiveSessionsView onView={(s) => setDrawer({ kind: "login", data: s })} onForceLogout={setForceLogout} />
+        <ActiveSessionsView
+          onView={(s) => setDrawer({ kind: "login", data: s })}
+          onForceLogout={setForceLogout}
+        />
       )}
-      {tab === "All Sessions" && <AllSessionsView onView={(s) => setDrawer({ kind: "login", data: s })} />}
-      {tab === "Quiz Sessions" && <QuizSessionsView onView={(s) => setDrawer({ kind: "quiz", data: s })} />}
+      {tab === "All Sessions" && (
+        <AllSessionsView onView={(s) => setDrawer({ kind: "login", data: s })} />
+      )}
+      {tab === "Quiz Sessions" && (
+        <QuizSessionsView onView={(s) => setDrawer({ kind: "quiz", data: s })} />
+      )}
 
       {/* Detail drawer */}
       {drawer && (
@@ -352,8 +427,9 @@ function AdminSessionsPage() {
         description={
           forceLogout ? (
             <>
-              This will force <strong className="text-foreground">{forceLogout.userName}</strong> to log out from{" "}
-              <strong className="text-foreground">{forceLogout.device}</strong>. They can sign in again on their bound device.
+              This will force <strong className="text-foreground">{forceLogout.userName}</strong> to
+              log out from <strong className="text-foreground">{forceLogout.device}</strong>. They
+              can sign in again on their bound device.
             </>
           ) : undefined
         }
@@ -393,15 +469,30 @@ function ActiveSessionsView({
     return activeSessions.filter((s) => {
       if (activity !== "All" && s.activity !== activity) return false;
       if (!q) return true;
-      return s.userName.toLowerCase().includes(q) || s.email.toLowerCase().includes(q) || s.city.toLowerCase().includes(q);
+      return (
+        s.userName.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        s.city.toLowerCase().includes(q)
+      );
     });
   }, [search, activity]);
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <SearchBox value={searchRaw} onChange={setSearchRaw} placeholder="Search by name, email, or city…" />
-        <FilterSelect value={activity} onChange={setActivity} options={ACTIVITY_OPTIONS} optionLabels={(v) => (v === "All" ? "All activity" : activityLabel(v as LoginSession["activity"], ""))} />
+        <SearchBox
+          value={searchRaw}
+          onChange={setSearchRaw}
+          placeholder="Search by name, email, or city…"
+        />
+        <FilterSelect
+          value={activity}
+          onChange={setActivity}
+          options={ACTIVITY_OPTIONS}
+          optionLabels={(v) =>
+            v === "All" ? "All activity" : activityLabel(v as LoginSession["activity"], "")
+          }
+        />
         <span className="ml-auto text-xs text-muted-foreground">{rows.length} active</span>
       </div>
 
@@ -438,7 +529,9 @@ function ActiveSessionsView({
                         <Avatar initials={s.initials} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="truncate font-semibold text-foreground">{s.userName}</span>
+                            <span className="truncate font-semibold text-foreground">
+                              {s.userName}
+                            </span>
                             {s.suspicious && <Pill tone="error">⚑ Flagged</Pill>}
                           </div>
                           <div className="truncate text-xs text-muted-foreground">{s.email}</div>
@@ -459,20 +552,28 @@ function ActiveSessionsView({
                     </td>
                     <td className={td}>
                       <div className="text-foreground">{formatTime(s.loginAt)}</div>
-                      <div className="text-xs text-muted-foreground">active {timeAgo(s.lastActivityMinAgo)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        active {timeAgo(s.lastActivityMinAgo)}
+                      </div>
                     </td>
                     <td className={`${td} max-w-[220px]`}>
                       {s.activity === "in-quiz" ? (
                         <div className="space-y-1.5">
-                          <span className="block truncate text-foreground">{activityLabel(s.activity, s.bankName)}</span>
+                          <span className="block truncate text-foreground">
+                            {activityLabel(s.activity, s.bankName)}
+                          </span>
                           <ProgressBar value={s.progress ?? 0} />
-                          <span className="text-xs text-muted-foreground">{s.progress ?? 0}% complete</span>
+                          <span className="text-xs text-muted-foreground">
+                            {s.progress ?? 0}% complete
+                          </span>
                         </div>
                       ) : (
                         <span className="text-muted-foreground">{activityLabel(s.activity)}</span>
                       )}
                     </td>
-                    <td className={`${td} tabular-nums text-foreground`}>{minutesToHm(s.durationMin)}</td>
+                    <td className={`${td} tabular-nums text-foreground`}>
+                      {minutesToHm(s.durationMin)}
+                    </td>
                     <td className={td}>
                       <TrialBadge trial={s.trial} />
                     </td>
@@ -519,8 +620,14 @@ function AllSessionsView({ onView }: { onView: (s: LoginSession) => void }) {
   const [perPage, setPerPage] = useState(10);
   const search = useDebounce(searchRaw, 250);
 
-  const deviceOptions = useMemo(() => ["All", ...Array.from(new Set(loginSessions.map((s) => s.device)))], []);
-  const countryOptions = useMemo(() => ["All", ...Array.from(new Set(loginSessions.map((s) => s.country)))], []);
+  const deviceOptions = useMemo(
+    () => ["All", ...Array.from(new Set(loginSessions.map((s) => s.device)))],
+    [],
+  );
+  const countryOptions = useMemo(
+    () => ["All", ...Array.from(new Set(loginSessions.map((s) => s.country)))],
+    [],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -549,9 +656,23 @@ function AllSessionsView({ onView }: { onView: (s: LoginSession) => void }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <SearchBox value={searchRaw} onChange={setSearchRaw} placeholder="Search by name or email…" />
-        <FilterSelect value={device} onChange={setDevice} options={deviceOptions} optionLabels={(v) => (v === "All" ? "All devices" : v)} />
-        <FilterSelect value={country} onChange={setCountry} options={countryOptions} optionLabels={(v) => (v === "All" ? "All locations" : v)} />
+        <SearchBox
+          value={searchRaw}
+          onChange={setSearchRaw}
+          placeholder="Search by name or email…"
+        />
+        <FilterSelect
+          value={device}
+          onChange={setDevice}
+          options={deviceOptions}
+          optionLabels={(v) => (v === "All" ? "All devices" : v)}
+        />
+        <FilterSelect
+          value={country}
+          onChange={setCountry}
+          options={countryOptions}
+          optionLabels={(v) => (v === "All" ? "All locations" : v)}
+        />
         <span className="ml-auto text-xs text-muted-foreground">{filtered.length} sessions</span>
       </div>
 
@@ -578,7 +699,10 @@ function AllSessionsView({ onView }: { onView: (s: LoginSession) => void }) {
                 </tr>
               ) : (
                 pageRows.map((s) => (
-                  <tr key={s.id} className="border-b border-border last:border-0 transition-colors hover:bg-surface-alt/30">
+                  <tr
+                    key={s.id}
+                    className="border-b border-border last:border-0 transition-colors hover:bg-surface-alt/30"
+                  >
                     <td className={td}>
                       <div className="flex items-center gap-3">
                         <Avatar initials={s.initials} />
@@ -593,13 +717,21 @@ function AllSessionsView({ onView }: { onView: (s: LoginSession) => void }) {
                       <div className="text-xs text-muted-foreground">{s.os}</div>
                     </td>
                     <td className={td}>
-                      <div className="text-foreground">{s.city}, {s.country}</div>
+                      <div className="text-foreground">
+                        {s.city}, {s.country}
+                      </div>
                       <div className="font-mono text-xs text-muted-foreground">{s.ip}</div>
                     </td>
                     <td className={`${td} text-muted-foreground`}>{formatDateTime(s.loginAt)}</td>
-                    <td className={`${td} tabular-nums text-foreground`}>{minutesToHm(s.durationMin)}</td>
+                    <td className={`${td} tabular-nums text-foreground`}>
+                      {minutesToHm(s.durationMin)}
+                    </td>
                     <td className={td}>
-                      {s.status === "active" ? <Pill tone="success">Active</Pill> : <Pill tone="muted">Ended</Pill>}
+                      {s.status === "active" ? (
+                        <Pill tone="success">Active</Pill>
+                      ) : (
+                        <Pill tone="muted">Ended</Pill>
+                      )}
                     </td>
                     <td className={`${td} text-right`}>
                       <button
@@ -679,9 +811,26 @@ function QuizSessionsView({ onView }: { onView: (s: AdminQuizSession) => void })
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <SearchBox value={searchRaw} onChange={setSearchRaw} placeholder="Search by user…" />
-        <FilterSelect value={bank} onChange={setBank} options={["All", ...questionBanks.map((b) => b.id)]} optionLabels={(v) => (v === "All" ? "All banks" : questionBanks.find((b) => b.id === v)?.name ?? v)} />
-        <FilterSelect value={mode} onChange={setMode} options={["All", "TUTOR", "QUIZ"]} optionLabels={(v) => (v === "All" ? "All modes" : v)} />
-        <FilterSelect value={status} onChange={setStatus} options={["All", "completed", "in-progress", "abandoned"]} optionLabels={(v) => (v === "All" ? "All statuses" : v)} />
+        <FilterSelect
+          value={bank}
+          onChange={setBank}
+          options={["All", ...questionBanks.map((b) => b.id)]}
+          optionLabels={(v) =>
+            v === "All" ? "All banks" : (questionBanks.find((b) => b.id === v)?.name ?? v)
+          }
+        />
+        <FilterSelect
+          value={mode}
+          onChange={setMode}
+          options={["All", "TUTOR", "QUIZ"]}
+          optionLabels={(v) => (v === "All" ? "All modes" : v)}
+        />
+        <FilterSelect
+          value={status}
+          onChange={setStatus}
+          options={["All", "completed", "in-progress", "abandoned"]}
+          optionLabels={(v) => (v === "All" ? "All statuses" : v)}
+        />
         <span className="ml-auto text-xs text-muted-foreground">{filtered.length} sessions</span>
       </div>
 
@@ -710,7 +859,10 @@ function QuizSessionsView({ onView }: { onView: (s: AdminQuizSession) => void })
                 </tr>
               ) : (
                 pageRows.map((s) => (
-                  <tr key={s.id} className="border-b border-border last:border-0 transition-colors hover:bg-surface-alt/30">
+                  <tr
+                    key={s.id}
+                    className="border-b border-border last:border-0 transition-colors hover:bg-surface-alt/30"
+                  >
                     <td className={td}>
                       <div className="flex items-center gap-3">
                         <Avatar initials={s.initials} />
@@ -718,10 +870,18 @@ function QuizSessionsView({ onView }: { onView: (s: AdminQuizSession) => void })
                       </div>
                     </td>
                     <td className={`${td} text-foreground`}>{s.bankName}</td>
-                    <td className={td}>{s.mode === "TUTOR" ? <Pill tone="primary">TUTOR</Pill> : <Pill tone="warning">QUIZ</Pill>}</td>
+                    <td className={td}>
+                      {s.mode === "TUTOR" ? (
+                        <Pill tone="primary">TUTOR</Pill>
+                      ) : (
+                        <Pill tone="warning">QUIZ</Pill>
+                      )}
+                    </td>
                     <td className={td}>
                       {s.status === "completed" ? (
-                        <span className={`font-mono text-sm font-bold tabular-nums ${scoreTone(s.scorePct) === "success" ? "text-success" : scoreTone(s.scorePct) === "warning" ? "text-warning" : "text-error"}`}>
+                        <span
+                          className={`font-mono text-sm font-bold tabular-nums ${scoreTone(s.scorePct) === "success" ? "text-success" : scoreTone(s.scorePct) === "warning" ? "text-warning" : "text-error"}`}
+                        >
                           {s.scorePct}%
                         </span>
                       ) : (
@@ -740,8 +900,12 @@ function QuizSessionsView({ onView }: { onView: (s: AdminQuizSession) => void })
                         <Pill tone="muted">Abandoned</Pill>
                       )}
                     </td>
-                    <td className={`${td} tabular-nums text-foreground`}>{minutesToHm(s.durationMin)}</td>
-                    <td className={`${td} text-muted-foreground`}>{new Date(s.date).toLocaleDateString()}</td>
+                    <td className={`${td} tabular-nums text-foreground`}>
+                      {minutesToHm(s.durationMin)}
+                    </td>
+                    <td className={`${td} text-muted-foreground`}>
+                      {new Date(s.date).toLocaleDateString()}
+                    </td>
                     <td className={`${td} text-right`}>
                       <button
                         type="button"
@@ -790,14 +954,18 @@ function DeviceTrialControls({ suspiciousCount }: { suspiciousCount: number }) {
           <h3 className="text-sm font-bold tracking-tight text-foreground">Trial device locks</h3>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Trial accounts are bound to a single device. Clearing a lock lets the user re-bind on next login.
+          Trial accounts are bound to a single device. Clearing a lock lets the user re-bind on next
+          login.
         </p>
         <div className="mt-4 space-y-2">
           {trialUsers.length === 0 ? (
             <p className="text-sm text-muted-foreground">No trial users to display.</p>
           ) : (
             trialUsers.map((u) => (
-              <div key={u.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-alt/40 px-3 py-2">
+              <div
+                key={u.id}
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-alt/40 px-3 py-2"
+              >
                 <Avatar initials={u.initials} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold text-foreground">{u.name}</div>
@@ -838,7 +1006,8 @@ function DeviceTrialControls({ suspiciousCount }: { suspiciousCount: number }) {
         description={
           clearTarget ? (
             <>
-              Remove the device binding for <strong className="text-foreground">{clearTarget.name}</strong>. They will be able to
+              Remove the device binding for{" "}
+              <strong className="text-foreground">{clearTarget.name}</strong>. They will be able to
               bind a new device on their next login.
             </>
           ) : undefined
@@ -861,7 +1030,9 @@ function DeviceTrialControls({ suspiciousCount }: { suspiciousCount: number }) {
 function DrawerRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border py-2.5 last:border-0">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       <span className="text-right text-sm text-foreground">{children}</span>
     </div>
   );
@@ -877,7 +1048,12 @@ function SessionDrawer({
   onForceLogout: (s: LoginSession) => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose} role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-black/50"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
       <div
         className="flex h-full w-full max-w-md animate-in slide-in-from-right flex-col bg-surface shadow-2xl duration-200"
         onClick={(e) => e.stopPropagation()}
@@ -887,9 +1063,13 @@ function SessionDrawer({
           <div className="flex items-center gap-3">
             <Avatar initials={payload.data.initials} />
             <div className="min-w-0">
-              <div className="truncate text-base font-bold text-foreground">{payload.data.userName}</div>
+              <div className="truncate text-base font-bold text-foreground">
+                {payload.data.userName}
+              </div>
               <div className="truncate text-xs text-muted-foreground">
-                {payload.kind === "login" ? payload.data.email : `Quiz session · ${payload.data.id}`}
+                {payload.kind === "login"
+                  ? payload.data.email
+                  : `Quiz session · ${payload.data.id}`}
               </div>
             </div>
           </div>
@@ -905,7 +1085,11 @@ function SessionDrawer({
 
         {/* body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {payload.kind === "login" ? <LoginDrawerBody s={payload.data} /> : <QuizDrawerBody s={payload.data} />}
+          {payload.kind === "login" ? (
+            <LoginDrawerBody s={payload.data} />
+          ) : (
+            <QuizDrawerBody s={payload.data} />
+          )}
         </div>
 
         {/* footer */}
@@ -934,14 +1118,22 @@ function SessionDrawer({
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h4 className="mb-1 mt-5 text-xs font-bold uppercase tracking-widest text-muted-foreground first:mt-0">{children}</h4>;
+  return (
+    <h4 className="mb-1 mt-5 text-xs font-bold uppercase tracking-widest text-muted-foreground first:mt-0">
+      {children}
+    </h4>
+  );
 }
 
 function LoginDrawerBody({ s }: { s: LoginSession }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        {s.status === "active" ? <Pill tone="success">Active</Pill> : <Pill tone="muted">Ended</Pill>}
+        {s.status === "active" ? (
+          <Pill tone="success">Active</Pill>
+        ) : (
+          <Pill tone="muted">Ended</Pill>
+        )}
         <TrialBadge trial={s.trial} />
         {s.suspicious && <Pill tone="error">⚑ Flagged</Pill>}
       </div>
@@ -999,7 +1191,9 @@ function QuizDrawerBody({ s }: { s: AdminQuizSession }) {
       <DrawerRow label="Mode">{s.mode}</DrawerRow>
       <DrawerRow label="Score">
         {s.status === "completed" ? (
-          <span className={`font-mono font-bold tabular-nums ${scoreTone(s.scorePct) === "success" ? "text-success" : scoreTone(s.scorePct) === "warning" ? "text-warning" : "text-error"}`}>
+          <span
+            className={`font-mono font-bold tabular-nums ${scoreTone(s.scorePct) === "success" ? "text-success" : scoreTone(s.scorePct) === "warning" ? "text-warning" : "text-error"}`}
+          >
             {s.scorePct}%
           </span>
         ) : (

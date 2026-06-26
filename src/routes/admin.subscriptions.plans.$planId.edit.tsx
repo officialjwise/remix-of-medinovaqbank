@@ -6,7 +6,9 @@ import { usePlansStore } from "@/stores/plansStore";
 import { SubscriptionPlanForm } from "@/components/admin/SubscriptionPlanForm";
 
 export const Route = createFileRoute("/admin/subscriptions/plans/$planId/edit")({
-  head: () => ({ meta: [{ title: "Admin · Edit Plan — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Admin · Edit Plan — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+  }),
   component: EditPlan,
 });
 
@@ -20,9 +22,13 @@ function EditPlan() {
   if (!isSuper) {
     return (
       <div className="rounded-2xl border border-border bg-surface p-10 text-center">
-        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-warning/10 text-warning"><Lock className="h-6 w-6" /></span>
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-warning/10 text-warning">
+          <Lock className="h-6 w-6" />
+        </span>
         <h2 className="mt-4 text-lg font-bold text-foreground">Super Admin only</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Plan configuration is restricted to super admins.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Plan configuration is restricted to super admins.
+        </p>
       </div>
     );
   }
@@ -31,7 +37,12 @@ function EditPlan() {
     return (
       <div className="rounded-2xl border border-border bg-surface p-10 text-center">
         <p className="text-sm text-muted-foreground">Plan not found.</p>
-        <Link to="/admin/subscriptions/plans" className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline">← Back to plans</Link>
+        <Link
+          to="/admin/subscriptions/plans"
+          className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline"
+        >
+          ← Back to plans
+        </Link>
       </div>
     );
   }
@@ -39,9 +50,16 @@ function EditPlan() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to="/admin/subscriptions/plans" className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" /> Plans</Link>
+        <Link
+          to="/admin/subscriptions/plans"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Plans
+        </Link>
         <h2 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Edit {plan.name}</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">The plan key is immutable — everything else can be changed.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          The plan key is immutable — everything else can be changed.
+        </p>
       </div>
       <SubscriptionPlanForm
         mode="edit"

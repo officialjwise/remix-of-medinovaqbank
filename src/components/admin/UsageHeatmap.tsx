@@ -41,10 +41,7 @@ export function UsageHeatmap({ data }: UsageHeatmapProps) {
       <div className="overflow-x-auto">
         <div className="min-w-[680px]">
           {/* Hour axis */}
-          <div
-            className="grid items-center gap-1"
-            style={{ gridTemplateColumns: gridTemplate }}
-          >
+          <div className="grid items-center gap-1" style={{ gridTemplateColumns: gridTemplate }}>
             <div className="pr-2" />
             {Array.from({ length: 24 }, (_, h) => (
               <div
@@ -100,8 +97,7 @@ export function UsageHeatmap({ data }: UsageHeatmapProps) {
           <span
             className="h-3 w-28 rounded-full ring-1 ring-inset ring-border/40"
             style={{
-              background:
-                "linear-gradient(to right, rgba(14,124,123,0.08), rgba(14,124,123,1))",
+              background: "linear-gradient(to right, rgba(14,124,123,0.08), rgba(14,124,123,1))",
             }}
           />
           <span>More</span>

@@ -27,7 +27,11 @@ export function AvatarMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useClickOutside<HTMLDivElement>(() => setOpen(false));
-  const initials = (name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("");
+  const initials = (name || "U")
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("");
 
   return (
     <div className="relative" ref={ref}>
@@ -37,7 +41,11 @@ export function AvatarMenu({
         className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-white shadow-sm ring-2 ring-transparent transition hover:ring-accent/30"
         aria-label="Account menu"
       >
-        {avatarUrl ? <img src={avatarUrl} alt={name} className="h-full w-full object-cover" /> : initials}
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
+        ) : (
+          initials
+        )}
       </button>
 
       {open && (

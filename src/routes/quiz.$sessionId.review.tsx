@@ -1,14 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Lock,
-  MinusCircle,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Lock, MinusCircle, X } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { ClinicalBreakdown } from "@/components/quiz/ClinicalBreakdown";
@@ -20,10 +12,7 @@ export const Route = createFileRoute("/quiz/$sessionId/review")({
     if (!useAuthStore.getState().isAuthenticated) throw redirect({ to: "/login" });
   },
   head: () => ({
-    meta: [
-      { title: "Session Review — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Session Review — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: ReviewPage,
 });
@@ -51,7 +40,8 @@ function ReviewPage() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable))
+        return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
         go(1);
@@ -174,7 +164,9 @@ function ReviewPage() {
                       skipped ? "text-warning" : isCorrect ? "text-success" : "text-error"
                     }`}
                   >
-                    {ans ? `${ans}. ${q.options.find((o) => o.key === ans)?.text}` : "No answer — skipped"}
+                    {ans
+                      ? `${ans}. ${q.options.find((o) => o.key === ans)?.text}`
+                      : "No answer — skipped"}
                   </p>
                 </div>
                 <div className="rounded-xl border border-success/30 bg-success/5 p-3">

@@ -74,7 +74,10 @@ function ManageNotePage() {
     return (
       <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-card)]">
         <p className="text-sm text-muted-foreground">Note not found.</p>
-        <Link to="/admin/notes" className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline">
+        <Link
+          to="/admin/notes"
+          className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline"
+        >
           ← Back to notes
         </Link>
       </div>
@@ -150,20 +153,27 @@ function ManageNotePage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${TIER_PILL[note.tier]}`}>
+              <span
+                className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${TIER_PILL[note.tier]}`}
+              >
                 {TIER_LABELS[note.tier]}
               </span>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_PILL[note.status]}`}>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_PILL[note.status]}`}
+              >
                 {note.status === "processing" && <Loader2 className="h-3 w-3 animate-spin" />}
                 {STATUS_LABEL[note.status]}
               </span>
-              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${note.active ? "bg-success/10 text-success" : "bg-surface-alt text-muted-foreground"}`}>
+              <span
+                className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${note.active ? "bg-success/10 text-success" : "bg-surface-alt text-muted-foreground"}`}
+              >
                 {note.active ? "Active" : "Inactive"}
               </span>
             </div>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">{note.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {note.category} · {note.examType} · {note.pageCount} pages · {note.subscribers.toLocaleString()} subscribers
+              {note.category} · {note.examType} · {note.pageCount} pages ·{" "}
+              {note.subscribers.toLocaleString()} subscribers
             </p>
           </div>
           <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
@@ -197,13 +207,17 @@ function ManageNotePage() {
         <section>
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground">Page Preview</h3>
-            <span className="text-xs text-muted-foreground">Admin-only · users see protected images</span>
+            <span className="text-xs text-muted-foreground">
+              Admin-only · users see protected images
+            </span>
           </div>
           {note.status === "processing" ? (
             <div className="mt-3 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface p-12 text-center shadow-[var(--shadow-card)]">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="mt-3 text-sm font-semibold text-foreground">Converting pages…</p>
-              <p className="mt-1 text-xs text-muted-foreground">The preview appears once processing completes.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The preview appears once processing completes.
+              </p>
             </div>
           ) : (
             <PagePreview note={note} />
@@ -220,8 +234,9 @@ function ManageNotePage() {
           {!isTrialPaid && (
             <p className="mt-2 flex items-start gap-2 rounded-lg border border-border bg-surface-alt/40 px-3 py-2 text-xs text-muted-foreground">
               <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
-              "Hide from trial" only applies to <span className="font-semibold text-foreground">Trial + Paid</span> notes.
-              This note is <span className="font-semibold text-foreground">{TIER_LABELS[note.tier]}</span>.
+              "Hide from trial" only applies to{" "}
+              <span className="font-semibold text-foreground">Trial + Paid</span> notes. This note
+              is <span className="font-semibold text-foreground">{TIER_LABELS[note.tier]}</span>.
             </p>
           )}
 
@@ -272,7 +287,8 @@ function ManageNotePage() {
         confirmLabel="Delete"
         description={
           <>
-            This will permanently remove <span className="font-semibold text-foreground">{note.title}</span> and all of its
+            This will permanently remove{" "}
+            <span className="font-semibold text-foreground">{note.title}</span> and all of its
             pages. This action cannot be undone.
           </>
         }
@@ -291,7 +307,11 @@ function ManageNotePage() {
 /* Page preview                                                        */
 /* ------------------------------------------------------------------ */
 
-function PagePreview({ note }: { note: ReturnType<typeof useNotesStore.getState>["notes"][number] }) {
+function PagePreview({
+  note,
+}: {
+  note: ReturnType<typeof useNotesStore.getState>["notes"][number];
+}) {
   // Build page list grouped by the topic that owns each page.
   const groups = useMemo(() => {
     const pages = Array.from({ length: note.pageCount }, (_, i) => i + 1);
@@ -302,7 +322,11 @@ function PagePreview({ note }: { note: ReturnType<typeof useNotesStore.getState>
       const key = content.topicId ?? "__general__";
       if (!byTopic.has(key)) {
         const topic = note.topics.find((t) => t.id === content.topicId);
-        byTopic.set(key, { name: content.topicName, hiddenForTrial: topic?.hiddenForTrial ?? false, pages: [] });
+        byTopic.set(key, {
+          name: content.topicName,
+          hiddenForTrial: topic?.hiddenForTrial ?? false,
+          pages: [],
+        });
         order.push(key);
       }
       byTopic.get(key)!.pages.push(p);
@@ -338,7 +362,9 @@ function PagePreview({ note }: { note: ReturnType<typeof useNotesStore.getState>
                       <FileText className="h-3 w-3" /> Page {p}
                     </span>
                   </div>
-                  <p className="mt-1.5 line-clamp-2 text-xs font-bold text-foreground">{content.heading}</p>
+                  <p className="mt-1.5 line-clamp-2 text-xs font-bold text-foreground">
+                    {content.heading}
+                  </p>
                   <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-muted-foreground">
                     {content.paragraphs[0]}
                   </p>
@@ -425,7 +451,9 @@ function TopicRow({
                 min={1}
                 max={pageCount}
                 value={topic.pageStart}
-                onChange={(e) => onRange(topic.id, { pageStart: clamp(Number(e.target.value), 1, pageCount) })}
+                onChange={(e) =>
+                  onRange(topic.id, { pageStart: clamp(Number(e.target.value), 1, pageCount) })
+                }
                 className="h-8 w-16 rounded-lg border border-border bg-surface px-2 text-sm font-semibold text-foreground focus:border-accent focus:outline-none"
               />
             </label>
@@ -436,7 +464,9 @@ function TopicRow({
                 min={1}
                 max={pageCount}
                 value={topic.pageEnd}
-                onChange={(e) => onRange(topic.id, { pageEnd: clamp(Number(e.target.value), 1, pageCount) })}
+                onChange={(e) =>
+                  onRange(topic.id, { pageEnd: clamp(Number(e.target.value), 1, pageCount) })
+                }
                 className="h-8 w-16 rounded-lg border border-border bg-surface px-2 text-sm font-semibold text-foreground focus:border-accent focus:outline-none"
               />
             </label>
@@ -548,7 +578,13 @@ function EditMetadataModal({
 }: {
   note: ReturnType<typeof useNotesStore.getState>["notes"][number];
   onClose: () => void;
-  onSave: (patch: { title: string; description: string; category: string; examType: string; tier: NoteTier }) => void;
+  onSave: (patch: {
+    title: string;
+    description: string;
+    category: string;
+    examType: string;
+    tier: NoteTier;
+  }) => void;
 }) {
   const categories = useCategoriesStore((s) => s.categories);
   const examTypes = useExamTypesStore(useShallow((s) => s.examTypes.filter((e) => e.active)));
@@ -574,10 +610,17 @@ function EditMetadataModal({
       aria-modal="true"
       onClick={onClose}
     >
-      <div className="w-full max-w-lg rounded-2xl bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="w-full max-w-lg rounded-2xl bg-surface shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <h3 className="text-base font-bold text-foreground">Edit note</h3>
-          <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground">
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </header>
@@ -593,7 +636,9 @@ function EditMetadataModal({
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Description</span>
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Description
+            </span>
             <textarea
               rows={3}
               value={description}
@@ -603,13 +648,17 @@ function EditMetadataModal({
           </label>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Category</span>
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                Category
+              </span>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
               >
-                {!categories.some((c) => c.name === category) && <option value={category}>{category}</option>}
+                {!categories.some((c) => c.name === category) && (
+                  <option value={category}>{category}</option>
+                )}
                 {categories.map((c) => (
                   <option key={c.id} value={c.name}>
                     {c.name}
@@ -618,13 +667,17 @@ function EditMetadataModal({
               </select>
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Exam Type</span>
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                Exam Type
+              </span>
               <select
                 value={examType}
                 onChange={(e) => setExamType(e.target.value)}
                 className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
               >
-                {!examTypes.some((e) => e.name === examType) && <option value={examType}>{examType}</option>}
+                {!examTypes.some((e) => e.name === examType) && (
+                  <option value={examType}>{examType}</option>
+                )}
                 {examTypes.map((et) => (
                   <option key={et.id} value={et.name}>
                     {et.name}
@@ -634,7 +687,9 @@ function EditMetadataModal({
             </label>
           </div>
           <div>
-            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Access Tier</span>
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Access Tier
+            </span>
             <div className="grid grid-cols-3 gap-2">
               {(Object.keys(TIER_LABELS) as NoteTier[]).map((t) => (
                 <button

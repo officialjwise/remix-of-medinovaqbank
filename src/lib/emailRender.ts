@@ -47,18 +47,17 @@ export function renderBrandedEmail(
   // Per-template accent + eyebrow derived from the subject so categories read
   // distinctly (billing = blue, security = red, trial = amber, etc.).
   const s = subject.toLowerCase();
-  const category =
-    /receipt|invoice|payment|subscrib|renew|plan/.test(s)
-      ? { label: "Billing", from: "#2563EB", to: "#3B82F6" }
-      : /suspicious|unusual|alert|sign-in|login/.test(s)
-        ? { label: "Security", from: "#B91C1C", to: "#EF4444" }
-        : /trial|expir/.test(s)
-          ? { label: "Your trial", from: "#D97706", to: "#F59E0B" }
-          : /rank|leaderboard|achievement|milestone/.test(s)
-            ? { label: "Progress", from: "#7C3AED", to: "#A855F7" }
-            : /welcome|verify|confirm/.test(s)
-              ? { label: "Welcome", from: primary, to: accent }
-              : { label: "Medinovaqbank", from: primary, to: accent };
+  const category = /receipt|invoice|payment|subscrib|renew|plan/.test(s)
+    ? { label: "Billing", from: "#2563EB", to: "#3B82F6" }
+    : /suspicious|unusual|alert|sign-in|login/.test(s)
+      ? { label: "Security", from: "#B91C1C", to: "#EF4444" }
+      : /trial|expir/.test(s)
+        ? { label: "Your trial", from: "#D97706", to: "#F59E0B" }
+        : /rank|leaderboard|achievement|milestone/.test(s)
+          ? { label: "Progress", from: "#7C3AED", to: "#A855F7" }
+          : /welcome|verify|confirm/.test(s)
+            ? { label: "Welcome", from: primary, to: accent }
+            : { label: "Medinovaqbank", from: primary, to: accent };
 
   const socialIcon = (label: string, href: string) =>
     `<a href="${href}" style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:50%;background:#e2e8f0;color:#475569;text-decoration:none;font-size:12px;font-weight:700;margin:0 3px">${label[0].toUpperCase()}</a>`;

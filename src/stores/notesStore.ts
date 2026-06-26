@@ -63,7 +63,13 @@ const SEED: AdminNote[] = highYieldNotes.map((n, i) => {
     pageCount,
     topics: [
       { id: `t-${i}-1`, name: "Core concepts", pageStart: 1, pageEnd: mid, hiddenForTrial: false },
-      { id: `t-${i}-2`, name: "Advanced & pearls", pageStart: mid + 1, pageEnd: pageCount, hiddenForTrial: tier === "trial_paid" && i % 3 === 0 },
+      {
+        id: `t-${i}-2`,
+        name: "Advanced & pearls",
+        pageStart: mid + 1,
+        pageEnd: pageCount,
+        hiddenForTrial: tier === "trial_paid" && i % 3 === 0,
+      },
     ],
     active: i !== 5,
     createdAt: n.updatedAt,
@@ -140,19 +146,49 @@ export const useNotesStore = create<NotesState>()(
       notes: SEED,
       add: (note) => {
         const id = `note-${Date.now().toString(36)}`;
-        set((s) => ({ notes: [{ ...note, id, status: "processing", subscribers: 0, createdAt: new Date().toISOString() }, ...s.notes] }));
+        set((s) => ({
+          notes: [
+            {
+              ...note,
+              id,
+              status: "processing",
+              subscribers: 0,
+              createdAt: new Date().toISOString(),
+            },
+            ...s.notes,
+          ],
+        }));
         // Simulate processing → ready.
-        setTimeout(() => set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, status: "ready" } : n)) })), 2200);
+        setTimeout(
+          () =>
+            set((s) => ({
+              notes: s.notes.map((n) => (n.id === id ? { ...n, status: "ready" } : n)),
+            })),
+          2200,
+        );
         return id;
       },
-      update: (id, patch) => set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, ...patch } : n)) })),
+      update: (id, patch) =>
+        set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, ...patch } : n)) })),
       remove: (id) => set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
-      toggleActive: (id) => set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, active: !n.active } : n)) })),
+      toggleActive: (id) =>
+        set((s) => ({
+          notes: s.notes.map((n) => (n.id === id ? { ...n, active: !n.active } : n)),
+        })),
       reprocess: (id) => {
-        set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, status: "processing" } : n)) }));
-        setTimeout(() => set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, status: "ready" } : n)) })), 2000);
+        set((s) => ({
+          notes: s.notes.map((n) => (n.id === id ? { ...n, status: "processing" } : n)),
+        }));
+        setTimeout(
+          () =>
+            set((s) => ({
+              notes: s.notes.map((n) => (n.id === id ? { ...n, status: "ready" } : n)),
+            })),
+          2000,
+        );
       },
-      setTopics: (id, topics) => set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, topics } : n)) })),
+      setTopics: (id, topics) =>
+        set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, topics } : n)) })),
       getById: (id) => get().notes.find((n) => n.id === id),
     }),
     { name: "medinova-notes", version: 1 },

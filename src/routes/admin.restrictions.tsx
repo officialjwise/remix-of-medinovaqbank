@@ -12,12 +12,21 @@ import {
   ShieldOff,
   Timer,
 } from "lucide-react";
-import { useProtectionStore, type Restriction, type RestrictionStatus } from "@/stores/protectionStore";
+import {
+  useProtectionStore,
+  type Restriction,
+  type RestrictionStatus,
+} from "@/stores/protectionStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useDebounce } from "@/hooks/useDebounce";
 
 export const Route = createFileRoute("/admin/restrictions")({
-  head: () => ({ meta: [{ title: "Admin · Restrictions — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Admin · Restrictions — Medinovaqbank" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: RestrictionsPage,
 });
 
@@ -28,16 +37,23 @@ const PER_PAGE = 15;
 /* ------------------------------------------------------------------ */
 
 function initialsFromName(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("") || "?";
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatCountdown(ms: number) {
@@ -66,7 +82,11 @@ function StatusPill({ status }: { status: RestrictionStatus }) {
     lifted: { tone: "bg-warning/10 text-warning", label: "Lifted" },
   };
   const { tone, label } = map[status];
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${tone}`}>{label}</span>;
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${tone}`}>
+      {label}
+    </span>
+  );
 }
 
 function SummaryCard({
@@ -90,7 +110,9 @@ function SummaryCard({
     <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface-alt ${tones[tone]}`}>
+        <span
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface-alt ${tones[tone]}`}
+        >
           <Icon className="h-4 w-4" />
         </span>
       </div>
@@ -113,9 +135,12 @@ function RestrictionsPage() {
           <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-error/10 text-error">
             <ShieldOff className="h-6 w-6" />
           </span>
-          <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">Super Admin only</h2>
+          <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">
+            Super Admin only
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Restriction management is limited to super administrators. Contact a super admin if you need access.
+            Restriction management is limited to super administrators. Contact a super admin if you
+            need access.
           </p>
         </div>
       </div>
@@ -194,7 +219,8 @@ function RestrictionsContent() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Restrictions</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Accounts locked out for repeated content-protection violations. Lift a restriction early to restore access immediately.
+            Accounts locked out for repeated content-protection violations. Lift a restriction early
+            to restore access immediately.
           </p>
         </div>
       </header>
@@ -253,7 +279,9 @@ function RestrictionsContent() {
               {pageRows.length === 0 ? (
                 <tr>
                   <td colSpan={8}>
-                    <p className="px-6 py-16 text-center text-sm text-muted-foreground">No restrictions match these filters.</p>
+                    <p className="px-6 py-16 text-center text-sm text-muted-foreground">
+                      No restrictions match these filters.
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -265,14 +293,20 @@ function RestrictionsContent() {
                         <div className="flex items-center gap-3">
                           <Avatar name={r.userName} />
                           <div className="min-w-0">
-                            <div className="truncate font-semibold text-foreground">{r.userName}</div>
-                            <div className="truncate text-xs text-muted-foreground">{r.userEmail}</div>
+                            <div className="truncate font-semibold text-foreground">
+                              {r.userName}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {r.userEmail}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 max-w-[260px] text-foreground">{r.reason}</td>
                       <td className="px-4 py-3 tabular-nums text-foreground">{r.strikes}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.restrictedAt)}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {formatDateTime(r.restrictedAt)}
+                      </td>
                       <td className="px-4 py-3">
                         {r.status === "active" ? (
                           <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-error">
@@ -280,7 +314,9 @@ function RestrictionsContent() {
                             {formatCountdown(remaining)}
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">{formatDateTime(r.unlockAt)}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDateTime(r.unlockAt)}
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -289,7 +325,9 @@ function RestrictionsContent() {
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            r.manual ? "bg-primary/10 text-primary" : "bg-surface-alt text-muted-foreground"
+                            r.manual
+                              ? "bg-primary/10 text-primary"
+                              : "bg-surface-alt text-muted-foreground"
                           }`}
                         >
                           {r.manual ? "Manual" : "Auto"}

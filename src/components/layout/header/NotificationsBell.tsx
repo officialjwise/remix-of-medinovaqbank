@@ -2,7 +2,12 @@ import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
 import { useClickOutside } from "@/hooks/useClickOutside";
-import { useNotificationsStore, useNotificationsByAudience, type NotifAudience, type NotifType } from "@/stores/notificationsStore";
+import {
+  useNotificationsStore,
+  useNotificationsByAudience,
+  type NotifAudience,
+  type NotifType,
+} from "@/stores/notificationsStore";
 
 const toneDot: Record<NotifType, string> = {
   signup: "bg-success",
@@ -52,7 +57,12 @@ export function NotificationsBell({
 
   return (
     <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setOpen((o) => !o)} className={`relative rounded-lg p-2 transition-colors ${btnClass}`} aria-label="Notifications">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`relative rounded-lg p-2 transition-colors ${btnClass}`}
+        aria-label="Notifications"
+      >
         <Bell className="h-[18px] w-[18px]" />
         {unread > 0 && (
           <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[9px] font-bold text-white">
@@ -64,14 +74,25 @@ export function NotificationsBell({
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-card-hover)]">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <p className="text-sm font-bold text-foreground">Notifications {unread > 0 && <span className="text-muted-foreground">· {unread} new</span>}</p>
+            <p className="text-sm font-bold text-foreground">
+              Notifications{" "}
+              {unread > 0 && <span className="text-muted-foreground">· {unread} new</span>}
+            </p>
             {unread > 0 && (
-              <button type="button" onClick={() => markAllRead(audience)} className="text-xs font-semibold text-accent hover:underline">Mark all read</button>
+              <button
+                type="button"
+                onClick={() => markAllRead(audience)}
+                className="text-xs font-semibold text-accent hover:underline"
+              >
+                Mark all read
+              </button>
             )}
           </div>
           <div className="max-h-96 overflow-y-auto">
             {recent.length === 0 ? (
-              <p className="px-4 py-10 text-center text-sm text-muted-foreground">You're all caught up 🎉</p>
+              <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+                You're all caught up 🎉
+              </p>
             ) : (
               recent.map((n) => (
                 <button
@@ -84,17 +105,25 @@ export function NotificationsBell({
                   }}
                   className={`flex w-full items-start gap-3 border-b border-border/60 px-4 py-3 text-left transition-colors last:border-0 hover:bg-surface-alt ${n.read ? "" : "bg-accent/[0.04]"}`}
                 >
-                  <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${toneDot[n.type]} ${n.read ? "opacity-30" : ""}`} />
+                  <span
+                    className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${toneDot[n.type]} ${n.read ? "opacity-30" : ""}`}
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-foreground">{n.title}</span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">{n.body}</span>
-                    <span className="mt-1 block text-[11px] font-medium text-muted-foreground/70">{timeAgo(n.createdAt)}</span>
+                    <span className="mt-1 block text-[11px] font-medium text-muted-foreground/70">
+                      {timeAgo(n.createdAt)}
+                    </span>
                   </span>
                 </button>
               ))
             )}
           </div>
-          <Link to={viewAllHref} onClick={() => setOpen(false)} className="block border-t border-border px-4 py-2.5 text-center text-sm font-semibold text-accent hover:bg-surface-alt">
+          <Link
+            to={viewAllHref}
+            onClick={() => setOpen(false)}
+            className="block border-t border-border px-4 py-2.5 text-center text-sm font-semibold text-accent hover:bg-surface-alt"
+          >
             View all notifications
           </Link>
         </div>

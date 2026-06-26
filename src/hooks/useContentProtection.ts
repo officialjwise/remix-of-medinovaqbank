@@ -67,8 +67,14 @@ export function useContentProtection({ context, contextId, page }: Options) {
     if (!enabled || typeof window === "undefined") return;
     const el = ref.current;
 
-    const onContext = (e: Event) => { e.preventDefault(); report("context_menu"); };
-    const onCopy = (e: Event) => { e.preventDefault(); report("clipboard_copy"); };
+    const onContext = (e: Event) => {
+      e.preventDefault();
+      report("context_menu");
+    };
+    const onCopy = (e: Event) => {
+      e.preventDefault();
+      report("clipboard_copy");
+    };
 
     const blurBriefly = () => {
       setBlurred(true);
@@ -76,17 +82,29 @@ export function useContentProtection({ context, contextId, page }: Options) {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "PrintScreen") { blurBriefly(); report("screenshot_key"); }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") { e.preventDefault(); report("print_attempt"); }
+      if (e.key === "PrintScreen") {
+        blurBriefly();
+        report("screenshot_key");
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        report("print_attempt");
+      }
       // Block common save/devtools shortcuts on the surface.
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") e.preventDefault();
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "PrintScreen") { blurBriefly(); report("screenshot_key"); }
+      if (e.key === "PrintScreen") {
+        blurBriefly();
+        report("screenshot_key");
+      }
     };
     const onBeforePrint = () => report("print_attempt");
     const onVisibility = () => {
-      if (document.hidden) { setBlurred(true); report("tab_blur"); } else setBlurred(false);
+      if (document.hidden) {
+        setBlurred(true);
+        report("tab_blur");
+      } else setBlurred(false);
     };
     const onWinBlur = () => setBlurred(true);
     const onWinFocus = () => setBlurred(false);
@@ -104,7 +122,9 @@ export function useContentProtection({ context, contextId, page }: Options) {
     // Best-effort devtools heuristic — report once to avoid false lockouts.
     const dt = window.setInterval(() => {
       const gap = 170;
-      const open = window.outerWidth - window.innerWidth > gap || window.outerHeight - window.innerHeight > gap;
+      const open =
+        window.outerWidth - window.innerWidth > gap ||
+        window.outerHeight - window.innerHeight > gap;
       if (open && !devtoolsReported.current) {
         devtoolsReported.current = true;
         report("devtools_open");

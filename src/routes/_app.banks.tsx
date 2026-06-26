@@ -8,17 +8,21 @@ import type { Difficulty, ExamType, QuestionBank } from "@/types";
 
 export const Route = createFileRoute("/_app/banks")({
   head: () => ({
-    meta: [
-      { title: "Question Banks — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Question Banks — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: BanksPage,
 });
 
 const subjects = ["All", ...Array.from(new Set(questionBanks.map((b) => b.subject)))];
 const difficulties: ("All" | Difficulty)[] = ["All", "Beginner", "Intermediate", "Advanced"];
-const examTypes: ("All" | ExamType)[] = ["All", "USMLE", "PLAB", "MDCN", "MEDICAL COUNCIL", "GENERAL"];
+const examTypes: ("All" | ExamType)[] = [
+  "All",
+  "USMLE",
+  "PLAB",
+  "MDCN",
+  "MEDICAL COUNCIL",
+  "GENERAL",
+];
 const sorts = ["Newest", "Most Questions", "Most Sessions"] as const;
 
 function BanksPage() {
@@ -107,7 +111,7 @@ function BanksPage() {
             key={bank.id}
             bank={bank}
             locked={!isActive && trialExhausted && !bank.isFree}
-            trialLeft={onTrial && !trialExhausted ? subscription?.trialQuestionsLeft ?? 0 : null}
+            trialLeft={onTrial && !trialExhausted ? (subscription?.trialQuestionsLeft ?? 0) : null}
             onLockedClick={() => setShowUpgrade(true)}
           />
         ))}
@@ -166,10 +170,14 @@ function BankCard({
 }) {
   const theme = subjectTheme(bank.subject);
   return (
-    <article className={`group relative flex flex-col overflow-hidden rounded-xl border-t-4 border-x border-b border-border bg-surface shadow-[var(--shadow-card)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)] ${theme.border}`}>
+    <article
+      className={`group relative flex flex-col overflow-hidden rounded-xl border-t-4 border-x border-b border-border bg-surface shadow-[var(--shadow-card)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)] ${theme.border}`}
+    >
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center gap-2">
-          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${theme.badge}`}>
+          <span
+            className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${theme.badge}`}
+          >
             {bank.subject}
           </span>
           <span className="rounded-full border border-border bg-surface-alt px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -238,7 +246,11 @@ function BankCard({
 
 function UpgradeModal({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal
+    >
       <div className="absolute inset-0 bg-foreground/40" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-[var(--shadow-card-hover)]">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent-light text-accent">

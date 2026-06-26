@@ -30,10 +30,7 @@ import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 
 export const Route = createFileRoute("/_app/profile")({
   head: () => ({
-    meta: [
-      { title: "Profile — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Profile — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: ProfilePage,
 });
@@ -69,7 +66,10 @@ const INPUT =
 function initialsOf(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "U";
-  return parts.slice(0, 2).map((s) => s[0]?.toUpperCase() ?? "").join("");
+  return parts
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 function ProfilePage() {
@@ -240,7 +240,10 @@ function ProfilePage() {
         {/* Left column (forms) */}
         <div className="space-y-6 lg:col-span-2">
           {/* Personal info */}
-          <Card title="Personal Information" desc="Your name and how you appear across Medinovaqbank.">
+          <Card
+            title="Personal Information"
+            desc="Your name and how you appear across Medinovaqbank."
+          >
             <form onSubmit={handlePersonalSave} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <Field label="Full Name" icon={<UserIcon className="h-4 w-4" />}>
                 <input
@@ -252,7 +255,11 @@ function ProfilePage() {
                 />
               </Field>
               <Field label="Country" icon={<MapPin className="h-4 w-4" />}>
-                <select value={country} onChange={(e) => setCountry(e.target.value)} className={INPUT}>
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className={INPUT}
+                >
                   {COUNTRIES.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -276,7 +283,10 @@ function ProfilePage() {
             title="Professional Information"
             desc="Help us tailor question banks to your training and region."
           >
-            <form onSubmit={handleProfessionalSave} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <form
+              onSubmit={handleProfessionalSave}
+              className="grid grid-cols-1 gap-5 sm:grid-cols-2"
+            >
               <Field label="Specialty" icon={<GraduationCap className="h-4 w-4" />}>
                 <select
                   value={specialty}
@@ -334,8 +344,8 @@ function ProfilePage() {
               )}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              For your security, sign-ins are tied to a device fingerprint. During the free trial your
-              account is locked to a single device; subscribing unlocks access everywhere.
+              For your security, sign-ins are tied to a device fingerprint. During the free trial
+              your account is locked to a single device; subscribing unlocks access everywhere.
             </p>
           </Card>
         </div>
@@ -375,10 +385,14 @@ function ProfilePage() {
 
             {trial.isTrial && (
               <div className="mt-4 rounded-xl border border-warning/30 bg-warning/5 p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-warning">Trial usage</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-warning">
+                  Trial usage
+                </p>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div className="rounded-lg border border-border bg-surface p-3 text-center">
-                    <p className="text-xl font-bold tabular-nums text-foreground">{trial.daysLeft}</p>
+                    <p className="text-xl font-bold tabular-nums text-foreground">
+                      {trial.daysLeft}
+                    </p>
                     <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                       Days left
                     </p>
@@ -406,9 +420,21 @@ function ProfilePage() {
           {/* Quick links */}
           <Card title="Quick links" desc="Jump back into your training.">
             <div className="space-y-2">
-              <QuickLink to="/analytics" icon={<LineChart className="h-4 w-4" />} label="Performance analytics" />
-              <QuickLink to="/subscription" icon={<CreditCard className="h-4 w-4" />} label="Manage subscription" />
-              <QuickLink to="/leaderboard" icon={<Trophy className="h-4 w-4" />} label="National leaderboard" />
+              <QuickLink
+                to="/analytics"
+                icon={<LineChart className="h-4 w-4" />}
+                label="Performance analytics"
+              />
+              <QuickLink
+                to="/subscription"
+                icon={<CreditCard className="h-4 w-4" />}
+                label="Manage subscription"
+              />
+              <QuickLink
+                to="/leaderboard"
+                icon={<Trophy className="h-4 w-4" />}
+                label="National leaderboard"
+              />
             </div>
           </Card>
         </div>

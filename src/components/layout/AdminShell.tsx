@@ -86,7 +86,13 @@ const sectionSystem = [
   { to: "/admin/audit-logs", label: "Activity Logs", icon: Activity },
 ] as const;
 
-const allItems = [...sectionPlatform, ...sectionContent, ...sectionUsers, ...sectionBilling, ...sectionSystem];
+const allItems = [
+  ...sectionPlatform,
+  ...sectionContent,
+  ...sectionUsers,
+  ...sectionBilling,
+  ...sectionSystem,
+];
 
 export function AdminShell({ children }: { children: ReactNode }) {
   useBranding();
@@ -104,7 +110,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
     navigate({ to: "/login" });
   }
 
-  function NavItem({ to, label, icon: Icon, collapsed }: { to: string; label: string; icon: typeof LayoutDashboard; collapsed: boolean }) {
+  function NavItem({
+    to,
+    label,
+    icon: Icon,
+    collapsed,
+  }: {
+    to: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+    collapsed: boolean;
+  }) {
     const active = pathname === to || (to !== "/admin/dashboard" && pathname.startsWith(to));
     return (
       <Link
@@ -115,8 +131,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
           collapsed ? "justify-center" : ""
         } ${active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}
       >
-        {active && <span aria-hidden className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-primary" />}
-        <Icon className={`h-[18px] w-[18px] flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground"}`} />
+        {active && (
+          <span
+            aria-hidden
+            className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-primary"
+          />
+        )}
+        <Icon
+          className={`h-[18px] w-[18px] flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground"}`}
+        />
         {!collapsed && <span className="truncate">{label}</span>}
       </Link>
     );
@@ -124,28 +147,50 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   type NavSpec = { to: string; label: string; icon: typeof LayoutDashboard; superOnly?: boolean };
 
-  function Section({ title, items, collapsed }: { title: string; items: readonly NavSpec[]; collapsed: boolean }) {
+  function Section({
+    title,
+    items,
+    collapsed,
+  }: {
+    title: string;
+    items: readonly NavSpec[];
+    collapsed: boolean;
+  }) {
     const list = items.filter((i) => isSuper || !i.superOnly);
     if (!list.length) return null;
     return (
       <div className="mb-5">
         {!collapsed && (
-          <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60">{title}</p>
+          <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60">
+            {title}
+          </p>
         )}
         <div className="space-y-0.5">
           {list.map((item) => (
-            <NavItem key={item.to} to={item.to} label={item.label} icon={item.icon} collapsed={collapsed} />
+            <NavItem
+              key={item.to}
+              to={item.to}
+              label={item.label}
+              icon={item.icon}
+              collapsed={collapsed}
+            />
           ))}
         </div>
       </div>
     );
   }
 
-  const initials = (user?.name ?? "AD").split(" ").map((s) => s[0]).slice(0, 2).join("");
+  const initials = (user?.name ?? "AD")
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("");
 
   const SidebarBody = ({ collapsed }: { collapsed: boolean }) => (
     <>
-      <div className={`flex h-16 items-center border-b border-border ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}>
+      <div
+        className={`flex h-16 items-center border-b border-border ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}
+      >
         <Logo size={30} markOnly={collapsed} />
         <button
           type="button"
@@ -161,10 +206,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary to-accent text-sm font-bold text-white shadow-sm">
-              {user?.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" /> : initials}
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+              ) : (
+                initials
+              )}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{user?.name ?? "Administrator"}</p>
+              <p className="truncate text-sm font-semibold text-foreground">
+                {user?.name ?? "Administrator"}
+              </p>
               <span className="mt-0.5 inline-flex rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
                 {isSuper ? "Super Admin" : "Admin"}
               </span>
@@ -184,10 +235,18 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <div className="border-t border-border p-3">
         {!collapsed ? (
           <>
-            <Link to="/admin/profile" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground">
+            <Link
+              to="/admin/profile"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground"
+            >
               <UserCog className="h-[15px] w-[15px]" /> Profile Settings
             </Link>
-            <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground">
+            <Link
+              to="/dashboard"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground"
+            >
               <ScrollText className="h-[15px] w-[15px]" /> Exit to App
             </Link>
           </>
@@ -205,24 +264,34 @@ export function AdminShell({ children }: { children: ReactNode }) {
     </>
   );
 
-  const currentLabel = allItems.find((n) => pathname === n.to || (n.to !== "/admin/dashboard" && pathname.startsWith(n.to)))?.label ?? "Admin";
+  const currentLabel =
+    allItems.find(
+      (n) => pathname === n.to || (n.to !== "/admin/dashboard" && pathname.startsWith(n.to)),
+    )?.label ?? "Admin";
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
-      <aside className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-border bg-surface transition-[width] duration-200 lg:flex ${collapsed ? "w-[72px]" : "w-64"}`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-border bg-surface transition-[width] duration-200 lg:flex ${collapsed ? "w-[72px]" : "w-64"}`}
+      >
         <SidebarBody collapsed={collapsed} />
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div
+            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
           <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-border bg-surface shadow-2xl">
             <SidebarBody collapsed={false} />
           </aside>
         </div>
       )}
 
-      <div className={`flex min-h-screen flex-col transition-[padding] duration-200 ${collapsed ? "lg:pl-[72px]" : "lg:pl-64"}`}>
+      <div
+        className={`flex min-h-screen flex-col transition-[padding] duration-200 ${collapsed ? "lg:pl-[72px]" : "lg:pl-64"}`}
+      >
         <AdminHeader
           breadcrumb={currentLabel}
           onMenu={() => setMobileOpen(true)}
@@ -288,15 +357,30 @@ function AdminHeader({
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/80 backdrop-blur-md">
       <div className="flex h-16 items-center gap-2 px-4 sm:gap-3 sm:px-6">
-        <button type="button" onClick={onMenu} className="-ml-1 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground lg:hidden" aria-label="Open menu">
+        <button
+          type="button"
+          onClick={onMenu}
+          className="-ml-1 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground lg:hidden"
+          aria-label="Open menu"
+        >
           <Menu className="h-5 w-5" />
         </button>
-        <button type="button" onClick={onToggleCollapse} className="hidden rounded-lg p-2 text-muted-foreground hover:bg-surface-alt hover:text-foreground lg:inline-flex" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="hidden rounded-lg p-2 text-muted-foreground hover:bg-surface-alt hover:text-foreground lg:inline-flex"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
           {collapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         </button>
 
         <nav aria-label="Breadcrumb" className="hidden items-center gap-1.5 text-sm sm:flex">
-          <Link to="/admin/dashboard" className="font-medium text-muted-foreground hover:text-foreground">Admin</Link>
+          <Link
+            to="/admin/dashboard"
+            className="font-medium text-muted-foreground hover:text-foreground"
+          >
+            Admin
+          </Link>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
           <span className="font-semibold text-foreground">{breadcrumb}</span>
         </nav>
@@ -376,14 +460,22 @@ function SystemStatus({ healthy }: { healthy: boolean }) {
         aria-label="System status"
       >
         <span className="relative flex h-2.5 w-2.5">
-          {healthy && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />}
-          <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${healthy ? "bg-success" : "bg-error"}`} />
+          {healthy && (
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
+          )}
+          <span
+            className={`relative inline-flex h-2.5 w-2.5 rounded-full ${healthy ? "bg-success" : "bg-error"}`}
+          />
         </span>
-        <span className="hidden lg:inline">{healthy ? "All systems operational" : "System issue"}</span>
+        <span className="hidden lg:inline">
+          {healthy ? "All systems operational" : "System issue"}
+        </span>
       </button>
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-border bg-surface p-3 shadow-[var(--shadow-card-hover)]">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">System health</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            System health
+          </p>
           {[
             { label: "API & Web", ok: true },
             { label: "AI Provider (Gemini)", ok: healthy },
@@ -392,8 +484,11 @@ function SystemStatus({ healthy }: { healthy: boolean }) {
           ].map((row) => (
             <div key={row.label} className="flex items-center justify-between py-1 text-sm">
               <span className="text-foreground">{row.label}</span>
-              <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${row.ok ? "text-success" : "text-error"}`}>
-                <span className={`h-2 w-2 rounded-full ${row.ok ? "bg-success" : "bg-error"}`} /> {row.ok ? "Operational" : "Error"}
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs font-semibold ${row.ok ? "text-success" : "text-error"}`}
+              >
+                <span className={`h-2 w-2 rounded-full ${row.ok ? "bg-success" : "bg-error"}`} />{" "}
+                {row.ok ? "Operational" : "Error"}
               </span>
             </div>
           ))}

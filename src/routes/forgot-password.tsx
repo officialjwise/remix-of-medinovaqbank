@@ -6,10 +6,7 @@ import { Logo } from "@/components/brand/Logo";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({
-    meta: [
-      { title: "Forgot Password — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Forgot Password — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: ForgotPassword,
 });
@@ -31,29 +28,42 @@ function ForgotPassword() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="mb-8 inline-flex"><Logo size={40} /></Link>
+        <Link to="/" className="mb-8 inline-flex">
+          <Logo size={40} />
+        </Link>
         <div className="rounded-2xl border border-border bg-surface p-7 shadow-sm">
           {sent ? (
             <>
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-success-light text-success">
                 <Mail className="h-6 w-6" />
               </span>
-              <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Check your inbox</h1>
+              <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">
+                Check your inbox
+              </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                If <span className="font-semibold text-foreground">{email}</span> matches an account,
-                you'll receive a password reset link within 2 minutes.
+                If <span className="font-semibold text-foreground">{email}</span> matches an
+                account, you'll receive a password reset link within 2 minutes.
               </p>
-              <Link to="/login" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline">
+              <Link
+                to="/login"
+                className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
+              >
                 <ArrowLeft className="h-4 w-4" /> Back to sign in
               </Link>
             </>
           ) : (
             <>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">Reset your password</h1>
-              <p className="mt-2 text-sm text-muted-foreground">Enter the email tied to your account and we'll send you a reset link.</p>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                Reset your password
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Enter the email tied to your account and we'll send you a reset link.
+              </p>
               <form onSubmit={onSubmit} className="mt-6 space-y-4">
                 <label className="block">
-                  <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Email</span>
+                  <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Email
+                  </span>
                   <input
                     type="email"
                     required
@@ -71,7 +81,10 @@ function ForgotPassword() {
                   {loading ? "Sending…" : "Send reset link"}
                 </button>
               </form>
-              <Link to="/login" className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
+              <Link
+                to="/login"
+                className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+              >
                 <ArrowLeft className="h-4 w-4" /> Back to sign in
               </Link>
             </>

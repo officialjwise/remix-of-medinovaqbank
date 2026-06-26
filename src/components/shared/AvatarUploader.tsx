@@ -80,9 +80,17 @@ export function AvatarUploader({
     <>
       <div className="relative inline-block" style={{ width: size, height: size }}>
         {value ? (
-          <img src={value} alt="avatar" className="h-full w-full rounded-2xl object-cover ring-2 ring-border" style={{ width: size, height: size }} />
+          <img
+            src={value}
+            alt="avatar"
+            className="h-full w-full rounded-2xl object-cover ring-2 ring-border"
+            style={{ width: size, height: size }}
+          />
         ) : (
-          <span className="flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent font-bold text-white" style={{ width: size, height: size, fontSize: size / 3 }}>
+          <span
+            className="flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent font-bold text-white"
+            style={{ width: size, height: size, fontSize: size / 3 }}
+          >
             {initials}
           </span>
         )}
@@ -118,11 +126,19 @@ export function AvatarUploader({
       </div>
 
       {src && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-foreground/60 p-4 backdrop-blur-sm" onClick={() => setSrc(null)}>
-          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-foreground/60 p-4 backdrop-blur-sm"
+          onClick={() => setSrc(null)}
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <header className="border-b border-border px-5 py-4">
               <h3 className="text-base font-bold text-foreground">Crop your photo</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">Drag to reposition · pinch or use the slider to zoom</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Drag to reposition · pinch or use the slider to zoom
+              </p>
             </header>
             <div className="relative h-72 w-full bg-surface-alt">
               <Cropper
@@ -150,8 +166,19 @@ export function AvatarUploader({
               />
             </div>
             <footer className="flex justify-end gap-2 border-t border-border px-5 py-3">
-              <button type="button" onClick={() => setSrc(null)} className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt">Cancel</button>
-              <button type="button" onClick={save} disabled={saving} className="h-10 rounded-lg bg-gradient-to-r from-primary to-accent px-5 text-sm font-bold text-white disabled:opacity-60">
+              <button
+                type="button"
+                onClick={() => setSrc(null)}
+                className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="h-10 rounded-lg bg-gradient-to-r from-primary to-accent px-5 text-sm font-bold text-white disabled:opacity-60"
+              >
                 {saving ? "Saving…" : "Save photo"}
               </button>
             </footer>

@@ -43,7 +43,8 @@ function PaymentCallback() {
             <Loader2 className="mx-auto h-12 w-12 animate-spin text-accent" />
             <h1 className="mt-5 text-xl font-bold text-foreground">Verifying your payment…</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Reference: <code className="font-mono">{search.reference ?? search.trxref ?? "—"}</code>
+              Reference:{" "}
+              <code className="font-mono">{search.reference ?? search.trxref ?? "—"}</code>
             </p>
           </>
         )}
@@ -65,9 +66,12 @@ function PaymentCallback() {
         {status === "failed" && (
           <>
             <XCircle className="mx-auto h-14 w-14 text-error" />
-            <h1 className="mt-5 text-2xl font-bold text-foreground">Payment could not be verified</h1>
+            <h1 className="mt-5 text-2xl font-bold text-foreground">
+              Payment could not be verified
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              No reference was returned by the payment provider. If you were charged, contact support.
+              No reference was returned by the payment provider. If you were charged, contact
+              support.
             </p>
             <div className="mt-6 flex justify-center gap-2">
               <Link

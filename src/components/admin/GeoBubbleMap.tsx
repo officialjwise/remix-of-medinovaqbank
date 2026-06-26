@@ -26,10 +26,7 @@ export function GeoBubbleMap({ points, max }: GeoBubbleMapProps) {
   );
 
   const projected = useMemo(() => {
-    const largest = points.reduce(
-      (acc, p) => (p.value > acc ? p.value : acc),
-      -Infinity,
-    );
+    const largest = points.reduce((acc, p) => (p.value > acc ? p.value : acc), -Infinity);
     return points.map((p) => {
       const r = 2 + (p.value / computedMax) * 10;
       return {
@@ -61,14 +58,7 @@ export function GeoBubbleMap({ points, max }: GeoBubbleMapProps) {
         aria-label="World map of users by country"
       >
         {/* ocean / surface backdrop */}
-        <rect
-          x="0"
-          y="0"
-          width="360"
-          height="180"
-          rx="4"
-          fill="var(--color-surface-alt)"
-        />
+        <rect x="0" y="0" width="360" height="180" rx="4" fill="var(--color-surface-alt)" />
 
         {/* graticule */}
         <g stroke="var(--color-border)" strokeWidth={0.3} opacity={0.6}>
@@ -88,13 +78,7 @@ export function GeoBubbleMap({ points, max }: GeoBubbleMapProps) {
           {projected.map((p) => (
             <g key={p.code}>
               {p.isLargest && (
-                <circle
-                  cx={p.cx}
-                  cy={p.cy}
-                  r={p.r}
-                  fill="#2BC97F"
-                  fillOpacity={0.25}
-                >
+                <circle cx={p.cx} cy={p.cy} r={p.r} fill="#2BC97F" fillOpacity={0.25}>
                   <animate
                     attributeName="r"
                     values={`${p.r};${p.r * 2.1};${p.r}`}

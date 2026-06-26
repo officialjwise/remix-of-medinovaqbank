@@ -8,10 +8,7 @@ import type { Difficulty, ExamType } from "@/types";
 
 export const Route = createFileRoute("/admin/banks/$bankId/edit")({
   head: () => ({
-    meta: [
-      { title: "Admin · Edit Bank — Medinovaqbank" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Admin · Edit Bank — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   loader: ({ params }) => {
     const bank = questionBanks.find((b) => b.id === params.bankId);
@@ -30,8 +27,15 @@ export const Route = createFileRoute("/admin/banks/$bankId/edit")({
 });
 
 const SUBJECTS = [
-  "Internal Medicine", "Surgery", "OB/GYN", "Paediatrics",
-  "Pharmacology", "Pathology", "Radiology", "Psychiatry", "Anatomy",
+  "Internal Medicine",
+  "Surgery",
+  "OB/GYN",
+  "Paediatrics",
+  "Pharmacology",
+  "Pathology",
+  "Radiology",
+  "Psychiatry",
+  "Anatomy",
 ];
 const EXAM_TYPES: ExamType[] = ["USMLE", "PLAB", "MDCN", "MEDICAL COUNCIL", "GENERAL"];
 const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
@@ -72,7 +76,8 @@ function EditBankPage() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Edit Bank</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {bank.questionCount.toLocaleString()} questions · {bank.sessionsCount.toLocaleString()} sessions
+            {bank.questionCount.toLocaleString()} questions · {bank.sessionsCount.toLocaleString()}{" "}
+            sessions
           </p>
         </div>
         <button
@@ -99,7 +104,9 @@ function EditBankPage() {
               onChange={(e) => setForm({ ...form, subject: e.target.value })}
               className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             >
-              {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
+              {SUBJECTS.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
             </select>
           </Field>
           <Field label="Exam Type">
@@ -108,7 +115,9 @@ function EditBankPage() {
               onChange={(e) => setForm({ ...form, examType: e.target.value as ExamType })}
               className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             >
-              {EXAM_TYPES.map((s) => <option key={s}>{s}</option>)}
+              {EXAM_TYPES.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
             </select>
           </Field>
         </div>
@@ -137,7 +146,9 @@ function EditBankPage() {
               onChange={(e) => setForm({ ...form, difficulty: e.target.value as Difficulty })}
               className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             >
-              {DIFFICULTIES.map((s) => <option key={s}>{s}</option>)}
+              {DIFFICULTIES.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
             </select>
           </Field>
           <Field label="Status">
@@ -198,7 +209,9 @@ function EditBankPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );

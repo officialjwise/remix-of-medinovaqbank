@@ -48,12 +48,16 @@ export function HeaderSearch({
     return (
       <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-card-hover)]">
         {results.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-muted-foreground">No results for "{query}"</p>
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+            No results for "{query}"
+          </p>
         ) : (
           <div className="max-h-80 overflow-y-auto py-1">
             {grouped.map(([group, rows]) => (
               <div key={group}>
-                <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{group}</p>
+                <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                  {group}
+                </p>
                 {rows.map((r) => (
                   <button
                     key={r.id}
@@ -68,8 +72,14 @@ export function HeaderSearch({
                   >
                     <Search className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-foreground">{r.label}</span>
-                      {r.sublabel && <span className="block truncate text-xs text-muted-foreground">{r.sublabel}</span>}
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {r.label}
+                      </span>
+                      {r.sublabel && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {r.sublabel}
+                        </span>
+                      )}
                     </span>
                   </button>
                 ))}

@@ -85,7 +85,9 @@ function ConfigurePage() {
       <main className="mx-auto max-w-6xl px-6 py-8 lg:py-10">
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${theme.badge}`}>
+            <span
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${theme.badge}`}
+            >
               {bank.subject}
             </span>
             <span className="rounded-full border border-border bg-surface px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -100,8 +102,12 @@ function ConfigurePage() {
               </span>
             )}
           </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground">Configure your session</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">{bank.name} — choose how you want to study.</p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground">
+            Configure your session
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {bank.name} — choose how you want to study.
+          </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -138,7 +144,9 @@ function ConfigurePage() {
                   min={5}
                   max={Math.min(bank.questionCount, 200)}
                   value={count}
-                  onChange={(e) => setCount(Math.max(5, Math.min(200, Number(e.target.value) || 5)))}
+                  onChange={(e) =>
+                    setCount(Math.max(5, Math.min(200, Number(e.target.value) || 5)))
+                  }
                   className="h-9 w-24 rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   aria-label="Custom question count"
                 />
@@ -166,7 +174,12 @@ function ConfigurePage() {
               </div>
             </Section>
 
-            <Section title="Topics" subtitle={topics.length === 0 ? "Leave empty to include all." : `${topics.length} selected`}>
+            <Section
+              title="Topics"
+              subtitle={
+                topics.length === 0 ? "Leave empty to include all." : `${topics.length} selected`
+              }
+            >
               <div className="flex flex-wrap gap-2">
                 {bank.topics.map((t: string) => (
                   <PillButton key={t} active={topics.includes(t)} onClick={() => toggleTopic(t)}>
@@ -178,12 +191,14 @@ function ConfigurePage() {
 
             <Section title="Timer">
               <div className="flex flex-wrap gap-2">
-                {([
-                  { l: "No timer", v: null },
-                  { l: "30 min", v: 30 * 60 },
-                  { l: "1 hour", v: 60 * 60 },
-                  { l: "2 hours", v: 120 * 60 },
-                ] as const).map((opt) => (
+                {(
+                  [
+                    { l: "No timer", v: null },
+                    { l: "30 min", v: 30 * 60 },
+                    { l: "1 hour", v: 60 * 60 },
+                    { l: "2 hours", v: 120 * 60 },
+                  ] as const
+                ).map((opt) => (
                   <PillButton key={opt.l} active={timer === opt.v} onClick={() => setTimer(opt.v)}>
                     <Clock className="h-3.5 w-3.5" /> {opt.l}
                   </PillButton>
@@ -226,24 +241,47 @@ function ConfigurePage() {
               <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
                 <div className={`h-1.5 ${theme.solid}`} aria-hidden />
                 <div className="p-5">
-                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${theme.badge}`}>
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${theme.badge}`}
+                  >
                     {bank.subject}
                   </span>
-                  <h2 className="mt-3 text-lg font-bold tracking-tight text-foreground">{bank.name}</h2>
-                  <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{bank.description}</p>
+                  <h2 className="mt-3 text-lg font-bold tracking-tight text-foreground">
+                    {bank.name}
+                  </h2>
+                  <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">
+                    {bank.description}
+                  </p>
 
                   <dl className="mt-4 space-y-2.5 text-sm">
-                    <Stat icon={<BookOpen className="h-4 w-4" />} label="Questions" value={bank.questionCount.toLocaleString()} />
-                    <Stat icon={<Star className="h-4 w-4" />} label="Difficulty" value={bank.difficulty} />
-                    <Stat icon={<Users className="h-4 w-4" />} label="Sessions taken" value={bank.sessionsCount.toLocaleString()} />
+                    <Stat
+                      icon={<BookOpen className="h-4 w-4" />}
+                      label="Questions"
+                      value={bank.questionCount.toLocaleString()}
+                    />
+                    <Stat
+                      icon={<Star className="h-4 w-4" />}
+                      label="Difficulty"
+                      value={bank.difficulty}
+                    />
+                    <Stat
+                      icon={<Users className="h-4 w-4" />}
+                      label="Sessions taken"
+                      value={bank.sessionsCount.toLocaleString()}
+                    />
                     <Stat icon={<Trophy className="h-4 w-4" />} label="Cohort avg" value="67%" />
                   </dl>
 
                   <div className="mt-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Topics</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                      Topics
+                    </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {bank.topics.slice(0, 5).map((t: string) => (
-                        <span key={t} className="rounded-full border border-border bg-surface-alt px-2 py-0.5 text-[11px] font-medium text-foreground">
+                        <span
+                          key={t}
+                          className="rounded-full border border-border bg-surface-alt px-2 py-0.5 text-[11px] font-medium text-foreground"
+                        >
                           {t}
                         </span>
                       ))}
@@ -258,7 +296,9 @@ function ConfigurePage() {
               </div>
 
               <div className="rounded-2xl border border-border bg-gradient-to-br from-[#0E7C7B]/5 to-[#2BC97F]/10 p-5">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-[#0E7C7B]">Your stats on this bank</p>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-[#0E7C7B]">
+                  Your stats on this bank
+                </p>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                   <MiniStat label="Best" value="78%" />
                   <MiniStat label="Sessions" value="4" />
@@ -273,7 +313,15 @@ function ConfigurePage() {
   );
 }
 
-function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Section({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
       <div className="flex items-baseline justify-between gap-3">

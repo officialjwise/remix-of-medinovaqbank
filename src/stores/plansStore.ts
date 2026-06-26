@@ -44,7 +44,10 @@ function defaultCatalog(included: boolean): Record<string, CatalogSelection> {
   return Object.fromEntries(
     FEATURE_CATALOG.map((f) => [
       f.key,
-      { included: f.type === "boolean" ? included : true, limit: f.type === "limit" ? (f.defaultLimit ?? -1) : undefined },
+      {
+        included: f.type === "boolean" ? included : true,
+        limit: f.type === "limit" ? (f.defaultLimit ?? -1) : undefined,
+      },
     ]),
   );
 }
@@ -64,12 +67,7 @@ const PLAN_BULLETS: Record<string, string[]> = {
     "2 devices",
     "Save 7% vs monthly",
   ],
-  h6: [
-    "Everything in 3-Month",
-    "Priority email support",
-    "3 devices",
-    "Save 19% vs monthly",
-  ],
+  h6: ["Everything in 3-Month", "Priority email support", "3 devices", "Save 19% vs monthly"],
   y12: [
     "Everything in 6-Month",
     "Unlimited devices",
@@ -79,10 +77,29 @@ const PLAN_BULLETS: Record<string, string[]> = {
 };
 
 const PLAN_CATALOG: Record<string, Record<string, CatalogSelection>> = {
-  monthly: { ...defaultCatalog(true), leaderboard: { included: false }, multi_device: { included: false }, priority_support: { included: false }, max_devices: { included: true, limit: 1 } },
-  q3: { ...defaultCatalog(true), priority_support: { included: false }, multi_device: { included: true }, max_devices: { included: true, limit: 2 } },
-  h6: { ...defaultCatalog(true), multi_device: { included: true }, max_devices: { included: true, limit: 3 } },
-  y12: { ...defaultCatalog(true), multi_device: { included: true }, max_devices: { included: true, limit: -1 } },
+  monthly: {
+    ...defaultCatalog(true),
+    leaderboard: { included: false },
+    multi_device: { included: false },
+    priority_support: { included: false },
+    max_devices: { included: true, limit: 1 },
+  },
+  q3: {
+    ...defaultCatalog(true),
+    priority_support: { included: false },
+    multi_device: { included: true },
+    max_devices: { included: true, limit: 2 },
+  },
+  h6: {
+    ...defaultCatalog(true),
+    multi_device: { included: true },
+    max_devices: { included: true, limit: 3 },
+  },
+  y12: {
+    ...defaultCatalog(true),
+    multi_device: { included: true },
+    max_devices: { included: true, limit: -1 },
+  },
 };
 
 const seededPaid: Plan[] = durationPlans.map((p, i) => ({
@@ -95,7 +112,11 @@ const seededPaid: Plan[] = durationPlans.map((p, i) => ({
   sortOrder: i,
   active: true,
   subscribers: subscribersByPlan[p.id] ?? 0,
-  bullets: (PLAN_BULLETS[p.id] ?? p.features).map((text, j) => ({ id: `${p.id}-b${j}`, text, included: true })),
+  bullets: (PLAN_BULLETS[p.id] ?? p.features).map((text, j) => ({
+    id: `${p.id}-b${j}`,
+    text,
+    included: true,
+  })),
   catalogFeatures: PLAN_CATALOG[p.id] ?? defaultCatalog(true),
 }));
 
@@ -141,10 +162,15 @@ export const usePlansStore = create<PlansState>()(
       upsert: (plan) =>
         set((s) => {
           const exists = s.plans.some((p) => p.id === plan.id);
-          return { plans: exists ? s.plans.map((p) => (p.id === plan.id ? plan : p)) : [...s.plans, plan] };
+          return {
+            plans: exists ? s.plans.map((p) => (p.id === plan.id ? plan : p)) : [...s.plans, plan],
+          };
         }),
       remove: (id) => set((s) => ({ plans: s.plans.filter((p) => p.id !== id) })),
-      toggleActive: (id) => set((s) => ({ plans: s.plans.map((p) => (p.id === id ? { ...p, active: !p.active } : p)) })),
+      toggleActive: (id) =>
+        set((s) => ({
+          plans: s.plans.map((p) => (p.id === id ? { ...p, active: !p.active } : p)),
+        })),
       getById: (id) => get().plans.find((p) => p.id === id),
     }),
     { name: "medinova-plans-v2", version: 1 },
@@ -158,6 +184,10 @@ export const usePlansStore = create<PlansState>()(
  * useSyncExternalStore). Always call these hooks, never a raw selector.
  */
 export const usePaidPlans = () =>
-  usePlansStore(useShallow((s) => s.plans.filter((p) => !p.isTrial && p.active).sort((a, b) => a.sortOrder - b.sortOrder)));
+  usePlansStore(
+    useShallow((s) =>
+      s.plans.filter((p) => !p.isTrial && p.active).sort((a, b) => a.sortOrder - b.sortOrder),
+    ),
+  );
 
 export const useTrialPlan = () => usePlansStore((s) => s.plans.find((p) => p.isTrial));

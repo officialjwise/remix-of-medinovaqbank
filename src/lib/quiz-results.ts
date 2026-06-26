@@ -8,7 +8,12 @@ export interface SessionResults {
   skipped: number;
   scorePct: number;
   bySubject: { name: string; pct: number; correct: number; total: number }[];
-  byDifficulty: { name: "Beginner" | "Intermediate" | "Advanced"; pct: number; correct: number; total: number }[];
+  byDifficulty: {
+    name: "Beginner" | "Intermediate" | "Advanced";
+    pct: number;
+    correct: number;
+    total: number;
+  }[];
   timeline: { q: number; seconds: number }[];
   durationSec: number;
 }
