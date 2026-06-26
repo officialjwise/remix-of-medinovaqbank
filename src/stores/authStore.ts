@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Subscription, User } from "@/types";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { deviceLabel } from "@/lib/trial";
 
 interface AuthState {
   user: User | null;
@@ -13,11 +15,20 @@ interface AuthState {
   setSubscription: (s: Subscription) => void;
 }
 
-const defaultTrial: Subscription = {
-  status: "TRIAL",
-  trialQuestionsLeft: 7,
-  trialQuestionsTotal: 10,
-};
+/** Build a fresh trial subscription using the admin-configured trial policy. */
+function buildTrial(): Subscription {
+  const { trialDays, trialQuestionLimit } = useSettingsStore.getState().settings.general;
+  const now = new Date();
+  const ends = new Date(now.getTime() + trialDays * 86_400_000);
+  return {
+    status: "TRIAL",
+    trialQuestionsLeft: trialQuestionLimit,
+    trialQuestionsTotal: trialQuestionLimit,
+    trialStartedAt: now.toISOString(),
+    trialEndsAt: ends.toISOString(),
+    boundDevice: deviceLabel(),
+  };
+}
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -31,7 +42,7 @@ export const useAuthStore = create<AuthState>()(
           accessToken,
           user,
           isAuthenticated: true,
-          subscription: user.role === "USER" ? defaultTrial : null,
+          subscription: user.role === "USER" ? buildTrial() : null,
         }),
       logout: () =>
         set({ accessToken: null, user: null, isAuthenticated: false, subscription: null }),
@@ -41,3 +52,17 @@ export const useAuthStore = create<AuthState>()(
     { name: "medinova-auth" },
   ),
 );
+
+import { useState, useEffect } from "react";
+
+export function useAuthHydrated() {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    const unsubFinishHydration = useAuthStore.persist.onFinishHydration(() => setHydrated(true));
+    setHydrated(useAuthStore.persist.hasHydrated());
+    return () => {
+      unsubFinishHydration();
+    };
+  }, []);
+  return hydrated;
+}

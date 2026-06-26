@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { questionBanks } from "@/data/banks";
 import type { Difficulty, ExamType } from "@/types";
 
-export const Route = createFileRoute("/admin/banks")({
+export const Route = createFileRoute("/admin/banks/")({
   head: () => ({ meta: [{ title: "Admin · Banks — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
   component: AdminBanks,
 });

@@ -63,8 +63,8 @@ function AdminPricing() {
       </div>
 
       <style>{`
-        .input { display: block; width: 100%; height: 2.25rem; padding: 0 0.625rem; font-size: 0.875rem; color: hsl(var(--foreground)); background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 0.5rem; outline: none; }
-        .input:focus { border-color: hsl(var(--accent)); box-shadow: 0 0 0 3px hsl(var(--accent) / 0.2); }
+        .input { display: block; width: 100%; height: 2.25rem; padding: 0 0.625rem; font-size: 0.875rem; color: var(--color-foreground); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 0.5rem; outline: none; }
+        .input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-accent) 20%, transparent); }
       `}</style>
     </div>
   );

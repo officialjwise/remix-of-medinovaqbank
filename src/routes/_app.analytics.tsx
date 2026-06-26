@@ -105,33 +105,33 @@ function AnalyticsPage() {
                   <stop offset="95%" stopColor="#0E7C7B" stopOpacity={0.05} />
                 </linearGradient>
                 <linearGradient id="bellRight" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.04} />
+                  <stop offset="0%" stopColor="var(--color-muted-foreground)" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="var(--color-muted-foreground)" stopOpacity={0.04} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="x" type="number" domain={[20, 110]} tickFormatter={(v) => `${v}%`} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <CartesianGrid stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="x" type="number" domain={[20, 110]} tickFormatter={(v) => `${v}%`} stroke="var(--color-muted-foreground)" fontSize={12} />
               <YAxis hide />
               <Tooltip formatter={(v: number) => (v == null ? "" : v.toFixed(3))} labelFormatter={(l) => `${l}%`} />
-              <Area type="monotone" dataKey="right" stroke="hsl(var(--muted-foreground))" fill="url(#bellRight)" strokeWidth={1.5} isAnimationActive={false} />
+              <Area type="monotone" dataKey="right" stroke="var(--color-muted-foreground)" fill="url(#bellRight)" strokeWidth={1.5} isAnimationActive={false} />
               <Area type="monotone" dataKey="left" stroke="#0E7C7B" fill="url(#bellLeft)" strokeWidth={2} isAnimationActive={false} />
               <ReferenceLine
                 x={data.cohort.mean - data.cohort.stddev}
-                stroke="hsl(var(--muted-foreground))"
+                stroke="var(--color-muted-foreground)"
                 strokeDasharray="1 4"
                 strokeOpacity={0.5}
               />
               <ReferenceLine
                 x={data.cohort.mean + data.cohort.stddev}
-                stroke="hsl(var(--muted-foreground))"
+                stroke="var(--color-muted-foreground)"
                 strokeDasharray="1 4"
                 strokeOpacity={0.5}
               />
               <ReferenceLine
                 x={data.cohort.mean}
-                stroke="hsl(var(--muted-foreground))"
+                stroke="var(--color-muted-foreground)"
                 strokeDasharray="3 4"
-                label={{ value: `Average ${data.cohort.mean}%`, position: "top", fill: "hsl(var(--muted-foreground))", fontSize: 10, fontWeight: 600 }}
+                label={{ value: `Average ${data.cohort.mean}%`, position: "top", fill: "var(--color-muted-foreground)", fontSize: 10, fontWeight: 600 }}
               />
               <ReferenceLine
                 x={data.yourPct}
@@ -164,11 +164,11 @@ function AnalyticsPage() {
           <div className="mt-4 h-80 w-full">
             <ResponsiveContainer>
               <BarChart data={data.bySubject} layout="vertical" margin={{ left: 20, right: 24 }}>
-                <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
-                <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} width={140} />
+                <CartesianGrid horizontal={false} stroke="var(--color-border)" />
+                <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="var(--color-muted-foreground)" fontSize={12} />
+                <YAxis dataKey="name" type="category" stroke="var(--color-muted-foreground)" fontSize={12} width={140} />
                 <Tooltip formatter={(v: number) => `${v}%`} />
-                <Bar dataKey="pct" radius={[0, 6, 6, 0]} fill="hsl(var(--accent))" />
+                <Bar dataKey="pct" radius={[0, 6, 6, 0]} fill="var(--color-accent)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -204,12 +204,12 @@ function AnalyticsPage() {
         <div className="mt-4 h-64 w-full">
           <ResponsiveContainer>
             <LineChart data={data.trend} margin={{ top: 10, right: 24, bottom: 0, left: 0 }}>
-              <CartesianGrid stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <CartesianGrid stroke="var(--color-border)" />
+              <XAxis dataKey="date" stroke="var(--color-muted-foreground)" fontSize={12} />
+              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="var(--color-muted-foreground)" fontSize={12} />
               <Tooltip formatter={(v: number) => `${v}%`} />
-              <Line type="monotone" dataKey="pct" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 4 }} />
-              <ReferenceLine y={data.averagePct} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: `Avg ${data.averagePct}%`, fontSize: 10, fill: "hsl(var(--muted-foreground))", position: "right" }} />
+              <Line type="monotone" dataKey="pct" stroke="var(--color-accent)" strokeWidth={2} dot={{ r: 4 }} />
+              <ReferenceLine y={data.averagePct} stroke="var(--color-muted-foreground)" strokeDasharray="3 3" label={{ value: `Avg ${data.averagePct}%`, fontSize: 10, fill: "var(--color-muted-foreground)", position: "right" }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -250,7 +250,7 @@ function CircleProgress({ pct, colorClass, ringClass }: { pct: number; colorClas
   return (
     <div className="relative h-14 w-14 flex-shrink-0">
       <svg viewBox="0 0 56 56" className="h-full w-full -rotate-90">
-        <circle cx="28" cy="28" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
+        <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-border)" strokeWidth="5" />
         <circle
           cx="28"
           cy="28"

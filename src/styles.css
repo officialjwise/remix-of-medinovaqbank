@@ -134,24 +134,24 @@
 }
 
 .dark {
-  --background: oklch(0.18 0.03 256);
-  --foreground: oklch(0.98 0.005 247);
-  --surface: oklch(0.22 0.03 256);
-  --surface-alt: oklch(0.26 0.03 256);
-  --card: oklch(0.22 0.03 256);
-  --card-foreground: oklch(0.98 0.005 247);
-  --popover: oklch(0.22 0.03 256);
-  --popover-foreground: oklch(0.98 0.005 247);
-  --primary: oklch(0.70 0.11 192);
-  --primary-light: oklch(0.78 0.10 192);
-  --primary-foreground: oklch(0.18 0.03 256);
-  --secondary: oklch(0.26 0.03 256);
-  --secondary-foreground: oklch(0.98 0.005 247);
-  --muted: oklch(0.26 0.03 256);
-  --muted-foreground: oklch(0.72 0.02 256);
-  --border: oklch(1 0 0 / 10%);
-  --border-strong: oklch(1 0 0 / 18%);
-  --input: oklch(1 0 0 / 15%);
+  --background: #040914;
+  --foreground: #F8FAFC;
+  --surface: #080F1A;
+  --surface-alt: #0D1627;
+  --card: #080F1A;
+  --card-foreground: #F8FAFC;
+  --popover: #080F1A;
+  --popover-foreground: #F8FAFC;
+  --primary: #3B82F6;
+  --primary-light: #60A5FA;
+  --primary-foreground: #FFFFFF;
+  --secondary: #0D1627;
+  --secondary-foreground: #F8FAFC;
+  --muted: #0D1627;
+  --muted-foreground: #94A3B8;
+  --border: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
 }
 
 @layer base {
@@ -209,3 +209,23 @@
   border-radius: calc(var(--radius) + 4px);
   box-shadow: var(--shadow-card);
 }
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(0, 212, 200, 0.1); }
+  50% { box-shadow: 0 0 25px rgba(0, 212, 200, 0.4); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes streak-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); color: #F59E0B; text-shadow: 0 0 10px rgba(245, 158, 11, 0.5); }
+  100% { transform: scale(1); }
+}
+
+.animate-glow-pulse { animation: glow-pulse 2.5s infinite ease-in-out; }
+.animate-slide-up { animation: slide-up 0.4s ease-out forwards; }
+.animate-streak-pop { animation: streak-pop 0.5s ease-out; }

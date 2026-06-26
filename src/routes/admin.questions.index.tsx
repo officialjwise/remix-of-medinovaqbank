@@ -5,7 +5,7 @@ import { questionBanks } from "@/data/banks";
 import { getQuestionsForBank } from "@/data/questions";
 import type { Question } from "@/types";
 
-export const Route = createFileRoute("/admin/questions")({
+export const Route = createFileRoute("/admin/questions/")({
   head: () => ({
     meta: [
       { title: "Admin · Questions — Medinovaqbank" },
@@ -46,7 +46,8 @@ function AdminQuestions() {
         </div>
         <Link
           to="/admin/questions/create"
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-sm font-semibold text-white shadow-md"
+          search={{ bankId: undefined }}
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-4 text-sm font-semibold text-white shadow-md hover:opacity-90"
         >
           <Plus className="h-4 w-4" /> Create Question
         </Link>
@@ -116,8 +117,8 @@ function AdminQuestions() {
                           <Eye className="h-3.5 w-3.5" />
                         </Link>
                         <Link
-                          to="/admin/questions/$questionId/edit"
-                          params={{ questionId: q.id }}
+                          to="/admin/banks/$bankId/questions/$questionId"
+                          params={{ bankId: q.bankId, questionId: q.id }}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-surface-alt"
                           aria-label="Edit"
                         >

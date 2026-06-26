@@ -8,6 +8,7 @@ export interface User {
   specialty?: string;
   role: UserRole;
   createdAt: string;
+  deviceFingerprint?: string;
 }
 
 export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "EXPIRED" | "NONE";
@@ -18,6 +19,12 @@ export interface Subscription {
   renewsAt?: string;
   trialQuestionsLeft?: number;
   trialQuestionsTotal?: number;
+  /** ISO date the trial began. */
+  trialStartedAt?: string;
+  /** ISO date the trial ends (start + configured trial days). */
+  trialEndsAt?: string;
+  /** Human-readable label of the device the account is bound to. */
+  boundDevice?: string;
 }
 
 export interface PricingPlan {

@@ -1,4 +1,4 @@
-import logoAsset from "@/assets/medinova-logo.jpeg.asset.json";
+import logoUrl from "@/assets/medinova-logo.jpg";
 
 interface LogoProps {
   /** Mark only (square logo, no wordmark). Default false (full lockup). */
@@ -30,8 +30,10 @@ export function Logo({ markOnly = false, size = 36, tone = "auto", className = "
         style={{ width: size, height: size }}
       >
         <img
-          src={logoAsset.url}
+          src={logoUrl}
           alt="Medinova"
+          loading="lazy"
+          decoding="async"
           width={size}
           height={size}
           className="h-full w-full object-cover"

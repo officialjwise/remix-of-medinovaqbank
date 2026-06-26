@@ -65,7 +65,7 @@ function PricingPage() {
             🎯 Not sure yet? Try 10 free questions — no card required. Just sign in with Google.
           </p>
           <Link
-            to="/signup"
+            to="/login"
             className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-white px-5 text-sm font-bold text-accent hover:bg-white/90"
           >
             Start Free Trial
@@ -154,7 +154,7 @@ function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: (typeof durati
         </button>
       ) : (
         <Link
-          to="/signup"
+          to="/login"
           className={`mt-6 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
             isPopular
               ? "bg-accent text-accent-foreground hover:bg-accent/90"

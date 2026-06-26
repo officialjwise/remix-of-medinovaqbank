@@ -49,7 +49,7 @@ function ReviewPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-surface">
-        <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-4 sm:px-6">
           <Link
             to="/quiz/$sessionId/results"
             params={{ sessionId }}
@@ -66,8 +66,8 @@ function ReviewPage() {
         </div>
       </header>
 
-      <div className="flex">
-        <aside className="hidden w-56 border-r border-border bg-surface md:block">
+      <div className="mx-auto flex w-full max-w-[1400px]">
+        <aside className="hidden w-64 border-r border-border bg-surface md:block min-h-[calc(100vh-3.5rem)]">
           <div className="px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
             Questions
           </div>
@@ -100,7 +100,7 @@ function ReviewPage() {
 
         <main className="flex-1 px-4 py-6 sm:px-8 lg:px-12">
           {q ? (
-            <div className="mx-auto max-w-3xl">
+            <div className="mx-auto max-w-4xl xl:max-w-5xl">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Question {index + 1} of {total}
               </p>
@@ -138,32 +138,108 @@ function ReviewPage() {
               </div>
 
               {/* Always-on explanation */}
-              <section className="mt-6 rounded-xl border border-border bg-surface-alt/40 p-5">
-                <h3 className="border-l-4 border-accent pl-3 text-xs font-bold uppercase tracking-wide text-accent">
-                  Answer Explanation
-                </h3>
-                <p className="mt-3 text-sm font-bold text-success">
-                  Correct: {q.correctKey}. {q.options.find((o) => o.key === q.correctKey)?.text}
-                </p>
-                <p className="mt-2 text-sm text-foreground">{q.whyCorrect}</p>
-                <h4 className="mt-4 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Why other options are wrong
-                </h4>
-                <ul className="mt-2 space-y-1.5 text-sm">
-                  {q.options
-                    .filter((o) => o.key !== q.correctKey)
-                    .map((o) => (
-                      <li key={o.key} className="flex gap-2">
-                        <span className="font-bold">{o.key}.</span>
-                        <span className="text-muted-foreground">
-                          {q.whyWrong[o.key] ?? "Not the best answer in this scenario."}
-                        </span>
-                      </li>
-                    ))}
-                </ul>
-                <div className="mt-4 rounded-lg bg-accent-light/40 p-3 text-sm text-foreground">
-                  <span className="font-bold">💡 Key Learning Point: </span>
-                  {q.keyPoint}
+              <section className="mt-6 overflow-hidden rounded-2xl border border-white/5 bg-surface shadow-[0_10px_30px_-10px_rgb(0_0_0_/_0.3)] animate-slide-up">
+                <header
+                  className={`relative flex items-center gap-3 px-6 py-4 overflow-hidden ${
+                    q.correctKey === ans
+                      ? "bg-success/10"
+                      : "bg-error/10"
+                  }`}
+                >
+                  <div className={`absolute inset-0 opacity-20 pointer-events-none ${q.correctKey === ans ? "bg-gradient-to-r from-success to-transparent" : "bg-gradient-to-r from-error to-transparent"}`} />
+                  <h3 className="relative z-10 text-[11px] font-bold uppercase tracking-[0.16em] text-foreground/80">
+                    Clinical Breakdown
+                  </h3>
+                  <span
+                    className={`ml-auto relative z-10 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-white shadow-sm ${
+                      q.correctKey === ans ? "bg-success" : "bg-error"
+                    }`}
+                  >
+                    {q.correctKey === ans ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                    {q.correctKey === ans ? "Correct" : "Incorrect"}
+                  </span>
+                </header>
+
+                <div className="space-y-6 p-6">
+                  {/* Correct answer banner */}
+                  <div className="flex items-start gap-4 rounded-xl border border-success/20 bg-success/5 p-5 shadow-sm">
+                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
+                    <div>
+                      <p className="text-[12px] font-bold uppercase tracking-widest text-success mb-2">
+                        Correct answer · {q.correctKey}. {q.options.find((o) => o.key === q.correctKey)?.text}
+                      </p>
+                      <p className="text-[15px] leading-relaxed text-foreground/90 font-medium">{q.whyCorrect}</p>
+                    </div>
+                  </div>
+
+                  {/* Why selected was wrong */}
+                  {ans !== q.correctKey && ans && (
+                    <div className="rounded-xl border border-error/20 bg-error/5 p-5 shadow-sm">
+                      <p className="text-[12px] font-bold uppercase tracking-widest text-error mb-2">
+                        Why you chose {ans} · Incorrect
+                      </p>
+                      <p className="text-[15px] leading-relaxed text-foreground/90 font-medium">
+                        {q.whyWrong[ans] ?? "This option doesn't fit the clinical picture in this vignette."}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Distractors */}
+                  <div>
+                    <div className="rounded-r-xl border-l-4 border-[#00D4C8] bg-surface-alt/50 px-5 py-4 shadow-sm">
+                      <h4 className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#00D4C8]">
+                        When would each wrong choice be correct?
+                      </h4>
+                      <p className="mt-1.5 text-[13px] text-muted-foreground font-medium">
+                        The highest-yield insight — the exact clinical scenario that flips each distractor into the right answer.
+                      </p>
+                    </div>
+                    <ul className="mt-4 space-y-4">
+                      {q.options
+                        .filter((o) => o.key !== q.correctKey)
+                        .map((o) => {
+                          const wrongReason = q.whyWrong[o.key] ?? "Not the best answer in this scenario.";
+                          let wouldBeCorrect = `the clinical picture pointed instead to ${o.text.toLowerCase()} as the underlying mechanism or required next step.`;
+                          if (/would|when|if|in which|patients with/i.test(wrongReason)) {
+                            const tail = wrongReason.split(/—|\.|;/).filter(Boolean).slice(-1)[0]?.trim();
+                            if (tail && tail.length > 20) wouldBeCorrect = tail.replace(/^(?:would|when)\s*/i, "the patient ");
+                          }
+                          return (
+                            <li
+                              key={o.key}
+                              className="rounded-r-xl border border-white/5 border-l-4 border-l-[#00D4C8] bg-surface/50 p-5 shadow-sm transition-colors hover:bg-surface-alt/30"
+                            >
+                              <div className="flex items-start gap-3">
+                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-error/10 text-sm font-bold text-error shadow-inner">
+                                  {o.key}
+                                </span>
+                                <p className="text-[15px] font-bold text-foreground pt-1">{o.text}</p>
+                              </div>
+                              <div className="mt-4 space-y-3 pl-11">
+                                <p className="text-[14px] leading-relaxed text-foreground/90">
+                                  <span className="font-bold text-error tracking-wide text-[12px] uppercase">Why {o.key} is wrong — </span>
+                                  {wrongReason}
+                                </p>
+                                <p className="text-[14px] leading-relaxed text-muted-foreground/90">
+                                  <span className="font-bold text-[#3B82F6] tracking-wide text-[12px] uppercase">Scenario where {o.key} would be correct — </span>
+                                  {wouldBeCorrect}
+                                </p>
+                              </div>
+                            </li>
+                          );
+                        })}
+                    </ul>
+                  </div>
+
+                  {/* Key learning */}
+                  <div className="rounded-xl bg-gradient-to-br from-[#0E7C7B]/20 to-[#2BC97F]/10 p-5 shadow-sm border border-[#00D4C8]/20">
+                    <p className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.16em] text-[#00D4C8]">
+                      💡 Clinical pearl
+                    </p>
+                    <p className="mt-2 text-[15px] font-semibold leading-relaxed text-foreground">
+                      {q.keyPoint}
+                    </p>
+                  </div>
                 </div>
               </section>
 

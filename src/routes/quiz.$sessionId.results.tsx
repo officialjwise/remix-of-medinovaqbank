@@ -144,11 +144,11 @@ function ResultsPage() {
               <div className="h-72 w-full">
                 <ResponsiveContainer>
                   <BarChart data={results.bySubject} layout="vertical" margin={{ left: 20, right: 20 }}>
-                    <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
-                    <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} width={120} />
+                    <CartesianGrid horizontal={false} stroke="var(--color-border)" />
+                    <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="var(--color-muted-foreground)" fontSize={12} />
+                    <YAxis dataKey="name" type="category" stroke="var(--color-muted-foreground)" fontSize={12} width={120} />
                     <Tooltip formatter={(v: number) => `${v}%`} />
-                    <Bar dataKey="pct" fill="hsl(var(--accent))" radius={[0, 6, 6, 0]} />
+                    <Bar dataKey="pct" fill="var(--color-accent)" radius={[0, 6, 6, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -173,11 +173,11 @@ function ResultsPage() {
               <div className="h-72 w-full">
                 <ResponsiveContainer>
                   <LineChart data={results.timeline} margin={{ left: 0, right: 20, top: 10, bottom: 0 }}>
-                    <CartesianGrid stroke="hsl(var(--border))" />
-                    <XAxis dataKey="q" stroke="hsl(var(--muted-foreground))" fontSize={12} label={{ value: "Question #", position: "insideBottom", offset: -2, fontSize: 11 }} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `${v}s`} />
+                    <CartesianGrid stroke="var(--color-border)" />
+                    <XAxis dataKey="q" stroke="var(--color-muted-foreground)" fontSize={12} label={{ value: "Question #", position: "insideBottom", offset: -2, fontSize: 11 }} />
+                    <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickFormatter={(v) => `${v}s`} />
                     <Tooltip formatter={(v: number) => `${v}s`} />
-                    <Line type="monotone" dataKey="seconds" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="seconds" stroke="var(--color-accent)" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

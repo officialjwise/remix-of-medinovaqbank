@@ -1,14 +1,24 @@
-import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { useAuthStore } from "@/stores/authStore";
 
+import { SplashScreen } from "@/components/layout/SplashScreen";
+
 export const Route = createFileRoute("/admin")({
-  beforeLoad: ({ location }) => {
+  beforeLoad: async ({ location }) => {
     if (typeof window === "undefined") return;
-    // Login page is public.
-    if (location.pathname === "/admin/login") return;
+    
+    if (!useAuthStore.persist.hasHydrated()) {
+      await new Promise<void>((resolve) => {
+        const unsub = useAuthStore.persist.onFinishHydration(() => {
+          unsub();
+          resolve();
+        });
+      });
+    }
+
     const { isAuthenticated, user } = useAuthStore.getState();
-    if (!isAuthenticated) throw redirect({ to: "/admin/login" });
+    if (!isAuthenticated) throw redirect({ to: "/login" });
     if (user?.role !== "ADMIN" && user?.role !== "SUPER_ADMIN") {
       throw redirect({ to: "/dashboard" });
     }
@@ -17,14 +27,11 @@ export const Route = createFileRoute("/admin")({
       throw redirect({ to: "/admin/dashboard" });
     }
   },
+  pendingComponent: SplashScreen,
   component: AdminLayout,
 });
 
 function AdminLayout() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  if (pathname === "/admin/login") {
-    return <Outlet />;
-  }
   return (
     <AdminShell>
       <Outlet />
