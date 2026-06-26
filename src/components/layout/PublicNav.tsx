@@ -52,11 +52,14 @@ export function PublicNav() {
             </Link>
           ) : (
             <>
-              <Link to="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline">
+              <Link
+                to="/login"
+                className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline"
+              >
                 Sign in
               </Link>
               <Link
-                to="/login"
+                to="/register"
                 className="hidden rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_rgb(43_201_127_/_0.4)] transition-transform hover:-translate-y-0.5 sm:inline-flex"
               >
                 Get started
@@ -85,22 +88,37 @@ export function PublicNav() {
                 onClick={() => setOpen(false)}
                 className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-surface-alt hover:text-foreground"
                 activeOptions={l.exact ? { exact: true } : undefined}
-                activeProps={{ className: "rounded-lg px-3 py-2.5 text-sm font-semibold bg-accent-light text-accent" }}
+                activeProps={{
+                  className:
+                    "rounded-lg px-3 py-2.5 text-sm font-semibold bg-accent-light text-accent",
+                }}
               >
                 {l.label}
               </Link>
             ))}
             <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3">
               {isAuthenticated ? (
-                <Link to="/dashboard" onClick={() => setOpen(false)} className="rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 py-2.5 text-center text-sm font-semibold text-white">
+                <Link
+                  to="/dashboard"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 py-2.5 text-center text-sm font-semibold text-white"
+                >
                   Open dashboard
                 </Link>
               ) : (
                 <>
-                  <Link to="/login" onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2.5 text-center text-sm font-semibold text-foreground hover:bg-surface-alt">
+                  <Link
+                    to="/login"
+                    onClick={() => setOpen(false)}
+                    className="rounded-lg border border-border px-4 py-2.5 text-center text-sm font-semibold text-foreground hover:bg-surface-alt"
+                  >
                     Sign in
                   </Link>
-                  <Link to="/login" onClick={() => setOpen(false)} className="rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 py-2.5 text-center text-sm font-semibold text-white">
+                  <Link
+                    to="/register"
+                    onClick={() => setOpen(false)}
+                    className="rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 py-2.5 text-center text-sm font-semibold text-white"
+                  >
                     Get started — it's free
                   </Link>
                 </>
