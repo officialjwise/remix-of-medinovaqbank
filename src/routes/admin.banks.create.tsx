@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Save, X } from "lucide-react";
+import { ArrowLeft, Plus, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import type { Difficulty, ExamType } from "@/types";
+import type { Difficulty } from "@/types";
+import { useExamTypesStore } from "@/stores/examTypesStore";
 
 export const Route = createFileRoute("/admin/banks/create")({
   head: () => ({
@@ -25,15 +26,15 @@ const SUBJECTS = [
   "Psychiatry",
   "Anatomy",
 ];
-const EXAM_TYPES: ExamType[] = ["USMLE", "PLAB", "MDCN", "MEDICAL COUNCIL", "GENERAL"];
 const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
 
 function CreateBankPage() {
   const navigate = useNavigate();
+  const examTypes = useExamTypesStore((s) => s.examTypes.filter((e) => e.active));
   const [form, setForm] = useState({
     name: "",
     subject: "Internal Medicine",
-    examType: "USMLE" as ExamType,
+    examTypeIds: [] as string[],
     description: "",
     difficulty: "Intermediate" as Difficulty,
     isActive: true,
@@ -42,9 +43,22 @@ function CreateBankPage() {
   });
   const [saving, setSaving] = useState(false);
 
+  function toggleExamType(id: string) {
+    setForm((f) => ({
+      ...f,
+      examTypeIds: f.examTypeIds.includes(id)
+        ? f.examTypeIds.filter((x) => x !== id)
+        : [...f.examTypeIds, id],
+    }));
+  }
+
   function save() {
     if (!form.name.trim()) {
       toast.error("Bank name is required");
+      return;
+    }
+    if (form.examTypeIds.length === 0) {
+      toast.error("Select at least one exam type");
       return;
     }
     setSaving(true);
@@ -80,25 +94,50 @@ function CreateBankPage() {
           />
         </Field>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Subject">
-            <select
-              value={form.subject}
-              onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
-            >
-              {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
-            </select>
-          </Field>
-          <Field label="Exam Type">
-            <select
-              value={form.examType}
-              onChange={(e) => setForm({ ...form, examType: e.target.value as ExamType })}
-              className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
-            >
-              {EXAM_TYPES.map((s) => <option key={s}>{s}</option>)}
-            </select>
-          </Field>
+        <Field label="Subject">
+          <select
+            value={form.subject}
+            onChange={(e) => setForm({ ...form, subject: e.target.value })}
+            className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm sm:max-w-xs"
+          >
+            {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
+          </select>
+        </Field>
+
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Exam Types <span className="text-error">*</span>
+            </span>
+            <Link to="/admin/exam-types" className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">
+              <Plus className="h-3 w-3" /> Add new exam type
+            </Link>
+          </div>
+          {examTypes.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border bg-surface-alt/40 px-3 py-3 text-xs text-muted-foreground">
+              No active exam types yet.{" "}
+              <Link to="/admin/exam-types" className="font-semibold text-accent hover:underline">Create one first</Link>.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {examTypes.map((et) => {
+                const on = form.examTypeIds.includes(et.id);
+                return (
+                  <button
+                    key={et.id}
+                    type="button"
+                    onClick={() => toggleExamType(et.id)}
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      on ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ background: et.color }} />
+                    {et.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <Field label="Description">

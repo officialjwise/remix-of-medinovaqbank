@@ -3,12 +3,17 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  ChevronLeft,
   CreditCard,
+  HelpCircle,
   Home,
   Library,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeft,
   ScrollText,
+  Settings,
   Trophy,
   User as UserIcon,
   X,
@@ -17,6 +22,13 @@ import { ReactNode, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuthStore } from "@/stores/authStore";
+import { useBranding } from "@/hooks/useBranding";
+import { NotificationsBell, type HeaderNotification } from "@/components/layout/header/NotificationsBell";
+import { HeaderSearch, type SearchItem } from "@/components/layout/header/HeaderSearch";
+import { AvatarMenu } from "@/components/layout/header/AvatarMenu";
+import { SubscriptionChip, TrialBanner } from "@/components/shared/SubscriptionStatus";
+import { UpgradeModal } from "@/components/shared/UpgradeModal";
+import { questionBanks } from "@/data/banks";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
@@ -42,26 +54,34 @@ const titleMap: Record<string, string> = {
   "/subscription": "Subscription",
 };
 
+const userNotifications: HeaderNotification[] = [
+  { id: "n1", title: "Trial expiring soon", body: "Your free trial ends in 5 days. Upgrade to keep your progress.", time: "2h ago", unread: true, tone: "warning" },
+  { id: "n2", title: "New question bank added", body: "Emergency Medicine is now available to practise.", time: "1d ago", unread: true, tone: "default" },
+  { id: "n3", title: "Achievement unlocked 🏆", body: "You completed a 7-day study streak.", time: "3d ago", unread: false, tone: "success" },
+];
 
 export function AppShell({ children }: { children: ReactNode }) {
+  useBranding();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const title = titleMap[pathname] ?? "Medinovaqbank";
 
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar — desktop */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface lg:flex">
-        <SidebarInner />
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-border bg-surface transition-[width] duration-200 lg:flex ${
+          collapsed ? "w-[72px]" : "w-60"
+        }`}
+      >
+        <SidebarInner collapsed={collapsed} />
       </aside>
 
       {/* Sidebar — mobile drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div
-            className="absolute inset-0 bg-foreground/40"
-            onClick={() => setMobileOpen(false)}
-          />
+          <div className="absolute inset-0 bg-foreground/40" onClick={() => setMobileOpen(false)} />
           <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-border bg-surface">
             <button
               type="button"
@@ -77,15 +97,25 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       {/* Main column */}
-      <div className="lg:pl-60">
-        <Topbar title={title} onMenu={() => setMobileOpen(true)} />
-        <main className="px-6 py-8 lg:px-10">{children}</main>
+      <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-[72px]" : "lg:pl-60"}`}>
+        <Topbar
+          title={title}
+          onMenu={() => setMobileOpen(true)}
+          onToggleCollapse={() => setCollapsed((c) => !c)}
+          collapsed={collapsed}
+        />
+        <main className="px-4 py-6 sm:px-6 lg:px-10">
+          <TrialBanner />
+          {children}
+        </main>
       </div>
+
+      <UpgradeModal />
     </div>
   );
 }
 
-function SidebarInner({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarInner({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
   const { user, subscription, logout } = useAuthStore();
   const navigate = useNavigate();
 
@@ -95,47 +125,31 @@ function SidebarInner({ onNavigate }: { onNavigate?: () => void }) {
     navigate({ to: "/" });
   }
 
-  const trial =
-    subscription?.status === "TRIAL"
-      ? `Free Trial: ${10 - (subscription.trialQuestionsLeft ?? 0)}/${
-          subscription.trialQuestionsTotal ?? 10
-        } used`
-      : null;
-
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center px-5">
+      <div className={`flex h-16 items-center ${collapsed ? "justify-center px-2" : "px-5"}`}>
         <Link to="/" className="flex items-center" onClick={onNavigate} aria-label="Medinovaqbank home">
-          <Logo size={36} />
+          <Logo size={34} markOnly={collapsed} />
         </Link>
       </div>
 
-      <div className="border-y border-border px-5 py-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-            {(user?.name ?? "U").slice(0, 1)}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">
-              {user?.name ?? "Practitioner"}
-            </p>
-            {user?.specialty && (
-              <span className="mt-0.5 inline-flex rounded-full bg-accent-light px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
-                {user.specialty}
-              </span>
-            )}
+      {!collapsed && (
+        <div className="border-y border-border px-5 py-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-semibold text-white">
+              {(user?.name ?? "U").slice(0, 1)}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{user?.name ?? "Practitioner"}</p>
+              {user?.specialty && (
+                <span className="mt-0.5 inline-flex rounded-full bg-accent-light px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                  {user.specialty}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        {subscription?.status === "ACTIVE" ? (
-          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success-light px-2.5 py-1 text-xs font-semibold text-success">
-            ✓ Active until Jan 2026
-          </p>
-        ) : trial ? (
-          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-warning-light px-2.5 py-1 text-xs font-semibold text-warning">
-            ⚠ {trial}
-          </p>
-        ) : null}
-      </div>
+      )}
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {nav.map((item) => (
@@ -143,14 +157,18 @@ function SidebarInner({ onNavigate }: { onNavigate?: () => void }) {
             key={item.to}
             to={item.to}
             onClick={onNavigate}
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground"
+            title={collapsed ? item.label : undefined}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground ${
+              collapsed ? "justify-center" : ""
+            }`}
             activeProps={{
-              className:
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-accent-light text-accent",
+              className: `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-accent-light text-accent ${
+                collapsed ? "justify-center" : ""
+              }`,
             }}
           >
-            <item.icon className="h-4.5 w-4.5 h-[18px] w-[18px]" />
-            {item.label}
+            <item.icon className="h-[18px] w-[18px] flex-shrink-0" />
+            {!collapsed && item.label}
           </Link>
         ))}
       </nav>
@@ -159,19 +177,31 @@ function SidebarInner({ onNavigate }: { onNavigate?: () => void }) {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-error-light hover:text-error"
+          title={collapsed ? "Logout" : undefined}
+          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-error-light hover:text-error ${
+            collapsed ? "justify-center" : ""
+          }`}
         >
           <LogOut className="h-[18px] w-[18px]" />
-          Logout
+          {!collapsed && "Logout"}
         </button>
       </div>
     </div>
   );
 }
 
-function Topbar({ title, onMenu }: { title: string; onMenu: () => void }) {
-  const { subscription, user, logout } = useAuthStore();
-  const [open, setOpen] = useState(false);
+function Topbar({
+  title,
+  onMenu,
+  onToggleCollapse,
+  collapsed,
+}: {
+  title: string;
+  onMenu: () => void;
+  onToggleCollapse: () => void;
+  collapsed: boolean;
+}) {
+  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -180,20 +210,20 @@ function Topbar({ title, onMenu }: { title: string; onMenu: () => void }) {
     navigate({ to: "/" });
   }
 
-  const chip =
-    subscription?.status === "ACTIVE" ? (
-      <span className="hidden items-center gap-1.5 rounded-full bg-success-light px-2.5 py-1 text-xs font-semibold text-success sm:inline-flex">
-        ✓ Active
-      </span>
-    ) : subscription?.status === "TRIAL" ? (
-      <span className="hidden items-center gap-1.5 rounded-full bg-warning-light px-2.5 py-1 text-xs font-semibold text-warning sm:inline-flex">
-        ⚠ Trial: {subscription.trialQuestionsLeft ?? 0} left
-      </span>
-    ) : null;
+  const searchItems: SearchItem[] = [
+    ...questionBanks.map((b) => ({
+      id: b.id,
+      label: b.name,
+      sublabel: `${b.subject} · ${b.questionCount} questions`,
+      group: "Question Banks",
+      onSelect: () => navigate({ to: "/banks" }),
+    })),
+    ...nav.map((n) => ({ id: n.to, label: n.label, group: "Pages", onSelect: () => navigate({ to: n.to }) })),
+  ];
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/80 backdrop-blur">
-      <div className="flex h-16 items-center gap-3 px-6 lg:px-10">
+      <div className="flex h-16 items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-10">
         <button
           type="button"
           onClick={onMenu}
@@ -202,60 +232,46 @@ function Topbar({ title, onMenu }: { title: string; onMenu: () => void }) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h1 className="text-base font-semibold tracking-tight text-foreground">
-          {title}
-        </h1>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="hidden rounded-lg p-2 text-muted-foreground hover:bg-surface-alt lg:inline-flex"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+        </button>
 
-        <div className="ml-auto flex items-center gap-2">
-          {chip}
+        <nav aria-label="Breadcrumb" className="hidden items-center gap-1.5 text-sm sm:flex">
+          <Link to="/dashboard" className="font-medium text-muted-foreground hover:text-foreground">
+            Home
+          </Link>
+          <ChevronLeft className="h-3.5 w-3.5 rotate-180 text-muted-foreground/50" />
+          <span className="font-semibold text-foreground">{title}</span>
+        </nav>
+        <h1 className="text-base font-semibold text-foreground sm:hidden">{title}</h1>
+
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <HeaderSearch placeholder="Search question banks, topics…" items={searchItems} />
+          <SubscriptionChip />
+          <NotificationsBell notifications={userNotifications} />
+          <Link
+            to="/help"
+            className="hidden rounded-lg p-2 text-muted-foreground hover:bg-surface-alt hover:text-foreground sm:inline-flex"
+            aria-label="Help & support"
+          >
+            <HelpCircle className="h-[18px] w-[18px]" />
+          </Link>
           <ThemeToggle />
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setOpen((o) => !o)}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
-              aria-label="Account menu"
-            >
-              {(user?.name ?? "U").slice(0, 1)}
-            </button>
-
-            {open && (
-              <div
-                className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-card-hover)]"
-                onMouseLeave={() => setOpen(false)}
-              >
-                <div className="border-b border-border px-4 py-3">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {user?.name}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {user?.email}
-                  </p>
-                </div>
-                <Link
-                  to="/profile"
-                  onClick={() => setOpen(false)}
-                  className="block px-4 py-2.5 text-sm text-foreground hover:bg-surface-alt"
-                >
-                  Profile
-                </Link>
-                <Link
-                  to="/subscription"
-                  onClick={() => setOpen(false)}
-                  className="block px-4 py-2.5 text-sm text-foreground hover:bg-surface-alt"
-                >
-                  Subscription
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="block w-full px-4 py-2.5 text-left text-sm text-error hover:bg-error-light"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
+          <AvatarMenu
+            name={user?.name ?? "Practitioner"}
+            email={user?.email ?? ""}
+            items={[
+              { label: "Profile", icon: UserIcon, to: "/profile" },
+              { label: "Subscription", icon: CreditCard, to: "/subscription" },
+              { label: "Settings", icon: Settings, to: "/profile" },
+            ]}
+            onLogout={handleLogout}
+          />
         </div>
       </div>
     </header>

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, GripVertical, Lock, Plus, Trash2, X } from "lucide-react";
+import { Check, GripVertical, Lock, Plus, Trash2, X, Infinity as InfinityIcon } from "lucide-react";
 import { toast } from "sonner";
+import { useFeatureCatalogStore } from "@/stores/featureCatalogStore";
 
 export type PlanKey = "monthly" | "q3" | "h6" | "y12";
 
@@ -9,6 +10,12 @@ export interface PlanFeature {
   id: string;
   text: string;
   included: boolean;
+}
+
+/** Per-plan configuration of a catalog feature. */
+export interface CatalogSelection {
+  included: boolean;
+  limit?: number; // for `limit` type features; -1 = unlimited
 }
 
 export interface PlanFormValues {
@@ -20,6 +27,8 @@ export interface PlanFormValues {
   sortOrder: number;
   active: boolean;
   features: PlanFeature[];
+  /** Catalog feature key -> selection. Optional; defaults applied in the form. */
+  catalogFeatures?: Record<string, CatalogSelection>;
 }
 
 const PLAN_KEYS: { value: PlanKey; label: string; months: number }[] = [
@@ -61,9 +70,24 @@ export function PlanForm({
   initial: PlanFormValues;
   onSubmit: (values: PlanFormValues) => void;
 }) {
-  const [values, setValues] = useState<PlanFormValues>(initial);
+  const catalog = useFeatureCatalogStore((s) => s.features);
+  const [values, setValues] = useState<PlanFormValues>(() => ({
+    ...initial,
+    catalogFeatures:
+      initial.catalogFeatures ??
+      Object.fromEntries(
+        catalog.map((f) => [f.key, { included: f.type === "boolean", limit: f.type === "limit" ? f.defaultLimit ?? -1 : undefined }]),
+      ),
+  }));
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const set = <K extends keyof PlanFormValues>(k: K, v: PlanFormValues[K]) => setValues((p) => ({ ...p, [k]: v }));
+
+  function setCatalog(key: string, patch: Partial<CatalogSelection>) {
+    setValues((p) => ({
+      ...p,
+      catalogFeatures: { ...(p.catalogFeatures ?? {}), [key]: { ...(p.catalogFeatures?.[key] ?? { included: false }), ...patch } },
+    }));
+  }
 
   function updateFeature(id: string, patch: Partial<PlanFeature>) {
     set("features", values.features.map((f) => (f.id === id ? { ...f, ...patch } : f)));
@@ -132,11 +156,66 @@ export function PlanForm({
           </label>
         </section>
 
+        {/* Catalog feature selection */}
+        <section className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Platform features for this plan</h3>
+              <p className="text-xs text-muted-foreground">Toggle which capabilities this plan unlocks. Manage the master list in the Feature Catalog.</p>
+            </div>
+            <Link to="/admin/settings/features" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt">
+              Feature Catalog
+            </Link>
+          </div>
+          <div className="mt-4 space-y-2">
+            {catalog.map((f) => {
+              const sel = values.catalogFeatures?.[f.key] ?? { included: false, limit: f.defaultLimit };
+              return (
+                <div key={f.key} className="flex items-center gap-3 rounded-lg border border-border bg-surface-alt/30 px-3 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setCatalog(f.key, { included: !sel.included })}
+                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ${sel.included ? "bg-success/10 text-success" : "bg-error/10 text-error"}`}
+                    title={sel.included ? "Included — click to exclude" : "Excluded — click to include"}
+                  >
+                    {sel.included ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-medium ${sel.included ? "text-foreground" : "text-muted-foreground"}`}>{f.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{f.description}</p>
+                  </div>
+                  {f.type === "limit" && sel.included && (
+                    <div className="flex flex-shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCatalog(f.key, { limit: sel.limit === -1 ? (f.defaultLimit && f.defaultLimit > 0 ? f.defaultLimit : 10) : -1 })}
+                        className={`inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs font-semibold ${sel.limit === -1 ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface text-muted-foreground"}`}
+                        title="Toggle unlimited"
+                      >
+                        <InfinityIcon className="h-3.5 w-3.5" /> Unlimited
+                      </button>
+                      <input
+                        type="number"
+                        min={0}
+                        disabled={sel.limit === -1}
+                        value={sel.limit === -1 ? "" : sel.limit ?? 0}
+                        onChange={(e) => setCatalog(f.key, { limit: Number(e.target.value) })}
+                        placeholder="∞"
+                        className="h-8 w-20 rounded-md border border-border bg-surface px-2 font-mono text-sm disabled:opacity-50"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
         {/* Features editor */}
         <section className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-foreground">Features</h3>
+              <h3 className="text-sm font-bold text-foreground">Marketing bullet points</h3>
               <p className="text-xs text-muted-foreground">Lines shown on the plan card. Drag to reorder; toggle to include or exclude.</p>
             </div>
             <button type="button" onClick={addFeature} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt">
