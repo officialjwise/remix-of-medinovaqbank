@@ -76,22 +76,32 @@ export function QuestionForm({
   const [tagInput, setTagInput] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const stemFileRef = useRef<HTMLInputElement>(null);
-  const set = <K extends keyof QuestionFormValues>(k: K, val: QuestionFormValues[K]) => setV((p) => ({ ...p, [k]: val }));
+  const set = <K extends keyof QuestionFormValues>(k: K, val: QuestionFormValues[K]) =>
+    setV((p) => ({ ...p, [k]: val }));
 
   function setOptionImage(key: OptKey, imageUrl: string | undefined) {
-    set("options", v.options.map((x) => (x.key === key ? { ...x, imageUrl } : x)));
+    set(
+      "options",
+      v.options.map((x) => (x.key === key ? { ...x, imageUrl } : x)),
+    );
   }
 
   const valid = useMemo(
-    () => !!v.stem.trim() && v.bankId && v.options.every((o) => o.text.trim()) && v.options.some((o) => o.key === v.correctKey),
+    () =>
+      !!v.stem.trim() &&
+      v.bankId &&
+      v.options.every((o) => o.text.trim()) &&
+      v.options.some((o) => o.key === v.correctKey),
     [v],
   );
 
   function submit(publish: boolean) {
     if (!v.bankId) return toast.error("Choose a question bank");
     if (!v.stem.trim()) return toast.error("Question stem is required");
-    if (v.options.some((o) => !o.text.trim())) return toast.error("Every option needs text (or remove it)");
-    if (!v.options.some((o) => o.key === v.correctKey)) return toast.error("Mark exactly one option as correct");
+    if (v.options.some((o) => !o.text.trim()))
+      return toast.error("Every option needs text (or remove it)");
+    if (!v.options.some((o) => o.key === v.correctKey))
+      return toast.error("Mark exactly one option as correct");
     onSubmit(v, publish);
   }
 
@@ -101,8 +111,14 @@ export function QuestionForm({
   }
   function removeOption(key: OptKey) {
     if (v.options.length <= 2) return;
-    const filtered = v.options.filter((o) => o.key !== key).map((o, i) => ({ ...o, key: OPT_KEYS[i] }));
-    setV((p) => ({ ...p, options: filtered, correctKey: p.correctKey === key ? filtered[0].key : p.correctKey }));
+    const filtered = v.options
+      .filter((o) => o.key !== key)
+      .map((o, i) => ({ ...o, key: OPT_KEYS[i] }));
+    setV((p) => ({
+      ...p,
+      options: filtered,
+      correctKey: p.correctKey === key ? filtered[0].key : p.correctKey,
+    }));
   }
   function addTag() {
     const t = tagInput.trim();
@@ -124,9 +140,15 @@ export function QuestionForm({
                 className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="">Select a bank…</option>
-                {questionBanks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {questionBanks.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
               </select>
-              {lockBank && <Lock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />}
+              {lockBank && (
+                <Lock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              )}
             </div>
           </Field>
 
@@ -143,8 +165,11 @@ export function QuestionForm({
           <Field label="Question image (optional)">
             {v.imageUrl ? (
               <div className="relative overflow-hidden rounded-lg border border-border bg-surface-alt/30">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={v.imageUrl} alt="Question illustration" className="max-h-72 w-full object-contain" />
+                <img
+                  src={v.imageUrl}
+                  alt="Question illustration"
+                  className="max-h-72 w-full object-contain"
+                />
                 <button
                   type="button"
                   onClick={() => set("imageUrl", "")}
@@ -158,7 +183,10 @@ export function QuestionForm({
               <button
                 type="button"
                 onClick={() => stemFileRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -170,7 +198,9 @@ export function QuestionForm({
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <Upload className="h-5 w-5" />
                 </span>
-                <span className="text-sm font-semibold text-foreground">Drag &amp; drop an image, or click to browse</span>
+                <span className="text-sm font-semibold text-foreground">
+                  Drag &amp; drop an image, or click to browse
+                </span>
                 <span className="text-xs text-muted-foreground">PNG, JPG or GIF — up to 5MB</span>
               </button>
             )}
@@ -192,10 +222,16 @@ export function QuestionForm({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-foreground">Answer options</h3>
-              <p className="text-xs text-muted-foreground">Select the radio to mark the correct answer. 2–5 options.</p>
+              <p className="text-xs text-muted-foreground">
+                Select the radio to mark the correct answer. 2–5 options.
+              </p>
             </div>
             {v.options.length < 5 && (
-              <button type="button" onClick={addOption} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt">
+              <button
+                type="button"
+                onClick={addOption}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt"
+              >
                 <Plus className="h-3.5 w-3.5" /> Add option {OPT_KEYS[v.options.length]}
               </button>
             )}
@@ -205,7 +241,10 @@ export function QuestionForm({
             {v.options.map((o) => {
               const isCorrect = v.correctKey === o.key;
               return (
-                <div key={o.key} className={`rounded-lg border p-1.5 transition-colors ${isCorrect ? "border-success/40 bg-success/5" : "border-border"}`}>
+                <div
+                  key={o.key}
+                  className={`rounded-lg border p-1.5 transition-colors ${isCorrect ? "border-success/40 bg-success/5" : "border-border"}`}
+                >
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -217,22 +256,44 @@ export function QuestionForm({
                     </button>
                     <input
                       value={o.text}
-                      onChange={(e) => set("options", v.options.map((x) => (x.key === o.key ? { ...x, text: e.target.value } : x)))}
+                      onChange={(e) =>
+                        set(
+                          "options",
+                          v.options.map((x) =>
+                            x.key === o.key ? { ...x, text: e.target.value } : x,
+                          ),
+                        )
+                      }
                       placeholder={`Option ${o.key}`}
                       className="h-9 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm text-foreground focus:border-border focus:bg-surface focus:outline-none"
                     />
-                    {isCorrect && <span className="hidden flex-shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success sm:inline">Correct</span>}
-                    <OptionImageButton hasImage={!!o.imageUrl} onPick={(url) => setOptionImage(o.key, url)} />
+                    {isCorrect && (
+                      <span className="hidden flex-shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success sm:inline">
+                        Correct
+                      </span>
+                    )}
+                    <OptionImageButton
+                      hasImage={!!o.imageUrl}
+                      onPick={(url) => setOptionImage(o.key, url)}
+                    />
                     {v.options.length > 2 && (
-                      <button type="button" onClick={() => removeOption(o.key)} className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-error/10 hover:text-error" aria-label="Remove option">
+                      <button
+                        type="button"
+                        onClick={() => removeOption(o.key)}
+                        className="flex-shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-error/10 hover:text-error"
+                        aria-label="Remove option"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
                   </div>
                   {o.imageUrl && (
                     <div className="relative mt-1.5 ml-11 inline-block overflow-hidden rounded-md border border-border bg-surface-alt/30">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={o.imageUrl} alt={`Option ${o.key} illustration`} className="max-h-28 w-auto object-contain" />
+                      <img
+                        src={o.imageUrl}
+                        alt={`Option ${o.key} illustration`}
+                        className="max-h-28 w-auto object-contain"
+                      />
                       <button
                         type="button"
                         onClick={() => setOptionImage(o.key, undefined)}
@@ -256,10 +317,13 @@ export function QuestionForm({
               <Sparkles className="h-5 w-5" />
             </span>
             <div>
-              <h3 className="text-sm font-bold text-foreground">Explanations are generated automatically</h3>
+              <h3 className="text-sm font-bold text-foreground">
+                Explanations are generated automatically
+              </h3>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Clinical breakdowns are generated when a student answers this question — the system explains why the correct answer is right,
-                why each wrong option is incorrect, and the scenarios where each option would apply. You don't need to write an explanation.
+                Clinical breakdowns are generated when a student answers this question — the system
+                explains why the correct answer is right, why each wrong option is incorrect, and
+                the scenarios where each option would apply. You don't need to write an explanation.
               </p>
             </div>
           </div>
@@ -284,7 +348,9 @@ export function QuestionForm({
           <h3 className="text-sm font-bold text-foreground">Classification</h3>
           <div className="mt-3 space-y-4">
             <div>
-              <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Difficulty</span>
+              <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                Difficulty
+              </span>
               <div className="inline-flex w-full rounded-lg border border-border bg-surface-alt/40 p-0.5">
                 {DIFFICULTIES.map((d) => (
                   <button
@@ -299,21 +365,47 @@ export function QuestionForm({
               </div>
             </div>
             <Field label="Topic">
-              <input value={v.topic} onChange={(e) => set("topic", e.target.value)} placeholder="e.g. Cardiology" className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              <input
+                value={v.topic}
+                onChange={(e) => set("topic", e.target.value)}
+                placeholder="e.g. Cardiology"
+                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
             </Field>
             <div>
-              <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Tags</span>
+              <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                Tags
+              </span>
               <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface p-2">
                 {v.tags.map((t) => (
-                  <span key={t} className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+                  <span
+                    key={t}
+                    className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent"
+                  >
                     {t}
-                    <button type="button" onClick={() => set("tags", v.tags.filter((x) => x !== t))} aria-label={`Remove ${t}`}>×</button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        set(
+                          "tags",
+                          v.tags.filter((x) => x !== t),
+                        )
+                      }
+                      aria-label={`Remove ${t}`}
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
                 <input
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTag(); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === ",") {
+                      e.preventDefault();
+                      addTag();
+                    }
+                  }}
                   onBlur={addTag}
                   placeholder="Add tag…"
                   className="min-w-[6rem] flex-1 bg-transparent text-sm text-foreground outline-none"
@@ -353,7 +445,13 @@ export function QuestionForm({
 }
 
 /** Compact per-option image picker (hidden file input + small button). */
-function OptionImageButton({ hasImage, onPick }: { hasImage: boolean; onPick: (url: string) => void }) {
+function OptionImageButton({
+  hasImage,
+  onPick,
+}: {
+  hasImage: boolean;
+  onPick: (url: string) => void;
+}) {
   const ref = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -383,7 +481,9 @@ function OptionImageButton({ hasImage, onPick }: { hasImage: boolean; onPick: (u
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );
