@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 import { SplashScreen } from "@/components/layout/SplashScreen";
+import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
 import { useEffect } from "react";
 export const Route = createFileRoute("/_app")({
@@ -31,8 +32,12 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const { user, subscription, setUser } = useAuthStore();
   const deviceBinding = useSettingsStore((s) => s.settings.trial.deviceBinding);
+  const maintenanceMode = useSettingsStore((s) => s.settings.general.maintenanceMode);
   const navigate = Route.useNavigate();
   const fingerprint = useDeviceFingerprint();
+
+  // When maintenance mode is on, non-admins see the maintenance page.
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     // Device binding only applies to trial users, and only when the admin policy is on.
@@ -46,6 +51,10 @@ function AppLayout() {
       }
     }
   }, [user, subscription, fingerprint, navigate, deviceBinding]);
+
+  if (maintenanceMode && !isAdmin) {
+    return <MaintenanceScreen />;
+  }
 
   return (
     <AppShell>
