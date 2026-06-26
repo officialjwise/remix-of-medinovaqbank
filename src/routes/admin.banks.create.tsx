@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Difficulty } from "@/types";
 import { useExamTypesStore } from "@/stores/examTypesStore";
+import { useShallow } from "zustand/react/shallow";
 
 export const Route = createFileRoute("/admin/banks/create")({
   head: () => ({
@@ -30,7 +31,7 @@ const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
 
 function CreateBankPage() {
   const navigate = useNavigate();
-  const examTypes = useExamTypesStore((s) => s.examTypes.filter((e) => e.active));
+  const examTypes = useExamTypesStore(useShallow((s) => s.examTypes.filter((e) => e.active)));
   const [form, setForm] = useState({
     name: "",
     subject: "Internal Medicine",

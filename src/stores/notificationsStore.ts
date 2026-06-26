@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useShallow } from "zustand/react/shallow";
 
 export type NotifAudience = "admin" | "user";
 export type NotifType =
@@ -64,5 +65,12 @@ export const useNotificationsStore = create<NotificationsState>()(
   ),
 );
 
-export const selectByAudience = (audience: NotifAudience) => (s: NotificationsState) =>
-  s.items.filter((n) => n.audience === audience).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+/**
+ * Notifications for an audience, newest first. Wrapped in `useShallow` so the
+ * derived array identity is stable across renders (a raw filter/sort selector
+ * loops under zustand v5). Always use this hook.
+ */
+export const useNotificationsByAudience = (audience: NotifAudience) =>
+  useNotificationsStore(
+    useShallow((s) => s.items.filter((n) => n.audience === audience).sort((a, b) => b.createdAt.localeCompare(a.createdAt))),
+  );

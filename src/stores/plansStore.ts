@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useShallow } from "zustand/react/shallow";
 import { durationPlans } from "@/data/plans";
 import { FEATURE_CATALOG } from "@/data/features";
 
@@ -114,8 +115,13 @@ export const usePlansStore = create<PlansState>()(
   ),
 );
 
-/** Active paid plans, sorted — the canonical list for pricing surfaces. */
-export const selectPaidPlans = (s: PlansState) =>
-  s.plans.filter((p) => !p.isTrial && p.active).sort((a, b) => a.sortOrder - b.sortOrder);
+/**
+ * Active paid plans, sorted — the canonical list for pricing surfaces.
+ * Wrapped in `useShallow` so the derived array's identity is stable across
+ * renders (a raw filter/sort selector would loop under zustand v5's
+ * useSyncExternalStore). Always call these hooks, never a raw selector.
+ */
+export const usePaidPlans = () =>
+  usePlansStore(useShallow((s) => s.plans.filter((p) => !p.isTrial && p.active).sort((a, b) => a.sortOrder - b.sortOrder)));
 
-export const selectTrialPlan = (s: PlansState) => s.plans.find((p) => p.isTrial);
+export const useTrialPlan = () => usePlansStore((s) => s.plans.find((p) => p.isTrial));

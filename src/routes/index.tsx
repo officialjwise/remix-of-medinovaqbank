@@ -9,6 +9,7 @@ import {
   LineChart,
   Quote,
   Sparkles,
+  Star,
   Stethoscope,
   Timer,
   Trophy,
@@ -17,9 +18,21 @@ import {
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { RotatingHero } from "@/components/brand/RotatingHero";
-import { usePlansStore, selectPaidPlans, selectTrialPlan } from "@/stores/plansStore";
+import { usePaidPlans, useTrialPlan } from "@/stores/plansStore";
 import { useCmsStore } from "@/stores/cmsStore";
 import { useExamTypesStore } from "@/stores/examTypesStore";
+import { questionBanks } from "@/data/banks";
+
+const institutions = [
+  "Korle Bu Teaching Hospital",
+  "KNUST School of Medicine",
+  "University of Ghana Medical School",
+  "Komfo Anokye Teaching Hospital",
+  "37 Military Hospital",
+  "Tamale Teaching Hospital",
+];
+
+const heroAvatars = ["AM", "KO", "EA", "YB", "AD"];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -74,8 +87,8 @@ const howItWorks = [
 ];
 
 function LandingPage() {
-  const paid = usePlansStore(selectPaidPlans);
-  const trial = usePlansStore(selectTrialPlan);
+  const paid = usePaidPlans();
+  const trial = useTrialPlan();
   const { cms } = useCmsStore();
   const examTypes = useExamTypesStore((s) => s.examTypes);
   const activeExams = examTypes.filter((e) => e.active);
@@ -133,7 +146,30 @@ function LandingPage() {
               </Link>
             </div>
 
-            <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3">
+            {/* Social proof */}
+            <div className="mt-7 flex flex-wrap items-center gap-4">
+              <div className="flex -space-x-2.5">
+                {heroAvatars.map((a, i) => (
+                  <span
+                    key={a}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#0E7C7B] bg-gradient-to-br from-white/90 to-white/70 text-[11px] font-bold text-[#0E7C7B]"
+                    style={{ zIndex: heroAvatars.length - i }}
+                  >
+                    {a}
+                  </span>
+                ))}
+              </div>
+              <div>
+                <div className="flex items-center gap-0.5 text-[#FFD66B]">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-current" />
+                  ))}
+                </div>
+                <p className="mt-0.5 text-xs font-medium text-white/75">Join 6,000+ practitioners preparing smarter</p>
+              </div>
+            </div>
+
+            <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3">
               {trustBadges.map((b) => (
                 <div
                   key={b}
@@ -159,6 +195,23 @@ function LandingPage() {
                 <p className="text-2xl font-bold tracking-tight md:text-3xl">{s.value}</p>
                 <p className="mt-1 text-xs font-medium uppercase tracking-wide text-white/65">{s.label}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* INSTITUTIONS TRUST BAND */}
+      <section className="border-b border-border bg-surface py-10">
+        <div className="container-page">
+          <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            Trusted by students &amp; doctors at
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
+            {institutions.map((name) => (
+              <span key={name} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground/80">
+                <Stethoscope className="h-4 w-4 text-[#0E7C7B]" />
+                {name}
+              </span>
             ))}
           </div>
         </div>
@@ -356,6 +409,46 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* SPECIALTIES / QUESTION BANKS */}
+      <section className="container-page py-20">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">Question banks</p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            {questionBanks.length} specialties, thousands of vignettes
+          </h2>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Board-style cases across every core rotation — each with AI breakdowns and analytics.
+          </p>
+        </div>
+
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {questionBanks.map((b) => (
+            <div
+              key={b.id}
+              className="group flex items-center gap-4 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]"
+            >
+              <span
+                className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
+                style={{ background: b.accentHex }}
+              >
+                <GraduationCap className="h-6 w-6" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-bold text-foreground">{b.subject}</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {b.questionCount.toLocaleString()} questions · {b.topics.length} topics
+                </p>
+              </div>
+              {b.isFree && (
+                <span className="ml-auto rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
+                  Free
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* EXAM COVERAGE */}
       {activeExams.length > 0 && (
         <section className="border-y border-border bg-surface-alt/40">
@@ -390,7 +483,7 @@ function LandingPage() {
 
         <div className="mx-auto mt-12 grid max-w-7xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {paid.map((p) => {
-            const isPopular = p.id === "q3";
+            const isPopular = !!p.badgeLabel;
             return (
               <div
                 key={p.id}

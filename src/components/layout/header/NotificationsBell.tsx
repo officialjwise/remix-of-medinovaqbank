@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
 import { useClickOutside } from "@/hooks/useClickOutside";
-import { useNotificationsStore, selectByAudience, type NotifAudience, type NotifType } from "@/stores/notificationsStore";
+import { useNotificationsStore, useNotificationsByAudience, type NotifAudience, type NotifType } from "@/stores/notificationsStore";
 
 const toneDot: Record<NotifType, string> = {
   signup: "bg-success",
@@ -39,7 +39,7 @@ export function NotificationsBell({
   const [open, setOpen] = useState(false);
   const ref = useClickOutside<HTMLDivElement>(() => setOpen(false));
   const navigate = useNavigate();
-  const items = useNotificationsStore(selectByAudience(audience));
+  const items = useNotificationsByAudience(audience);
   const markRead = useNotificationsStore((s) => s.markRead);
   const markAllRead = useNotificationsStore((s) => s.markAllRead);
   const unread = items.filter((n) => !n.read).length;

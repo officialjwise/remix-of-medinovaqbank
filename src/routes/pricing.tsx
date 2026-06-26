@@ -6,7 +6,7 @@ import { PublicFooter } from "@/components/layout/PublicFooter";
 import { durationPlans, type DurationPlan } from "@/data/plans";
 import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
 import { useAuthStore } from "@/stores/authStore";
-import { usePlansStore, selectPaidPlans, selectTrialPlan, type Plan } from "@/stores/plansStore";
+import { usePaidPlans, useTrialPlan, type Plan } from "@/stores/plansStore";
 import { useCmsStore } from "@/stores/cmsStore";
 
 export const Route = createFileRoute("/pricing")({
@@ -30,8 +30,8 @@ export const Route = createFileRoute("/pricing")({
 
 function PricingPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const paid = usePlansStore(selectPaidPlans);
-  const trial = usePlansStore(selectTrialPlan);
+  const paid = usePaidPlans();
+  const trial = useTrialPlan();
   const { cms } = useCmsStore();
   const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
 

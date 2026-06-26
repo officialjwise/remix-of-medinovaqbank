@@ -4,7 +4,7 @@ import { Check, Sparkles, Clock } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useTrial } from "@/hooks/useTrial";
 import { durationPlans, type DurationPlan } from "@/data/plans";
-import { usePlansStore, selectPaidPlans, type Plan } from "@/stores/plansStore";
+import { usePaidPlans, type Plan } from "@/stores/plansStore";
 import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
 
 export const Route = createFileRoute("/_app/subscription")({
@@ -49,7 +49,7 @@ function SubscriptionPage() {
   const subscription = useAuthStore((s) => s.subscription);
   const isActive = subscription?.status === "ACTIVE";
   const { isTrial, daysLeft, questionsLeft, questionsTotal } = useTrial();
-  const paidPlans = usePlansStore(selectPaidPlans);
+  const paidPlans = usePaidPlans();
   const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
 
   const renewsLabel = subscription?.renewsAt

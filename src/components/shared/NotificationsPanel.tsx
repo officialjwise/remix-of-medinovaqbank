@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, Check, CheckCheck, Trash2, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { useNotificationsStore, selectByAudience, type NotifAudience, type NotifType } from "@/stores/notificationsStore";
+import { useNotificationsStore, useNotificationsByAudience, type NotifAudience, type NotifType } from "@/stores/notificationsStore";
 
 const TYPE_META: Record<NotifType, { label: string; dot: string; chip: string }> = {
   signup: { label: "Signups", dot: "bg-success", chip: "bg-success/10 text-success" },
@@ -28,7 +28,7 @@ function timeAgo(iso: string) {
 }
 
 export function NotificationsPanel({ audience }: { audience: NotifAudience }) {
-  const items = useNotificationsStore(selectByAudience(audience));
+  const items = useNotificationsByAudience(audience);
   const markRead = useNotificationsStore((s) => s.markRead);
   const markAllRead = useNotificationsStore((s) => s.markAllRead);
   const remove = useNotificationsStore((s) => s.remove);
