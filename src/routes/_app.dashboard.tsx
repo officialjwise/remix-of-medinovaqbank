@@ -42,6 +42,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useTrial } from "@/hooks/useTrial";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
+import { UserDashboardSkeleton } from "@/components/shared/DashboardSkeletons";
+import { useInitialLoad } from "@/hooks/useInitialLoad";
 import { questionBanks, recentSessions } from "@/data/banks";
 import { useNotificationsStore } from "@/stores/notificationsStore";
 import { usePlansStore } from "@/stores/plansStore";
@@ -118,6 +120,7 @@ function greeting() {
 ────────────────────────────────────────────────────────────────────────── */
 
 function DashboardPage() {
+  const loading = useInitialLoad();
   const { user, subscription } = useAuthStore(
     useShallow((s) => ({ user: s.user, subscription: s.subscription })),
   );
@@ -140,6 +143,8 @@ function DashboardPage() {
       subscription?.status === "ACTIVE" ? s.plans.find((p) => !p.isTrial && p.active) : undefined,
     ),
   );
+
+  if (loading) return <UserDashboardSkeleton />;
 
   /* Derive session stats */
   const liveInProgress = Object.values(sessionsMap)
