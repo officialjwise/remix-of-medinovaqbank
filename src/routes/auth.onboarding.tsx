@@ -15,7 +15,7 @@ const searchSchema = z.object({
   provider: z.string().optional(),
 });
 
-export const Route = createFileRoute("/onboarding")({
+export const Route = createFileRoute("/auth/onboarding")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [{ title: "Welcome — Medinovaqbank" }, { name: "robots", content: "noindex" }],

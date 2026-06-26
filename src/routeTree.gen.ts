@@ -15,7 +15,6 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -27,6 +26,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QuizSessionIdRouteImport } from './routes/quiz.$sessionId'
 import { Route as PaymentCallbackRouteImport } from './routes/payment.callback'
+import { Route as AuthOnboardingRouteImport } from './routes/auth.onboarding'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminUploadsRouteImport } from './routes/admin.uploads'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
@@ -120,11 +120,6 @@ const PricingRoute = PricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -177,6 +172,11 @@ const QuizSessionIdRoute = QuizSessionIdRouteImport.update({
 const PaymentCallbackRoute = PaymentCallbackRouteImport.update({
   id: '/payment/callback',
   path: '/payment/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthOnboardingRoute = AuthOnboardingRouteImport.update({
+  id: '/auth/onboarding',
+  path: '/auth/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -507,7 +507,6 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
@@ -545,6 +544,7 @@ export interface FileRoutesByFullPath {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/uploads': typeof AdminUploadsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/onboarding': typeof AuthOnboardingRoute
   '/payment/callback': typeof PaymentCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
   '/notes/$noteId': typeof AppNotesNoteIdRoute
@@ -588,7 +588,6 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
@@ -623,6 +622,7 @@ export interface FileRoutesByTo {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/uploads': typeof AdminUploadsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/onboarding': typeof AuthOnboardingRoute
   '/payment/callback': typeof PaymentCallbackRoute
   '/notes/$noteId': typeof AppNotesNoteIdRoute
   '/sessions/active': typeof AppSessionsActiveRoute
@@ -667,7 +667,6 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
@@ -705,6 +704,7 @@ export interface FileRoutesById {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/uploads': typeof AdminUploadsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/onboarding': typeof AuthOnboardingRoute
   '/payment/callback': typeof PaymentCallbackRoute
   '/quiz/$sessionId': typeof QuizSessionIdRouteWithChildren
   '/_app/notes/$noteId': typeof AppNotesNoteIdRoute
@@ -750,7 +750,6 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/help'
     | '/login'
-    | '/onboarding'
     | '/pricing'
     | '/privacy'
     | '/refund'
@@ -788,6 +787,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/uploads'
     | '/auth/callback'
+    | '/auth/onboarding'
     | '/payment/callback'
     | '/quiz/$sessionId'
     | '/notes/$noteId'
@@ -831,7 +831,6 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/help'
     | '/login'
-    | '/onboarding'
     | '/pricing'
     | '/privacy'
     | '/refund'
@@ -866,6 +865,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/uploads'
     | '/auth/callback'
+    | '/auth/onboarding'
     | '/payment/callback'
     | '/notes/$noteId'
     | '/sessions/active'
@@ -909,7 +909,6 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/help'
     | '/login'
-    | '/onboarding'
     | '/pricing'
     | '/privacy'
     | '/refund'
@@ -947,6 +946,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/uploads'
     | '/auth/callback'
+    | '/auth/onboarding'
     | '/payment/callback'
     | '/quiz/$sessionId'
     | '/_app/notes/$noteId'
@@ -992,7 +992,6 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   HelpRoute: typeof HelpRoute
   LoginRoute: typeof LoginRoute
-  OnboardingRoute: typeof OnboardingRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   RefundRoute: typeof RefundRoute
@@ -1000,6 +999,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthOnboardingRoute: typeof AuthOnboardingRoute
   PaymentCallbackRoute: typeof PaymentCallbackRoute
   QuizSessionIdRoute: typeof QuizSessionIdRouteWithChildren
   QuizConfigureBankIdRoute: typeof QuizConfigureBankIdRoute
@@ -1047,13 +1047,6 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1131,6 +1124,13 @@ declare module '@tanstack/react-router' {
       path: '/payment/callback'
       fullPath: '/payment/callback'
       preLoaderRoute: typeof PaymentCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/onboarding': {
+      id: '/auth/onboarding'
+      path: '/auth/onboarding'
+      fullPath: '/auth/onboarding'
+      preLoaderRoute: typeof AuthOnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -1757,7 +1757,6 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   HelpRoute: HelpRoute,
   LoginRoute: LoginRoute,
-  OnboardingRoute: OnboardingRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   RefundRoute: RefundRoute,
@@ -1765,6 +1764,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthOnboardingRoute: AuthOnboardingRoute,
   PaymentCallbackRoute: PaymentCallbackRoute,
   QuizSessionIdRoute: QuizSessionIdRouteWithChildren,
   QuizConfigureBankIdRoute: QuizConfigureBankIdRoute,
