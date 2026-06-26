@@ -35,6 +35,8 @@ import { usePlansStore } from "@/stores/plansStore";
 import { useNotesStore } from "@/stores/notesStore";
 import { useProtectionStore } from "@/stores/protectionStore";
 import { useAuthStore } from "@/stores/authStore";
+import { AdminDashboardSkeleton } from "@/components/shared/DashboardSkeletons";
+import { useInitialLoad } from "@/hooks/useInitialLoad";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({
@@ -157,10 +159,13 @@ const tooltipStyle = {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 function AdminDashboard() {
+  const loading = useInitialLoad();
   const user = useAuthStore((s) => s.user);
   const plans = usePlansStore(useShallow((s) => s.plans));
   const notes = useNotesStore(useShallow((s) => s.notes));
   const protectionEvents = useProtectionStore(useShallow((s) => s.events));
+
+  if (loading) return <AdminDashboardSkeleton />;
 
   // Derived counts — adminUsers is a static import, not reactive
   const totalUsers = adminUsers.length;
@@ -193,7 +198,7 @@ function AdminDashboard() {
     .map(([specialty, count]) => ({ specialty, count }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in">
       {/* ── Header ── */}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
