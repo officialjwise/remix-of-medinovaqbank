@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Medal,
   Trophy,
@@ -14,6 +14,8 @@ import {
   Percent,
   Target,
   Brain,
+  ChevronLeft,
+  ChevronRight,
   X,
 } from "lucide-react";
 import { buildLeaderboard, type LeaderboardRow } from "@/data/leaderboard";
@@ -114,6 +116,45 @@ function deriveBoard(period: Period, bankId: string): DerivedRow[] {
     });
 
   return ranked;
+}
+
+/** Horizontally scrollable tab strip with arrow controls + edge fades so all
+ *  per-bank tabs are reachable on any device. */
+function ScrollableTabs({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const scroll = (dir: number) => ref.current?.scrollBy({ left: dir * 240, behavior: "smooth" });
+  return (
+    <div className="relative border-b border-border">
+      <button
+        type="button"
+        onClick={() => scroll(-1)}
+        aria-label="Scroll tabs left"
+        className="absolute left-0 top-0 z-10 flex h-full items-center bg-gradient-to-r from-background via-background/85 to-transparent pr-6 text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <div
+        ref={ref}
+        onWheel={(e) => {
+          const el = e.currentTarget;
+          if (el.scrollWidth > el.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            el.scrollLeft += e.deltaY;
+          }
+        }}
+        className="flex space-x-2 overflow-x-auto scrollbar-none scroll-smooth px-8 pb-2"
+      >
+        {children}
+      </div>
+      <button
+        type="button"
+        onClick={() => scroll(1)}
+        aria-label="Scroll tabs right"
+        className="absolute right-0 top-0 z-10 flex h-full items-center bg-gradient-to-l from-background via-background/85 to-transparent pl-6 text-muted-foreground hover:text-foreground"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
 }
 
 function MovementBadge({ value }: { value: number }) {
@@ -322,11 +363,11 @@ function LeaderboardPage() {
           </div>
         </div>
 
-        <div className="flex space-x-2 overflow-x-auto scrollbar-none pb-2 border-b border-border">
+        <ScrollableTabs>
           <button
             onClick={() => changeView(() => setBank("All"))}
             className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-all duration-300 border-b-2 whitespace-nowrap ${
-              bank === "All" ? "border-[#00D4C8] text-[#00D4C8]" : "border-transparent text-muted-foreground hover:text-foreground"
+              bank === "All" ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             All Banks
@@ -336,13 +377,13 @@ function LeaderboardPage() {
               key={b.id}
               onClick={() => changeView(() => setBank(b.id))}
               className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-all duration-300 border-b-2 whitespace-nowrap ${
-                bank === b.id ? "border-[#00D4C8] text-[#00D4C8]" : "border-transparent text-muted-foreground hover:text-foreground"
+                bank === b.id ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
               {b.name}
             </button>
           ))}
-        </div>
+        </ScrollableTabs>
       </div>
 
       {/* Leaderboard table */}

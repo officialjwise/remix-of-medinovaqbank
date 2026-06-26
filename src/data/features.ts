@@ -18,7 +18,7 @@ export interface PlatformFeature {
 
 export const FEATURE_CATALOG: PlatformFeature[] = [
   { key: "full_bank_access", name: "Full Question Bank Access", description: "Unlock every question bank in the library.", type: "boolean" },
-  { key: "ai_breakdowns", name: "AI Clinical Breakdowns", description: "AI-generated explanations on every answer.", type: "boolean" },
+  { key: "ai_breakdowns", name: "Clinical Breakdowns", description: "Detailed clinical explanations on every answer.", type: "boolean" },
   { key: "performance_analytics", name: "Performance Analytics (Gaussian)", description: "Percentile ranking, trends and peer comparison.", type: "boolean" },
   { key: "leaderboard", name: "Leaderboard Competition", description: "Appear on and compete in the leaderboard.", type: "boolean" },
   { key: "multi_device", name: "Multi-Device Access", description: "Use the account on more than one device.", type: "boolean" },

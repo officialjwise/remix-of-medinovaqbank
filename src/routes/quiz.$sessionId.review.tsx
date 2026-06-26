@@ -32,7 +32,13 @@ function ReviewPage() {
   const { sessionId } = Route.useParams();
   const session = useSessionStore((s) => s.sessions[sessionId]);
   const questions = useSessionStore((s) => s.questions);
+  const ensureHistoricalSession = useSessionStore((s) => s.ensureHistoricalSession);
   const [index, setIndex] = useState(0);
+
+  // Reconstruct a past session so its answers + explanations can be reviewed.
+  useEffect(() => {
+    if (!session) ensureHistoricalSession(sessionId);
+  }, [session, sessionId, ensureHistoricalSession]);
 
   const total = session?.questionIds.length ?? 0;
 

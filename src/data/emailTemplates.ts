@@ -24,7 +24,7 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplate[] = [
     body:
       h("Welcome aboard, {{userName}} 🎉") +
       p("You just joined thousands of medical practitioners sharpening their exam game on {{platformName}}.") +
-      p("Your <strong>7-day free trial</strong> is live — dive into board-style vignettes with AI clinical breakdowns on every answer.") +
+      p("Your <strong>7-day free trial</strong> is live — dive into board-style vignettes with detailed clinical breakdowns on every answer.") +
       btn("Start practising") +
       p("Questions? Reply to this email or reach us at {{supportEmail}}."),
   },
@@ -48,7 +48,7 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplate[] = [
       h("Your {{trialDays}}-day trial has started") +
       p("Here's what's included during your trial:") +
       callout(
-        `<ul style="margin:0;padding-left:20px;color:#334155;font-size:14px;line-height:1.8"><li>Sample question banks with AI breakdowns</li><li>{{trialQuestions}} practice questions</li><li>Single-device access (your trial is bound to this device)</li></ul>`,
+        `<ul style="margin:0;padding-left:20px;color:#334155;font-size:14px;line-height:1.8"><li>Sample question banks with clinical breakdowns</li><li>{{trialQuestions}} practice questions</li><li>Single-device access (your trial is bound to this device)</li></ul>`,
       ) +
       p("Your trial ends on <strong>{{trialEndDate}}</strong>. Upgrade any time to unlock the full library.") +
       btn("Upgrade now"),

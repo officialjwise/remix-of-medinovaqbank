@@ -481,7 +481,7 @@ function TrafficPage() {
         </section>
 
         {/* Active users right now */}
-        <Panel title="Active users right now" subtitle="Real-time activity feed">
+        <Panel title="Active users right now" subtitle="Real-time activity feed" className="flex flex-col">
           <div className="mt-3 flex items-center gap-3">
             <span className="relative flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#1FA968] opacity-75" />
@@ -492,7 +492,7 @@ function TrafficPage() {
             </span>
             <span className="text-xs text-muted-foreground">online now</span>
           </div>
-          <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-1">
+          <div className="mt-4 flex-1 min-h-0 space-y-2 overflow-y-auto pr-1">
             {liveActivity.map((a) => (
               <div
                 key={a.id}

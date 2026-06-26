@@ -270,13 +270,15 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "medinova-settings",
-      version: 2,
-      // v2 expanded branding (email/palette/typography/social) and rebuilt the
-      // email templates as branded HTML. Refresh those two sections; keep the rest.
+      version: 3,
+      // v2 expanded branding + rebuilt templates as branded HTML.
+      // v3 refreshes templates again (removed "AI" wording, premium shell).
       migrate: (persisted: any, version) => {
         if (!persisted?.settings) return persisted;
         if (version < 2) {
           persisted.settings.branding = { ...DEFAULT_SETTINGS.branding, ...(persisted.settings.branding ?? {}) };
+        }
+        if (version < 3) {
           persisted.settings.templates = DEFAULT_EMAIL_TEMPLATES;
         }
         return persisted;

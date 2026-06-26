@@ -87,7 +87,7 @@ function SessionsPage() {
 
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-white/5 bg-surface shadow-[0_10px_30px_-10px_rgb(0_0_0_/_0.3)]">
-        <div className="hidden grid-cols-[120px_1fr_80px_100px_120px_140px] gap-4 border-b border-white/5 bg-surface-alt/40 px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground md:grid">
+        <div className="hidden grid-cols-[110px_minmax(0,1fr)_84px_72px_112px_210px] gap-4 border-b border-white/5 bg-surface-alt/40 px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground md:grid">
           <span>Date</span>
           <span>Bank</span>
           <span>Mode</span>
@@ -101,10 +101,10 @@ function SessionsPage() {
         {filtered.map((s) => (
           <div
             key={s.id}
-            className="group grid grid-cols-1 gap-3 border-b border-white/5 px-6 py-4 last:border-b-0 md:grid-cols-[120px_1fr_80px_100px_120px_140px] md:items-center hover:bg-surface-alt/30 transition-colors"
+            className="group grid grid-cols-1 gap-3 border-b border-white/5 px-6 py-4 last:border-b-0 md:grid-cols-[110px_minmax(0,1fr)_84px_72px_112px_210px] md:items-center hover:bg-surface-alt/30 transition-colors"
           >
             <span className="text-[14px] font-medium text-muted-foreground">{new Date(s.completedAt).toLocaleDateString()}</span>
-            <span className="text-[15px] font-semibold text-[#00D4C8]">{s.bankName}</span>
+            <span className="truncate text-[15px] font-semibold text-primary">{s.bankName}</span>
             <span>
               <span
                 className={`inline-flex rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${

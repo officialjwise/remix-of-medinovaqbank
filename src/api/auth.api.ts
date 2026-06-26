@@ -18,8 +18,11 @@ const mockPractitioner = (email = "doctor@medinova.app", name = "Dr. Bright Nket
 const mockAdmin = (email = "admin@medinova.app"): User => ({
   id: crypto.randomUUID(),
   email,
-  name: "Admin Console",
-  role: "ADMIN",
+  // The admin console is the super-admin control center; the demo admin login
+  // gets full access so System Settings, Subscription Plans, Feature Catalog,
+  // etc. (all super-only) are visible. A real backend derives this per account.
+  name: /super/i.test(email) ? "Super Admin" : "Admin Console",
+  role: "SUPER_ADMIN",
   createdAt: new Date().toISOString(),
 });
 

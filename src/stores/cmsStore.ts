@@ -57,7 +57,7 @@ const DEFAULT_CMS: CmsContent = {
     { id: "f2", category: "Billing", question: "Can I cancel my subscription?", answer: "Yes, any time. You keep access until the end of your current billing period; we don't pro-rate refunds." },
     { id: "f3", category: "Billing", question: "Is this in GHS (Ghana Cedis)?", answer: "All prices are in Ghana Cedis. We accept cards and mobile money via Paystack at checkout." },
     { id: "f4", category: "Content", question: "Do I get access to all question banks?", answer: "Every paid plan unlocks the full library across Internal Medicine, Surgery, OB/GYN, Paediatrics, Pharmacology, Pathology, and more." },
-    { id: "f5", category: "Content", question: "How do the answer explanations work?", answer: "After every answer (Tutor mode) or after a session (Quiz mode), our AI tutor explains the correct answer, why each distractor is wrong, the key learning point, and links to related concepts." },
+    { id: "f5", category: "Content", question: "How do the answer explanations work?", answer: "After every answer (Tutor mode) or after a session (Quiz mode), a detailed clinical breakdown explains the correct answer, why each distractor is wrong, the key learning point, and links to related concepts." },
   ],
   helpArticles: [
     { id: "h1", category: "Account", title: "Setting up your profile", body: "<p>Add your specialty, institution and a profile photo from the <strong>Profile</strong> page so your progress and leaderboard entry are personalised.</p>" },
@@ -72,9 +72,9 @@ const DEFAULT_CMS: CmsContent = {
   },
   about: {
     heroTitle: "Master Medicine. Pass with Confidence.",
-    heroSubtitle: "Medinovaqbank is the modern question bank for medical exams — board-style vignettes, AI clinical breakdowns, and analytics that show exactly where you stand.",
+    heroSubtitle: "Medinovaqbank is the modern question bank for medical exams — board-style vignettes, clinical breakdowns, and analytics that show exactly where you stand.",
     features: [
-      { id: "a1", title: "AI Clinical Breakdowns", body: "Every answer explained — why it's right, why the others are wrong, and the key learning point." },
+      { id: "a1", title: "Clinical Breakdowns", body: "Every answer explained — why it's right, why the others are wrong, and the key learning point." },
       { id: "a2", title: "Gaussian Analytics", body: "See your percentile against the cohort and track your trajectory over time." },
       { id: "a3", title: "Exam Coverage", body: "USMLE, PLAB, MRCP, the Ghana Medical & Dental Council exam and more." },
     ],
@@ -109,6 +109,6 @@ export const useCmsStore = create<CmsState>()(
       setAbout: (about) => set((s) => ({ cms: { ...s.cms, about } })),
       setContact: (contact) => set((s) => ({ cms: { ...s.cms, contact } })),
     }),
-    { name: "medinova-cms", version: 1 },
+    { name: "medinova-cms-v2", version: 1 },
   ),
 );

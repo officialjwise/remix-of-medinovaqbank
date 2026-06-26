@@ -56,7 +56,7 @@ export const Route = createFileRoute("/")({
 
 const trustBadges = [
   "5,000+ Questions",
-  "AI Clinical Breakdowns",
+  "Clinical Breakdowns",
   "Ghana Medical Standard",
   "Real-time Analytics",
 ];
@@ -76,8 +76,8 @@ const howItWorks = [
   },
   {
     icon: Brain,
-    title: "Practise with AI tutoring",
-    body: "Answer board-style vignettes. Every answer comes with an AI clinical breakdown of why it's right and the others wrong.",
+    title: "Practise with guided tutoring",
+    body: "Answer board-style vignettes. Every answer comes with a detailed clinical breakdown of why it's right and the others wrong.",
   },
   {
     icon: LineChart,
@@ -286,7 +286,7 @@ function LandingPage() {
             </span>
             <h3 className="mt-4 text-lg font-bold text-foreground">Tutor mode</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Instant feedback after every answer. The AI breakdown appears the moment you commit — perfect for
+              Instant feedback after every answer. The clinical breakdown appears the moment you commit — perfect for
               learning a topic from scratch and locking in the reasoning.
             </p>
             <ul className="mt-4 space-y-2 text-sm text-foreground">
@@ -314,18 +314,18 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* AI CLINICAL BREAKDOWN HIGHLIGHT */}
+      {/* CLINICAL BREAKDOWN HIGHLIGHT */}
       <section className="border-y border-border bg-surface-alt/40">
         <div className="container-page grid items-center gap-12 py-20 lg:grid-cols-2">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-[#2BC97F]/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#1FA968]">
-              <Sparkles className="h-3.5 w-3.5" /> AI Clinical Breakdowns
+              <Sparkles className="h-3.5 w-3.5" /> Clinical Breakdowns
             </span>
             <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Every answer, explained like a consultant on call
             </h2>
             <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-              Our AI tutor doesn't just mark you right or wrong. It explains why the correct option wins, why each
+              Every breakdown doesn't just mark you right or wrong. It explains why the correct option wins, why each
               distractor fails, the single key learning point, and the clinical scenario where another option would
               flip to correct.
             </p>
@@ -417,7 +417,7 @@ function LandingPage() {
             {questionBanks.length} specialties, thousands of vignettes
           </h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            Board-style cases across every core rotation — each with AI breakdowns and analytics.
+            Board-style cases across every core rotation — each with clinical breakdowns and analytics.
           </p>
         </div>
 

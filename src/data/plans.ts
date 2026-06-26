@@ -106,6 +106,6 @@ export const pricingFaqs = [
   },
   {
     q: "How does the answer explanation work?",
-    a: "After every answer (Tutor mode) or after a session (Quiz mode), our AI tutor explains the correct answer, why each distractor is wrong, the key learning point, and links to related concepts.",
+    a: "After every answer (Tutor mode) or after a session (Quiz mode), a detailed clinical breakdown explains the correct answer, why each distractor is wrong, the key learning point, and links to related concepts.",
   },
 ];

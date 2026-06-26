@@ -404,6 +404,7 @@ function EmailTemplatesTab() {
             </div>
             <iframe
               title="preview"
+              sandbox=""
               srcDoc={renderBrandedEmail(selected.body, selected.subject, branding)}
               className="h-[520px] w-full rounded-xl border border-border bg-white"
             />
@@ -499,6 +500,7 @@ function TemplateEditor({
             <p className="truncate text-sm font-semibold text-foreground">{fillVars(draft.subject)}</p>
             <iframe
               title="preview"
+              sandbox=""
               srcDoc={renderBrandedEmail(draft.body, draft.subject, branding)}
               className="h-[460px] w-full rounded-xl border border-border bg-white"
             />

@@ -47,9 +47,15 @@ function ResultsPage() {
   const navigate = useNavigate();
   const session = useSessionStore((s) => s.sessions[sessionId]);
   const questions = useSessionStore((s) => s.questions);
+  const ensureHistoricalSession = useSessionStore((s) => s.ensureHistoricalSession);
   const [tab, setTab] = useState<Tab>("subject");
   const [openId, setOpenId] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
+
+  // Reconstruct a past session (from history) so results work after the fact.
+  useEffect(() => {
+    if (!session) ensureHistoricalSession(sessionId);
+  }, [session, sessionId, ensureHistoricalSession]);
 
   const results = useMemo(
     () => (session ? computeResults(session, questions) : null),

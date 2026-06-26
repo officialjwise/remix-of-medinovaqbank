@@ -49,6 +49,42 @@ function defaultCatalog(included: boolean): Record<string, CatalogSelection> {
   );
 }
 
+// Distinct feature mix per plan so the cards genuinely differ — longer plans
+// unlock more (leaderboard, multi-device, priority support, savings).
+const PLAN_BULLETS: Record<string, string[]> = {
+  monthly: [
+    "Full access to every question bank",
+    "Clinical breakdowns on every answer",
+    "Performance analytics dashboard",
+    "Single device",
+  ],
+  q3: [
+    "Everything in Monthly",
+    "Leaderboard & percentile ranking",
+    "2 devices",
+    "Save 7% vs monthly",
+  ],
+  h6: [
+    "Everything in 3-Month",
+    "Priority email support",
+    "3 devices",
+    "Save 19% vs monthly",
+  ],
+  y12: [
+    "Everything in 6-Month",
+    "Unlimited devices",
+    "Early access to new banks",
+    "Save 35% vs monthly",
+  ],
+};
+
+const PLAN_CATALOG: Record<string, Record<string, CatalogSelection>> = {
+  monthly: { ...defaultCatalog(true), leaderboard: { included: false }, multi_device: { included: false }, priority_support: { included: false }, max_devices: { included: true, limit: 1 } },
+  q3: { ...defaultCatalog(true), priority_support: { included: false }, multi_device: { included: true }, max_devices: { included: true, limit: 2 } },
+  h6: { ...defaultCatalog(true), multi_device: { included: true }, max_devices: { included: true, limit: 3 } },
+  y12: { ...defaultCatalog(true), multi_device: { included: true }, max_devices: { included: true, limit: -1 } },
+};
+
 const seededPaid: Plan[] = durationPlans.map((p, i) => ({
   id: p.id,
   name: p.name,
@@ -59,8 +95,8 @@ const seededPaid: Plan[] = durationPlans.map((p, i) => ({
   sortOrder: i,
   active: true,
   subscribers: subscribersByPlan[p.id] ?? 0,
-  bullets: p.features.map((text, j) => ({ id: `${p.id}-b${j}`, text, included: true })),
-  catalogFeatures: defaultCatalog(true),
+  bullets: (PLAN_BULLETS[p.id] ?? p.features).map((text, j) => ({ id: `${p.id}-b${j}`, text, included: true })),
+  catalogFeatures: PLAN_CATALOG[p.id] ?? defaultCatalog(true),
 }));
 
 const seededTrial: Plan = {
@@ -78,7 +114,7 @@ const seededTrial: Plan = {
   questionCap: 10,
   bullets: [
     { id: "t-b0", text: "Sample question bank access", included: true },
-    { id: "t-b1", text: "AI clinical breakdowns", included: true },
+    { id: "t-b1", text: "Clinical breakdowns", included: true },
     { id: "t-b2", text: "Full analytics & leaderboard", included: false },
     { id: "t-b3", text: "Single device only", included: true },
   ],
@@ -111,7 +147,7 @@ export const usePlansStore = create<PlansState>()(
       toggleActive: (id) => set((s) => ({ plans: s.plans.map((p) => (p.id === id ? { ...p, active: !p.active } : p)) })),
       getById: (id) => get().plans.find((p) => p.id === id),
     }),
-    { name: "medinova-plans", version: 1 },
+    { name: "medinova-plans-v2", version: 1 },
   ),
 );
 

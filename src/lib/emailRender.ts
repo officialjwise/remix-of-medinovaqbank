@@ -43,30 +43,63 @@ export function renderBrandedEmail(
   const footer = fillVars(branding.emailFooterText || "", vars);
   const legal = branding.companyLegalName || "Medinovaqbank";
   const social = branding.social || { twitter: "", facebook: "", linkedin: "", instagram: "" };
-  const socialLinks = Object.entries(social)
+
+  // Per-template accent + eyebrow derived from the subject so categories read
+  // distinctly (billing = blue, security = red, trial = amber, etc.).
+  const s = subject.toLowerCase();
+  const category =
+    /receipt|invoice|payment|subscrib|renew|plan/.test(s)
+      ? { label: "Billing", from: "#2563EB", to: "#3B82F6" }
+      : /suspicious|unusual|alert|sign-in|login/.test(s)
+        ? { label: "Security", from: "#B91C1C", to: "#EF4444" }
+        : /trial|expir/.test(s)
+          ? { label: "Your trial", from: "#D97706", to: "#F59E0B" }
+          : /rank|leaderboard|achievement|milestone/.test(s)
+            ? { label: "Progress", from: "#7C3AED", to: "#A855F7" }
+            : /welcome|verify|confirm/.test(s)
+              ? { label: "Welcome", from: primary, to: accent }
+              : { label: "Medinovaqbank", from: primary, to: accent };
+
+  const socialIcon = (label: string, href: string) =>
+    `<a href="${href}" style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:50%;background:#e2e8f0;color:#475569;text-decoration:none;font-size:12px;font-weight:700;margin:0 3px">${label[0].toUpperCase()}</a>`;
+  const socialChips = Object.entries(social)
     .filter(([, v]) => v)
-    .map(([k, v]) => `<a href="${v}" style="color:#64748b;text-decoration:none;margin:0 6px;font-size:12px;text-transform:capitalize">${k}</a>`)
-    .join("·");
+    .map(([k, v]) => socialIcon(k, v))
+    .join("");
 
   const header = logo
-    ? `<img src="${logo}" alt="${legal}" height="34" style="height:34px"/>`
+    ? `<img src="${logo}" alt="${legal}" height="30" style="height:30px"/>`
     : `<span style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.02em">Medinova<span style="color:#bbf7d0">qbank</span></span>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+  return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<base href="https://medinovaqbank.com/" target="_blank"/>
+<style>a{pointer-events:none;cursor:default}</style></head>
 <body style="margin:0;padding:0;background:#eef2f5;font-family:Inter,Helvetica,Arial,sans-serif">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f5;padding:28px 12px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f5;padding:30px 12px">
     <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px -12px rgba(15,43,76,0.2)">
-        <tr><td style="background:linear-gradient(135deg,${primary},${accent});padding:22px 32px">${header}</td></tr>
-        <tr><td style="padding:32px">${fillVars(innerHtml, vars)}</td></tr>
-        <tr><td style="padding:22px 32px;background:#f8fafc;border-top:1px solid #e2e8f0">
-          <p style="margin:0 0 8px;font-size:12px;color:#64748b;line-height:1.6">${footer}</p>
-          ${socialLinks ? `<p style="margin:0 0 8px">${socialLinks}</p>` : ""}
-          <p style="margin:0;font-size:11px;color:#94a3b8">© 2026 ${legal} · <a href="#" style="color:#94a3b8">Unsubscribe</a> · <a href="#" style="color:#94a3b8">Privacy</a></p>
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 34px -14px rgba(15,43,76,0.28)">
+        <!-- Header -->
+        <tr><td style="background:linear-gradient(135deg,${category.from},${category.to});padding:20px 32px" align="left">
+          <table role="presentation" width="100%"><tr>
+            <td align="left" style="vertical-align:middle">${header}</td>
+            <td align="right" style="vertical-align:middle"><span style="display:inline-block;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,0.18);color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase">${category.label}</span></td>
+          </tr></table>
+        </td></tr>
+        <!-- Accent rule -->
+        <tr><td style="height:4px;background:linear-gradient(90deg,${category.from},${category.to})"></td></tr>
+        <!-- Body -->
+        <tr><td style="padding:36px 36px 28px">${fillVars(innerHtml, vars)}</td></tr>
+        <!-- Divider -->
+        <tr><td style="padding:0 36px"><div style="height:1px;background:#edf1f5"></div></td></tr>
+        <!-- Footer -->
+        <tr><td style="padding:24px 36px 28px;background:#fbfcfe" align="center">
+          ${socialChips ? `<div style="margin:0 0 14px">${socialChips}</div>` : ""}
+          <p style="margin:0 0 6px;font-size:12px;color:#64748b;line-height:1.6">${footer}</p>
+          <p style="margin:0;font-size:11px;color:#94a3b8">© 2026 ${legal} · Accra, Ghana · <a href="#" style="color:#94a3b8;text-decoration:underline">Unsubscribe</a> · <a href="#" style="color:#94a3b8;text-decoration:underline">Privacy</a></p>
         </td></tr>
       </table>
-      <p style="margin:14px 0 0;font-size:11px;color:#94a3b8">Sent to {{userName}} · ${legal}</p>
+      <p style="margin:16px 0 0;font-size:11px;color:#9aa6b2">Sent to ${vars.userName} · You're receiving this because you have a ${legal} account.</p>
     </td></tr>
   </table>
-</body></html>`.replace(/\{\{userName\}\}/g, vars.userName);
+</body></html>`;
 }

@@ -39,13 +39,14 @@ export function ToggleSwitch({ checked, onChange, disabled, size = "md", label, 
       className={cn(
         "relative shrink-0 rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
         dims.track,
-        checked ? "bg-accent" : "border border-border bg-surface-alt",
+        // OFF needs a clearly visible track (surface-alt is near-invisible on light cards)
+        checked ? "bg-accent" : "bg-muted-foreground/35",
         disabled && "cursor-not-allowed opacity-50",
       )}
     >
       <span
         className={cn(
-          "absolute top-0.5 rounded-full bg-white shadow transition-transform",
+          "absolute top-0.5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.3)] ring-1 ring-black/5 transition-transform",
           dims.thumb,
           checked ? dims.on : dims.off,
         )}
