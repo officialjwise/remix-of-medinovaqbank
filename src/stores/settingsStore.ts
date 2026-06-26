@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DEFAULT_EMAIL_TEMPLATES } from "@/data/emailTemplates";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -89,10 +90,20 @@ export interface AdminRole {
 export interface BrandingSettings {
   primaryColor: string;
   accentColor: string;
+  successColor: string;
+  warningColor: string;
   logoLight: string;
   logoDark: string;
   favicon: string;
+  pwaIcon: string;
   loginBackground: string;
+  headingFont: string;
+  bodyFont: string;
+  // Email + footer branding
+  emailHeaderLogo: string;
+  emailFooterText: string;
+  companyLegalName: string;
+  social: { twitter: string; facebook: string; linkedin: string; instagram: string };
 }
 
 export interface SystemSettings {
@@ -125,17 +136,6 @@ export const PERMISSION_CATALOG: { key: string; label: string; group: string }[]
 /* ------------------------------------------------------------------ */
 /* Defaults                                                            */
 /* ------------------------------------------------------------------ */
-
-const DEFAULT_TEMPLATES: EmailTemplate[] = [
-  { key: "welcome", name: "Welcome", subject: "Welcome to {{platformName}}, {{name}} 👋", body: "Hi {{name}},\n\nWelcome to {{platformName}}! Your medical exam prep journey starts now.\n\nGet started with your free trial — {{trialDays}} days and {{trialQuestions}} questions on us.", enabled: true },
-  { key: "trial_started", name: "Trial Started", subject: "Your {{platformName}} trial is live", body: "Hi {{name}},\n\nYour {{trialDays}}-day free trial has started. Explore the question banks and AI clinical breakdowns.", enabled: true },
-  { key: "trial_expiring", name: "Trial Expiring", subject: "{{daysLeft}} days left in your trial", body: "Hi {{name}},\n\nYour free trial ends in {{daysLeft}} days. Upgrade now to keep your progress and unlock the full library.", enabled: true, daysBefore: 2 },
-  { key: "trial_expired", name: "Trial Expired", subject: "Your trial has ended", body: "Hi {{name}},\n\nYour free trial has ended. Subscribe to any plan to continue practising on {{platformName}}.", enabled: true },
-  { key: "subscription_confirmation", name: "Subscription Confirmation", subject: "You're subscribed to {{planName}} 🎉", body: "Hi {{name}},\n\nThanks for subscribing to {{planName}}. You now have full access until {{renewsAt}}.", enabled: true },
-  { key: "subscription_expiring", name: "Subscription Expiring", subject: "Your {{planName}} plan renews soon", body: "Hi {{name}},\n\nYour {{planName}} plan expires in {{daysLeft}} days. Renew to avoid interruption.", enabled: true, daysBefore: 5 },
-  { key: "payment_failed", name: "Payment Failed", subject: "Payment failed for {{planName}}", body: "Hi {{name}},\n\nWe couldn't process your payment for {{planName}}. Please update your payment method.", enabled: true },
-  { key: "password_reset", name: "Password Reset", subject: "Reset your {{platformName}} password", body: "Hi {{name}},\n\nClick the link below to reset your password. This link expires in 60 minutes.\n\n{{resetLink}}", enabled: true },
-];
 
 function fullPerms(value: boolean) {
   return Object.fromEntries(PERMISSION_CATALOG.map((p) => [p.key, value]));
@@ -206,7 +206,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     fromEmail: "noreply@medinovaqbank.com",
     status: "not_configured",
   },
-  templates: DEFAULT_TEMPLATES,
+  templates: DEFAULT_EMAIL_TEMPLATES,
   trial: {
     deviceBinding: true,
     gracePeriodDays: 1,
@@ -223,10 +223,19 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   branding: {
     primaryColor: "#0E7C7B",
     accentColor: "#2BC97F",
+    successColor: "#1FA968",
+    warningColor: "#E89A1A",
     logoLight: "",
     logoDark: "",
     favicon: "",
+    pwaIcon: "",
     loginBackground: "",
+    headingFont: "Inter",
+    bodyFont: "Inter",
+    emailHeaderLogo: "",
+    emailFooterText: "Medinovaqbank · Accra, Ghana · You're receiving this because you have an account.",
+    companyLegalName: "Medinovaqbank Ltd.",
+    social: { twitter: "https://twitter.com/medinovaqbank", facebook: "", linkedin: "https://linkedin.com/company/medinovaqbank", instagram: "" },
   },
 };
 
@@ -259,7 +268,20 @@ export const useSettingsStore = create<SettingsState>()(
       setRoles: (roles) => set((s) => ({ settings: { ...s.settings, roles } })),
       reset: () => set({ settings: DEFAULT_SETTINGS }),
     }),
-    { name: "medinova-settings", version: 1 },
+    {
+      name: "medinova-settings",
+      version: 2,
+      // v2 expanded branding (email/palette/typography/social) and rebuilt the
+      // email templates as branded HTML. Refresh those two sections; keep the rest.
+      migrate: (persisted: any, version) => {
+        if (!persisted?.settings) return persisted;
+        if (version < 2) {
+          persisted.settings.branding = { ...DEFAULT_SETTINGS.branding, ...(persisted.settings.branding ?? {}) };
+          persisted.settings.templates = DEFAULT_EMAIL_TEMPLATES;
+        }
+        return persisted;
+      },
+    },
   ),
 );
 
