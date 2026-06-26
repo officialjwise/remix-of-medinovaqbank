@@ -7,7 +7,7 @@ import { SplashScreen } from "@/components/layout/SplashScreen";
 export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ location }) => {
     if (typeof window === "undefined") return;
-    
+
     if (!useAuthStore.persist.hasHydrated()) {
       await new Promise<void>((resolve) => {
         const unsub = useAuthStore.persist.onFinishHydration(() => {
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/admin")({
 
     const { isAuthenticated, user } = useAuthStore.getState();
     if (!isAuthenticated) throw redirect({ to: "/login" });
-    if (user?.role !== "ADMIN" && user?.role !== "SUPER_ADMIN") {
+    if (user?.role !== "SUPER_ADMIN") {
       throw redirect({ to: "/dashboard" });
     }
     // Bare /admin lands on the dashboard.

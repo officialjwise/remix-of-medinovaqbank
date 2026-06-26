@@ -27,8 +27,20 @@ import {
 import { toast } from "sonner";
 import { useProtectionStore, EVENT_LABELS } from "@/stores/protectionStore";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { EditUserModal, ComposeEmailModal, FlagAccountModal } from "@/components/admin/UserActionModals";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  EditUserModal,
+  ComposeEmailModal,
+  FlagAccountModal,
+} from "@/components/admin/UserActionModals";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   getUserById,
   quizSessionsByUser,
@@ -39,7 +51,12 @@ import {
 } from "@/data/adminData";
 
 export const Route = createFileRoute("/admin/users/$userId")({
-  head: () => ({ meta: [{ title: "Admin · User Detail — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Admin · User Detail — Medinovaqbank" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: UserDetail,
 });
 
@@ -67,7 +84,11 @@ function hash(str: string) {
 }
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function fmtDateTime(iso: string) {
@@ -102,17 +123,27 @@ function StatusPill({ status }: { status: AdminUser["status"] }) {
         : status === "expired" || status === "suspended"
           ? "bg-error/10 text-error border border-error/20"
           : "bg-surface-alt text-muted-foreground border border-border";
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}>{status}</span>;
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}
+    >
+      {status}
+    </span>
+  );
 }
 
 function RolePill({ role }: { role: AdminUser["role"] }) {
   const tone =
     role === "SUPER_ADMIN"
       ? "bg-primary/10 text-primary border border-primary/20"
-      : role === "ADMIN"
-        ? "bg-accent/10 text-accent border border-accent/20"
-        : "bg-surface-alt text-muted-foreground border border-border";
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}>{role.replace("_", " ")}</span>;
+      : "bg-surface-alt text-muted-foreground border border-border";
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}
+    >
+      {role.replace("_", " ")}
+    </span>
+  );
 }
 
 const TABS = [
@@ -139,7 +170,9 @@ function UserDetail() {
   const [showOverride, setShowOverride] = useState(false);
   const [confirmSuspend, setConfirmSuspend] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [actionModal, setActionModal] = useState<null | "edit" | "email" | "flag" | "clearLock">(null);
+  const [actionModal, setActionModal] = useState<null | "edit" | "email" | "flag" | "clearLock">(
+    null,
+  );
   const [flagged, setFlagged] = useState(false);
   const [showRestrict, setShowRestrict] = useState(false);
 
@@ -150,16 +183,25 @@ function UserDetail() {
   const restrictions = useProtectionStore((s) => s.restrictions);
   const liftRestriction = useProtectionStore((s) => s.liftRestriction);
   const manualRestrict = useProtectionStore((s) => s.manualRestrict);
-  const myEvents = useMemo(() => (user ? protectionEvents.filter((e) => e.userId === user.id) : []), [protectionEvents, user]);
+  const myEvents = useMemo(
+    () => (user ? protectionEvents.filter((e) => e.userId === user.id) : []),
+    [protectionEvents, user],
+  );
   const activeRestriction = useMemo(
-    () => (user ? restrictions.find((r) => r.userId === user.id && r.status === "active") ?? null : null),
+    () =>
+      user
+        ? (restrictions.find((r) => r.userId === user.id && r.status === "active") ?? null)
+        : null,
     [restrictions, user],
   );
 
   if (!user) {
     return (
       <div className="space-y-6">
-        <Link to="/admin/users" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
+        <Link
+          to="/admin/users"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> All users
         </Link>
         <div className="rounded-2xl border border-border bg-surface p-12 text-center shadow-[var(--shadow-card)]">
@@ -177,11 +219,17 @@ function UserDetail() {
   }
 
   const suspended = user.status === "suspended";
-  const daysMember = Math.max(1, Math.floor((Date.now() - new Date(user.registeredAt).getTime()) / 86_400_000));
+  const daysMember = Math.max(
+    1,
+    Math.floor((Date.now() - new Date(user.registeredAt).getTime()) / 86_400_000),
+  );
 
   return (
     <div className="space-y-6">
-      <Link to="/admin/users" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
+      <Link
+        to="/admin/users"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> All users
       </Link>
 
@@ -194,7 +242,10 @@ function UserDetail() {
             </span>
             <h2 className="mt-4 text-xl font-bold text-foreground">{user.name}</h2>
             <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
-            <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-0.5 font-mono text-[11px] font-semibold text-muted-foreground" title="Public account ID">
+            <p
+              className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-0.5 font-mono text-[11px] font-semibold text-muted-foreground"
+              title="Public account ID"
+            >
               {user.publicId}
             </p>
 
@@ -217,8 +268,12 @@ function UserDetail() {
 
             <dl className="mt-6 space-y-3 border-t border-border pt-5 text-left text-sm">
               <InfoRow icon={Monitor} label="Bound device">
-                <span className="block truncate text-sm font-medium text-foreground">{user.device}</span>
-                <span className="block truncate font-mono text-[11px] text-muted-foreground">{user.deviceFingerprint}</span>
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {user.device}
+                </span>
+                <span className="block truncate font-mono text-[11px] text-muted-foreground">
+                  {user.deviceFingerprint}
+                </span>
               </InfoRow>
               <InfoRow icon={MapPin} label="Location">
                 <span className="text-sm font-medium text-foreground">
@@ -226,25 +281,45 @@ function UserDetail() {
                 </span>
               </InfoRow>
               <InfoRow icon={Calendar} label="Member since">
-                <span className="text-sm font-medium text-foreground">{fmtDate(user.registeredAt)}</span>
+                <span className="text-sm font-medium text-foreground">
+                  {fmtDate(user.registeredAt)}
+                </span>
               </InfoRow>
               <InfoRow icon={Clock} label="Last active">
-                <span className="text-sm font-medium text-foreground">{fmtDateTime(user.lastActiveAt)}</span>
+                <span className="text-sm font-medium text-foreground">
+                  {fmtDateTime(user.lastActiveAt)}
+                </span>
               </InfoRow>
             </dl>
           </div>
 
           {/* Quick actions */}
           <div className="space-y-2 rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
-            <ActionBtn icon={Pencil} onClick={() => setActionModal("edit")}>Edit profile</ActionBtn>
-            <ActionBtn icon={ToggleLeft} onClick={() => setShowOverride(true)}>Override subscription</ActionBtn>
-            <ActionBtn icon={Mail} onClick={() => setActionModal("email")}>Send email</ActionBtn>
-            <ActionBtn icon={Smartphone} onClick={() => setActionModal("clearLock")}>Clear device lock</ActionBtn>
-            <ActionBtn icon={Flag} onClick={() => setActionModal("flag")}>{flagged ? "Flagged ✓" : "Flag account"}</ActionBtn>
-            <ActionBtn icon={suspended ? UserCheck : Ban} tone="warning" onClick={() => setConfirmSuspend(true)}>
+            <ActionBtn icon={Pencil} onClick={() => setActionModal("edit")}>
+              Edit profile
+            </ActionBtn>
+            <ActionBtn icon={ToggleLeft} onClick={() => setShowOverride(true)}>
+              Override subscription
+            </ActionBtn>
+            <ActionBtn icon={Mail} onClick={() => setActionModal("email")}>
+              Send email
+            </ActionBtn>
+            <ActionBtn icon={Smartphone} onClick={() => setActionModal("clearLock")}>
+              Clear device lock
+            </ActionBtn>
+            <ActionBtn icon={Flag} onClick={() => setActionModal("flag")}>
+              {flagged ? "Flagged ✓" : "Flag account"}
+            </ActionBtn>
+            <ActionBtn
+              icon={suspended ? UserCheck : Ban}
+              tone="warning"
+              onClick={() => setConfirmSuspend(true)}
+            >
               {suspended ? "Reactivate account" : "Suspend account"}
             </ActionBtn>
-            <ActionBtn icon={Trash2} tone="error" onClick={() => setConfirmDelete(true)}>Delete account</ActionBtn>
+            <ActionBtn icon={Trash2} tone="error" onClick={() => setConfirmDelete(true)}>
+              Delete account
+            </ActionBtn>
           </div>
 
           {/* Content protection */}
@@ -253,18 +328,27 @@ function UserDetail() {
               <h3 className="inline-flex items-center gap-2 text-sm font-bold text-foreground">
                 <ShieldAlert className="h-4 w-4 text-warning" /> Content protection
               </h3>
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${myEvents.length > 0 ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${myEvents.length > 0 ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}
+              >
                 {myEvents.length} violation{myEvents.length === 1 ? "" : "s"}
               </span>
             </div>
 
             {activeRestriction ? (
               <div className="mt-3 rounded-lg border border-error/30 bg-error/5 p-3">
-                <p className="inline-flex items-center gap-1.5 text-xs font-bold text-error"><Lock className="h-3.5 w-3.5" /> Restricted</p>
+                <p className="inline-flex items-center gap-1.5 text-xs font-bold text-error">
+                  <Lock className="h-3.5 w-3.5" /> Restricted
+                </p>
                 <p className="mt-1 text-xs text-muted-foreground">{activeRestriction.reason}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Unlocks {new Date(activeRestriction.unlockAt).toLocaleString()}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Unlocks {new Date(activeRestriction.unlockAt).toLocaleString()}
+                </p>
                 <button
-                  onClick={() => { liftRestriction(activeRestriction.id); toast.success("Restriction lifted"); }}
+                  onClick={() => {
+                    liftRestriction(activeRestriction.id);
+                    toast.success("Restriction lifted");
+                  }}
                   className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-xs font-semibold hover:bg-surface-alt"
                 >
                   <Unlock className="h-3.5 w-3.5" /> Lift restriction
@@ -283,8 +367,12 @@ function UserDetail() {
               <ul className="mt-3 space-y-1.5 border-t border-border pt-3">
                 {myEvents.slice(0, 4).map((e) => (
                   <li key={e.id} className="flex items-center justify-between gap-2 text-[11px]">
-                    <span className="truncate font-medium text-foreground">{EVENT_LABELS[e.type]}</span>
-                    <span className="flex-shrink-0 text-muted-foreground">{new Date(e.createdAt).toLocaleDateString()}</span>
+                    <span className="truncate font-medium text-foreground">
+                      {EVENT_LABELS[e.type]}
+                    </span>
+                    <span className="flex-shrink-0 text-muted-foreground">
+                      {new Date(e.createdAt).toLocaleDateString()}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -300,7 +388,9 @@ function UserDetail() {
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
-                  tab === t.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+                  tab === t.id
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"
                 }`}
               >
                 <t.icon className="h-4 w-4" />
@@ -310,7 +400,9 @@ function UserDetail() {
           </div>
 
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both">
-            {tab === "overview" && <OverviewTab user={user} quizSessions={quizSessions} daysMember={daysMember} />}
+            {tab === "overview" && (
+              <OverviewTab user={user} quizSessions={quizSessions} daysMember={daysMember} />
+            )}
             {tab === "sessions" && <SessionsTab sessions={quizSessions} />}
             {tab === "performance" && <PerformanceTab user={user} />}
             {tab === "billing" && <BillingTab user={user} />}
@@ -329,7 +421,13 @@ function UserDetail() {
           userName={user.name}
           onClose={() => setShowRestrict(false)}
           onConfirm={(reason, hours) => {
-            manualRestrict({ userId: user.id, userName: user.name, userEmail: user.email, reason, hours });
+            manualRestrict({
+              userId: user.id,
+              userName: user.name,
+              userEmail: user.email,
+              reason,
+              hours,
+            });
             setShowRestrict(false);
             toast.success(`${user.name} restricted for ${hours}h`);
           }}
@@ -337,16 +435,34 @@ function UserDetail() {
       )}
 
       {/* Quick-action modals */}
-      {actionModal === "edit" && <EditUserModal user={user} onClose={() => setActionModal(null)} onSave={() => {}} />}
-      {actionModal === "email" && <ComposeEmailModal user={user} onClose={() => setActionModal(null)} />}
-      {actionModal === "flag" && <FlagAccountModal user={user} onClose={() => setActionModal(null)} onFlag={() => setFlagged(true)} />}
+      {actionModal === "edit" && (
+        <EditUserModal user={user} onClose={() => setActionModal(null)} onSave={() => {}} />
+      )}
+      {actionModal === "email" && (
+        <ComposeEmailModal user={user} onClose={() => setActionModal(null)} />
+      )}
+      {actionModal === "flag" && (
+        <FlagAccountModal
+          user={user}
+          onClose={() => setActionModal(null)}
+          onFlag={() => setFlagged(true)}
+        />
+      )}
       <ConfirmDialog
         open={actionModal === "clearLock"}
         title="Clear device lock?"
-        description={<span>This lets <strong>{user.name}</strong> sign in from a new device. Their bound device ({user.device}) will be released.</span>}
+        description={
+          <span>
+            This lets <strong>{user.name}</strong> sign in from a new device. Their bound device (
+            {user.device}) will be released.
+          </span>
+        }
         confirmLabel="Clear device lock"
         onCancel={() => setActionModal(null)}
-        onConfirm={() => { setActionModal(null); toast.success("Device lock cleared — user can re-bind on next login"); }}
+        onConfirm={() => {
+          setActionModal(null);
+          toast.success("Device lock cleared — user can re-bind on next login");
+        }}
       />
 
       <ConfirmDialog
@@ -370,8 +486,8 @@ function UserDetail() {
         title="Permanently delete this user?"
         description={
           <span>
-            This deletes <strong>{user.name}</strong>'s account, quiz sessions and subscription history. This cannot be
-            undone.
+            This deletes <strong>{user.name}</strong>'s account, quiz sessions and subscription
+            history. This cannot be undone.
           </span>
         }
         variant="destructive"
@@ -402,8 +518,14 @@ function OverviewTab({
   daysMember: number;
 }) {
   const timeline = useMemo(() => {
-    const items: { text: string; when: string; tone: "primary" | "accent" | "success" | "warning" }[] = [];
-    const recent = [...quizSessions].sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 4);
+    const items: {
+      text: string;
+      when: string;
+      tone: "primary" | "accent" | "success" | "warning";
+    }[] = [];
+    const recent = [...quizSessions]
+      .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+      .slice(0, 4);
     recent.forEach((s) => {
       items.push({
         text:
@@ -417,7 +539,10 @@ function OverviewTab({
       });
     });
     items.push({
-      text: user.status === "trial" ? "Started free trial" : `Subscribed to ${user.plan === "—" ? "platform" : user.plan} plan`,
+      text:
+        user.status === "trial"
+          ? "Started free trial"
+          : `Subscribed to ${user.plan === "—" ? "platform" : user.plan} plan`,
       when: fmtDate(user.registeredAt),
       tone: "accent",
     });
@@ -439,10 +564,17 @@ function OverviewTab({
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Subscription / trial status */}
         <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-          <h3 className="text-base font-bold text-foreground">{user.status === "trial" ? "Trial status" : "Subscription"}</h3>
+          <h3 className="text-base font-bold text-foreground">
+            {user.status === "trial" ? "Trial status" : "Subscription"}
+          </h3>
           {user.status === "trial" ? (
             <div className="mt-4 space-y-4">
-              <Meter label="Trial days remaining" value={user.trialDaysLeft ?? 0} max={7} suffix="days" />
+              <Meter
+                label="Trial days remaining"
+                value={user.trialDaysLeft ?? 0}
+                max={7}
+                suffix="days"
+              />
               <Meter
                 label="Trial questions remaining"
                 value={user.trialQuestionsLeft ?? 0}
@@ -454,15 +586,21 @@ function OverviewTab({
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Plan</span>
-                <span className="text-sm font-bold text-foreground">{user.plan === "—" ? "None" : user.plan}</span>
+                <span className="text-sm font-bold text-foreground">
+                  {user.plan === "—" ? "None" : user.plan}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Status</span>
                 <StatusPill status={user.status} />
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{user.status === "expired" ? "Expired" : "Renews"}</span>
-                <span className="text-sm font-semibold text-foreground">{user.planEndsAt ? fmtDate(user.planEndsAt) : "—"}</span>
+                <span className="text-sm text-muted-foreground">
+                  {user.status === "expired" ? "Expired" : "Renews"}
+                </span>
+                <span className="text-sm font-semibold text-foreground">
+                  {user.planEndsAt ? fmtDate(user.planEndsAt) : "—"}
+                </span>
               </div>
             </div>
           )}
@@ -476,7 +614,9 @@ function OverviewTab({
               <Monitor className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
               <div className="min-w-0">
                 <p className="font-medium text-foreground">{user.device}</p>
-                <p className="truncate font-mono text-[11px] text-muted-foreground">{user.deviceFingerprint}</p>
+                <p className="truncate font-mono text-[11px] text-muted-foreground">
+                  {user.deviceFingerprint}
+                </p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -497,7 +637,13 @@ function OverviewTab({
             <div key={i} className="relative">
               <span
                 className={`absolute -left-[23px] top-1 h-3 w-3 rounded-full ring-4 ring-surface ${
-                  row.tone === "success" ? "bg-success" : row.tone === "accent" ? "bg-accent" : row.tone === "warning" ? "bg-warning" : "bg-primary"
+                  row.tone === "success"
+                    ? "bg-success"
+                    : row.tone === "accent"
+                      ? "bg-accent"
+                      : row.tone === "warning"
+                        ? "bg-warning"
+                        : "bg-primary"
                 }`}
               />
               <p className="text-sm font-medium text-foreground">{row.text}</p>
@@ -515,7 +661,8 @@ function OverviewTab({
 /* ------------------------------------------------------------------ */
 
 function SessionsTab({ sessions }: { sessions: AdminQuizSession[] }) {
-  if (sessions.length === 0) return <EmptyState label="No quiz sessions yet" hint="This user hasn't started any quizzes." />;
+  if (sessions.length === 0)
+    return <EmptyState label="No quiz sessions yet" hint="This user hasn't started any quizzes." />;
   const sorted = [...sessions].sort((a, b) => +new Date(b.date) - +new Date(a.date));
   return (
     <TableCard head={["Bank", "Mode", "Score", "Questions", "Status", "Duration", "Date"]}>
@@ -523,11 +670,15 @@ function SessionsTab({ sessions }: { sessions: AdminQuizSession[] }) {
         <tr key={s.id} className="hover:bg-surface-alt/40">
           <td className="px-5 py-4 font-semibold text-foreground">{s.bankName}</td>
           <td className="px-5 py-4">
-            <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${s.mode === "TUTOR" ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}>
+            <span
+              className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${s.mode === "TUTOR" ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}
+            >
               {s.mode}
             </span>
           </td>
-          <td className={`px-5 py-4 font-mono text-sm font-bold tabular-nums ${s.status === "completed" ? scoreColor(s.scorePct) : "text-muted-foreground"}`}>
+          <td
+            className={`px-5 py-4 font-mono text-sm font-bold tabular-nums ${s.status === "completed" ? scoreColor(s.scorePct) : "text-muted-foreground"}`}
+          >
             {s.status === "completed" ? `${s.scorePct}%` : "—"}
           </td>
           <td className="px-5 py-4 text-sm tabular-nums text-muted-foreground">
@@ -573,7 +724,10 @@ function PerformanceTab({ user }: { user: AdminUser }) {
 
   const subjects = useMemo(() => {
     const names = ["Cardiology", "Pharmacology", "Neurology", "Anatomy", "Pathology"];
-    return names.map((n) => ({ name: n, acc: Math.max(40, Math.min(98, Math.round(user.avgScore - 10 + rnd() * 24))) }));
+    return names.map((n) => ({
+      name: n,
+      acc: Math.max(40, Math.min(98, Math.round(user.avgScore - 10 + rnd() * 24))),
+    }));
   }, [user.avgScore, rnd]);
 
   const banks = useMemo(() => {
@@ -595,10 +749,31 @@ function PerformanceTab({ user }: { user: AdminUser }) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={{ color: "#0E7C7B", fontWeight: "bold" }} />
-              <Area type="monotone" dataKey="score" stroke="#0E7C7B" strokeWidth={3} fill="url(#uScore)" />
+              <XAxis
+                dataKey="month"
+                stroke="var(--color-muted-foreground)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="var(--color-muted-foreground)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                domain={[0, 100]}
+              />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                itemStyle={{ color: "#0E7C7B", fontWeight: "bold" }}
+              />
+              <Area
+                type="monotone"
+                dataKey="score"
+                stroke="#0E7C7B"
+                strokeWidth={3}
+                fill="url(#uScore)"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -615,7 +790,10 @@ function PerformanceTab({ user }: { user: AdminUser }) {
                   <span className={`font-bold tabular-nums ${scoreColor(s.acc)}`}>{s.acc}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-surface-alt">
-                  <div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${s.acc}%` }} />
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                    style={{ width: `${s.acc}%` }}
+                  />
                 </div>
               </div>
             ))}
@@ -657,26 +835,47 @@ function BillingTab({ user }: { user: AdminUser }) {
         plan: user.plan === "—" ? "Trial" : user.plan,
         start: fmtDate(user.registeredAt),
         end: user.planEndsAt ? fmtDate(user.planEndsAt) : "—",
-        status: user.status === "expired" ? "Expired" : user.status === "active" ? "Active" : user.status === "trial" ? "Trial" : "Inactive",
+        status:
+          user.status === "expired"
+            ? "Expired"
+            : user.status === "active"
+              ? "Active"
+              : user.status === "trial"
+                ? "Trial"
+                : "Inactive",
       },
     ];
     if (user.status === "active" || user.status === "expired") {
-      rows.push({ id: "sh-2", plan: "Trial", start: fmtDate(user.registeredAt), end: fmtDate(user.registeredAt), status: "Expired" });
+      rows.push({
+        id: "sh-2",
+        plan: "Trial",
+        start: fmtDate(user.registeredAt),
+        end: fmtDate(user.registeredAt),
+        status: "Expired",
+      });
     }
     return rows;
   }, [user]);
 
   const transactions = useMemo(() => {
-    const count = user.plan === "—" || user.status === "trial" ? 0 : Math.min(history.length, user.status === "active" ? 2 : 1);
+    const count =
+      user.plan === "—" || user.status === "trial"
+        ? 0
+        : Math.min(history.length, user.status === "active" ? 2 : 1);
     const statuses = ["Paid", "Paid", "Refunded", "Failed"];
     return Array.from({ length: count }, (_, i) => {
-      const plan = i === count - 1 && count > 1 ? "Monthly" : user.plan === "—" ? "Monthly" : user.plan;
+      const plan =
+        i === count - 1 && count > 1 ? "Monthly" : user.plan === "—" ? "Monthly" : user.plan;
       return {
-        ref: `txn_${Math.floor(rnd() * 0xffffffff).toString(16).padStart(8, "0")}`,
+        ref: `txn_${Math.floor(rnd() * 0xffffffff)
+          .toString(16)
+          .padStart(8, "0")}`,
         plan,
         amount: PLAN_PRICE[plan] ?? 99,
         status: i === 0 ? "Paid" : statuses[Math.floor(rnd() * statuses.length)],
-        date: fmtDate(new Date(new Date(user.registeredAt).getTime() + i * 31 * 86_400_000).toISOString()),
+        date: fmtDate(
+          new Date(new Date(user.registeredAt).getTime() + i * 31 * 86_400_000).toISOString(),
+        ),
       };
     });
   }, [user, history.length, rnd]);
@@ -685,15 +884,25 @@ function BillingTab({ user }: { user: AdminUser }) {
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-accent/20 bg-accent/5 p-6 shadow-[var(--shadow-card)]">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-accent">Current plan</p>
-          <p className="mt-2 text-2xl font-bold text-foreground">{user.plan === "—" ? "None" : user.plan}</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-accent">
+            Current plan
+          </p>
+          <p className="mt-2 text-2xl font-bold text-foreground">
+            {user.plan === "—" ? "None" : user.plan}
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {user.planEndsAt ? `Ends ${fmtDate(user.planEndsAt)}` : user.status === "trial" ? `${user.trialDaysLeft ?? 0} trial days left` : "No active subscription"}
+            {user.planEndsAt
+              ? `Ends ${fmtDate(user.planEndsAt)}`
+              : user.status === "trial"
+                ? `${user.trialDaysLeft ?? 0} trial days left`
+                : "No active subscription"}
           </p>
         </div>
         <div className="flex items-center justify-between rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Status
+            </p>
             <div className="mt-2">
               <StatusPill status={user.status} />
             </div>
@@ -716,7 +925,9 @@ function BillingTab({ user }: { user: AdminUser }) {
               <td className="px-5 py-4 text-sm text-muted-foreground">{h.start}</td>
               <td className="px-5 py-4 text-sm text-muted-foreground">{h.end}</td>
               <td className="px-5 py-4">
-                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${h.status === "Active" ? "bg-success/10 text-success" : h.status === "Trial" ? "bg-warning/10 text-warning" : "bg-surface-alt text-muted-foreground"}`}>
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${h.status === "Active" ? "bg-success/10 text-success" : h.status === "Trial" ? "bg-warning/10 text-warning" : "bg-surface-alt text-muted-foreground"}`}
+                >
                   {h.status}
                 </span>
               </td>
@@ -739,7 +950,11 @@ function BillingTab({ user }: { user: AdminUser }) {
                 <td className="px-5 py-4">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      t.status === "Paid" ? "bg-success/10 text-success" : t.status === "Refunded" ? "bg-warning/10 text-warning" : "bg-error/10 text-error"
+                      t.status === "Paid"
+                        ? "bg-success/10 text-success"
+                        : t.status === "Refunded"
+                          ? "bg-warning/10 text-warning"
+                          : "bg-error/10 text-error"
                     }`}
                   >
                     {t.status}
@@ -770,7 +985,9 @@ function DevicesTab({ user, sessions }: { user: AdminUser; sessions: LoginSessio
           <div>
             <p className="font-bold text-foreground">{user.device}</p>
             <p className="font-mono text-[11px] text-muted-foreground">{user.deviceFingerprint}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Bound device — used to prevent account sharing.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Bound device — used to prevent account sharing.
+            </p>
           </div>
         </div>
         <button
@@ -791,13 +1008,17 @@ function DevicesTab({ user, sessions }: { user: AdminUser; sessions: LoginSessio
               <tr key={s.id} className="hover:bg-surface-alt/40">
                 <td className="px-5 py-4">
                   <p className="font-semibold text-foreground">{s.device}</p>
-                  <p className="text-xs text-muted-foreground">{s.browser} · {s.os}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {s.browser} · {s.os}
+                  </p>
                 </td>
                 <td className="px-5 py-4 text-sm text-muted-foreground">
                   {s.city}, {s.country}
                   <span className="block font-mono text-[11px]">{s.ip}</span>
                 </td>
-                <td className="px-5 py-4 text-sm text-muted-foreground">{fmtDateTime(s.loginAt)}</td>
+                <td className="px-5 py-4 text-sm text-muted-foreground">
+                  {fmtDateTime(s.loginAt)}
+                </td>
                 <td className="px-5 py-4 text-sm text-muted-foreground">{s.durationMin} min</td>
                 <td className="px-5 py-4">
                   {s.status === "active" ? (
@@ -825,10 +1046,17 @@ function DevicesTab({ user, sessions }: { user: AdminUser; sessions: LoginSessio
 /* Activity log                                                        */
 /* ------------------------------------------------------------------ */
 
-function ActivityTab({ user, quizSessions }: { user: AdminUser; quizSessions: AdminQuizSession[] }) {
+function ActivityTab({
+  user,
+  quizSessions,
+}: {
+  user: AdminUser;
+  quizSessions: AdminQuizSession[];
+}) {
   const entries = useMemo(() => {
     const rnd = seeded(hash(user.id) + 91);
-    const ip = () => `${10 + Math.floor(rnd() * 240)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}`;
+    const ip = () =>
+      `${10 + Math.floor(rnd() * 240)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}`;
     const loc = `${user.city}, ${user.country}`;
     const out: { text: string; when: string; meta: string }[] = [];
 
@@ -837,7 +1065,10 @@ function ActivityTab({ user, quizSessions }: { user: AdminUser; quizSessions: Ad
       .slice(0, 4)
       .forEach((s) => {
         out.push({
-          text: s.status === "completed" ? `Completed quiz “${s.bankName}” (${s.scorePct}%)` : `Started quiz “${s.bankName}”`,
+          text:
+            s.status === "completed"
+              ? `Completed quiz “${s.bankName}” (${s.scorePct}%)`
+              : `Started quiz “${s.bankName}”`,
           when: fmtDateTime(s.date),
           meta: `${ip()} · ${loc}`,
         });
@@ -847,7 +1078,13 @@ function ActivityTab({ user, quizSessions }: { user: AdminUser; quizSessions: Ad
     const synth = [
       { text: "Signed in", off: 0 },
       { text: "Updated profile (specialty)", off: 2 },
-      { text: user.status === "trial" ? "Trial started" : `Subscription ${user.status === "expired" ? "expired" : "renewed"}`, off: 5 },
+      {
+        text:
+          user.status === "trial"
+            ? "Trial started"
+            : `Subscription ${user.status === "expired" ? "expired" : "renewed"}`,
+        off: 5,
+      },
       { text: "Password changed", off: 9 },
     ];
     synth.forEach((e) => {
@@ -888,11 +1125,23 @@ function OverrideModal({ user, onClose }: { user: AdminUser; onClose: () => void
   const [reason, setReason] = useState("");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-surface shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
           <h3 className="text-base font-bold text-foreground">Override subscription</h3>
-          <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground">
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </header>
@@ -905,7 +1154,9 @@ function OverrideModal({ user, onClose }: { user: AdminUser; onClose: () => void
               className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             >
               {["Monthly", "3-Month", "6-Month", "12-Month", "Trial"].map((p) => (
-                <option key={p} value={p}>{p}</option>
+                <option key={p} value={p}>
+                  {p}
+                </option>
               ))}
             </select>
           </label>
@@ -930,7 +1181,10 @@ function OverrideModal({ user, onClose }: { user: AdminUser; onClose: () => void
           </label>
         </div>
         <footer className="flex justify-end gap-2 border-t border-border px-5 py-3">
-          <button onClick={onClose} className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">
+          <button
+            onClick={onClose}
+            className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt"
+          >
             Cancel
           </button>
           <button
@@ -948,31 +1202,71 @@ function OverrideModal({ user, onClose }: { user: AdminUser; onClose: () => void
   );
 }
 
-function RestrictModal({ userName, onClose, onConfirm }: { userName: string; onClose: () => void; onConfirm: (reason: string, hours: number) => void }) {
+function RestrictModal({
+  userName,
+  onClose,
+  onConfirm,
+}: {
+  userName: string;
+  onClose: () => void;
+  onConfirm: (reason: string, hours: number) => void;
+}) {
   const [reason, setReason] = useState("");
   const [hours, setHours] = useState(24);
   return (
-    <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 pt-20 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl border border-border bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 pt-20 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-border bg-surface shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="flex items-center gap-2 border-b border-border px-5 py-4">
           <ShieldAlert className="h-4 w-4 text-warning" />
           <h3 className="text-base font-bold text-foreground">Restrict {userName}</h3>
         </header>
         <div className="space-y-4 p-5">
-          <p className="text-sm text-muted-foreground">Manually block this user from protected content (notes &amp; quiz) for a set time.</p>
+          <p className="text-sm text-muted-foreground">
+            Manually block this user from protected content (notes &amp; quiz) for a set time.
+          </p>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Reason</span>
-            <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Confirmed screen-recording of question banks" className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Reason
+            </span>
+            <textarea
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. Confirmed screen-recording of question banks"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Duration (hours)</span>
-            <input type="number" min={1} value={hours} onChange={(e) => setHours(Number(e.target.value))} className="h-10 w-full rounded-lg border border-border bg-surface px-3 font-mono text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Duration (hours)
+            </span>
+            <input
+              type="number"
+              min={1}
+              value={hours}
+              onChange={(e) => setHours(Number(e.target.value))}
+              className="h-10 w-full rounded-lg border border-border bg-surface px-3 font-mono text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            />
           </label>
         </div>
         <footer className="flex justify-end gap-2 border-t border-border px-5 py-3">
-          <button onClick={onClose} className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt">Cancel</button>
           <button
-            onClick={() => { if (!reason.trim()) return toast.error("Add a reason"); onConfirm(reason.trim(), Math.max(1, hours)); }}
+            onClick={onClose}
+            className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (!reason.trim()) return toast.error("Add a reason");
+              onConfirm(reason.trim(), Math.max(1, hours));
+            }}
             className="h-10 rounded-lg bg-warning px-4 text-sm font-bold text-white hover:opacity-90"
           >
             Restrict access
@@ -987,12 +1281,22 @@ function RestrictModal({ userName, onClose, onConfirm }: { userName: string; onC
 /* Small UI bits                                                       */
 /* ------------------------------------------------------------------ */
 
-function InfoRow({ icon: Icon, label, children }: { icon: typeof Monitor; label: string; children: React.ReactNode }) {
+function InfoRow({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: typeof Monitor;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-start gap-3">
       <Icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
-        <dt className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</dt>
+        <dt className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          {label}
+        </dt>
         <dd className="mt-0.5">{children}</dd>
       </div>
     </div>
@@ -1017,7 +1321,10 @@ function ActionBtn({
         ? "border-error/30 bg-error/10 text-error hover:bg-error/20"
         : "border-border bg-surface text-foreground hover:bg-surface-alt";
   return (
-    <button onClick={onClick} className={`flex w-full items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${cls}`}>
+    <button
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${cls}`}
+    >
       <Icon className="h-4 w-4" /> {children}
     </button>
   );
@@ -1026,13 +1333,29 @@ function ActionBtn({
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className={`mt-2 text-3xl font-extrabold tracking-tight tabular-nums ${accent ? "text-primary" : "text-foreground"}`}>{value}</p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </p>
+      <p
+        className={`mt-2 text-3xl font-extrabold tracking-tight tabular-nums ${accent ? "text-primary" : "text-foreground"}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
 
-function Meter({ label, value, max, suffix }: { label: string; value: number; max: number; suffix: string }) {
+function Meter({
+  label,
+  value,
+  max,
+  suffix,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  suffix: string;
+}) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
   return (
     <div>
@@ -1043,7 +1366,10 @@ function Meter({ label, value, max, suffix }: { label: string; value: number; ma
         </span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-surface-alt">
-        <div className="h-full rounded-full bg-gradient-to-r from-warning to-accent" style={{ width: `${pct}%` }} />
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-warning to-accent"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );

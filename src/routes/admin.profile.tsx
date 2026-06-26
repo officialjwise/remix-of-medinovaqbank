@@ -17,9 +17,12 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import { deviceLabel } from "@/lib/trial";
 import { AvatarUploader } from "@/components/shared/AvatarUploader";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
 export const Route = createFileRoute("/admin/profile")({
-  head: () => ({ meta: [{ title: "Admin · Profile — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Admin · Profile — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+  }),
   component: AdminProfilePage,
 });
 
@@ -36,7 +39,10 @@ const PERMISSIONS = [
 function initialsOf(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "A";
-  return parts.slice(0, 2).map((s) => s[0]?.toUpperCase() ?? "").join("");
+  return parts
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 function AdminProfilePage() {
@@ -44,7 +50,7 @@ function AdminProfilePage() {
 
   const [name, setName] = useState(user?.name ?? "Administrator");
   const email = user?.email ?? "admin@medinovaqbank.com";
-  const role = user?.role ?? "ADMIN";
+  const role = user?.role ?? "SUPER_ADMIN";
 
   const [twoFA, setTwoFA] = useState(true);
   const [current, setCurrent] = useState("");
@@ -96,8 +102,14 @@ function AdminProfilePage() {
       {/* ---- Hero ---- */}
       <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
         <div className="relative h-32 bg-gradient-to-r from-primary to-accent sm:h-36">
-          <div aria-hidden className="absolute -right-10 -top-12 h-44 w-44 rounded-full bg-white/10 blur-2xl" />
-          <div aria-hidden className="absolute -bottom-16 left-1/3 h-44 w-44 rounded-full bg-white/10 blur-2xl" />
+          <div
+            aria-hidden
+            className="absolute -right-10 -top-12 h-44 w-44 rounded-full bg-white/10 blur-2xl"
+          />
+          <div
+            aria-hidden
+            className="absolute -bottom-16 left-1/3 h-44 w-44 rounded-full bg-white/10 blur-2xl"
+          />
         </div>
         <div className="px-6 pb-6">
           <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
@@ -161,7 +173,10 @@ function AdminProfilePage() {
           </Card>
 
           {/* Change password */}
-          <Card title="Change password" desc="Update the password used to access the admin console.">
+          <Card
+            title="Change password"
+            desc="Update the password used to access the admin console."
+          >
             <form onSubmit={handleChangePassword} className="space-y-5">
               <Field label="Current password">
                 <input
@@ -207,7 +222,10 @@ function AdminProfilePage() {
           </Card>
 
           {/* Permissions */}
-          <Card title="Role & permissions" desc="What this administrator account is authorised to do.">
+          <Card
+            title="Role & permissions"
+            desc="What this administrator account is authorised to do."
+          >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {PERMISSIONS.map((p) => (
                 <div
@@ -273,26 +291,18 @@ function AdminProfilePage() {
                   <p className="inline-flex items-center gap-1.5 text-sm font-bold text-foreground">
                     <ShieldCheck className="h-4 w-4 text-success" /> Two-factor authentication
                   </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Required for all admin accounts.</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Required for all admin accounts.
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTwoFA((v) => {
-                      const nextVal = !v;
-                      toast.success(nextVal ? "Two-factor enabled" : "Two-factor disabled");
-                      return nextVal;
-                    });
+                <ToggleSwitch
+                  checked={twoFA}
+                  ariaLabel="Two-factor authentication"
+                  onChange={(nextVal) => {
+                    setTwoFA(nextVal);
+                    toast.success(nextVal ? "Two-factor enabled" : "Two-factor disabled");
                   }}
-                  aria-pressed={twoFA}
-                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${twoFA ? "bg-success" : "bg-border"}`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                      twoFA ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
+                />
               </div>
             </div>
           </Card>

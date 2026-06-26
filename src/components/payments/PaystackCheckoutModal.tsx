@@ -92,12 +92,19 @@ export function PaystackCheckoutModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Paystack-styled header */}
-        <div className="flex items-center justify-between bg-[#0BA4DB] px-5 py-3 text-white">
+        <div className="flex items-center justify-between bg-primary px-5 py-3 text-white">
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-xs font-bold">P</span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-xs font-bold">
+              P
+            </span>
             <span className="text-sm font-bold">Paystack Checkout</span>
           </div>
-          <button onClick={close} aria-label="Close" className="rounded-md p-1 hover:bg-white/10 disabled:opacity-50" disabled={stage === "verifying" || stage === "initializing"}>
+          <button
+            onClick={close}
+            aria-label="Close"
+            className="rounded-md p-1 hover:bg-white/10 disabled:opacity-50"
+            disabled={stage === "verifying" || stage === "initializing"}
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -107,18 +114,42 @@ export function PaystackCheckoutModal({
 
           {stage === "checkout" && (
             <>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Pay {plan.currency} to Medinovaqbank</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Pay {plan.currency} to Medinovaqbank
+              </p>
               <p className="mt-1 text-3xl font-bold tracking-tight text-foreground">
                 {plan.currency} {plan.price.toLocaleString()}
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{plan.name} · {plan.durationLabel.replace(/^\//, "")}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {plan.name} · {plan.durationLabel.replace(/^\//, "")}
+              </p>
 
               <div className="mt-5">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Pay with</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Pay with
+                </p>
                 <div className="mt-2 grid gap-2">
-                  <ChannelRow active={channel === "card"} onClick={() => setChannel("card")} icon={<CreditCard className="h-4 w-4" />} title="Card" hint="Visa, Mastercard, Verve" />
-                  <ChannelRow active={channel === "mobile_money"} onClick={() => setChannel("mobile_money")} icon={<Smartphone className="h-4 w-4" />} title="Mobile Money" hint="MTN, Vodafone, AirtelTigo" />
-                  <ChannelRow active={channel === "bank"} onClick={() => setChannel("bank")} icon={<Building2 className="h-4 w-4" />} title="Bank Transfer" hint="GHS account transfer" />
+                  <ChannelRow
+                    active={channel === "card"}
+                    onClick={() => setChannel("card")}
+                    icon={<CreditCard className="h-4 w-4" />}
+                    title="Card"
+                    hint="Visa, Mastercard, Verve"
+                  />
+                  <ChannelRow
+                    active={channel === "mobile_money"}
+                    onClick={() => setChannel("mobile_money")}
+                    icon={<Smartphone className="h-4 w-4" />}
+                    title="Mobile Money"
+                    hint="MTN, Vodafone, AirtelTigo"
+                  />
+                  <ChannelRow
+                    active={channel === "bank"}
+                    onClick={() => setChannel("bank")}
+                    icon={<Building2 className="h-4 w-4" />}
+                    title="Bank Transfer"
+                    hint="GHS account transfer"
+                  />
                 </div>
               </div>
 
@@ -126,11 +157,14 @@ export function PaystackCheckoutModal({
 
               <button
                 onClick={pay}
-                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-[#0BA4DB] text-sm font-bold text-white hover:bg-[#0992c4]"
+                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-primary text-sm font-bold text-white hover:bg-primary/90"
               >
                 Pay {plan.currency} {plan.price.toLocaleString()}
               </button>
-              <button onClick={close} className="mt-2 inline-flex h-9 w-full items-center justify-center text-xs font-semibold text-muted-foreground hover:text-foreground">
+              <button
+                onClick={close}
+                className="mt-2 inline-flex h-9 w-full items-center justify-center text-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
                 Cancel
               </button>
             </>
@@ -143,14 +177,32 @@ export function PaystackCheckoutModal({
               <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success-light text-success">
                 <Check className="h-8 w-8" />
               </span>
-              <h3 className="mt-4 text-xl font-bold tracking-tight text-foreground">🎉 Subscription Activated!</h3>
-              <p className="mt-1 text-sm text-muted-foreground">You now have full access to every question bank.</p>
+              <h3 className="mt-4 text-xl font-bold tracking-tight text-foreground">
+                🎉 Subscription Activated!
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                You now have full access to every question bank.
+              </p>
               <div className="mt-4 rounded-lg border border-border bg-surface-alt/40 p-3 text-left text-xs">
-                <p><span className="text-muted-foreground">Plan:</span> <span className="font-semibold text-foreground">{plan.name}</span></p>
-                <p><span className="text-muted-foreground">Amount:</span> <span className="font-semibold text-foreground">{plan.currency} {plan.price}</span></p>
-                <p><span className="text-muted-foreground">Reference:</span> <span className="font-mono text-foreground">{verified.reference}</span></p>
+                <p>
+                  <span className="text-muted-foreground">Plan:</span>{" "}
+                  <span className="font-semibold text-foreground">{plan.name}</span>
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Amount:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    {plan.currency} {plan.price}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Reference:</span>{" "}
+                  <span className="font-mono text-foreground">{verified.reference}</span>
+                </p>
               </div>
-              <button onClick={goDashboard} className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground hover:bg-accent/90">
+              <button
+                onClick={goDashboard}
+                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground hover:bg-accent/90"
+              >
                 Go to Dashboard
               </button>
             </div>
@@ -161,9 +213,16 @@ export function PaystackCheckoutModal({
               <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-error-light text-error">
                 <X className="h-8 w-8" />
               </span>
-              <h3 className="mt-4 text-xl font-bold tracking-tight text-foreground">Payment Failed</h3>
-              <p className="mt-1 text-sm text-muted-foreground">No charge was made. Please try again.</p>
-              <button onClick={close} className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg border border-border bg-surface text-sm font-bold text-foreground hover:bg-surface-alt">
+              <h3 className="mt-4 text-xl font-bold tracking-tight text-foreground">
+                Payment Failed
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                No charge was made. Please try again.
+              </p>
+              <button
+                onClick={close}
+                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg border border-border bg-surface text-sm font-bold text-foreground hover:bg-surface-alt"
+              >
                 Close
               </button>
             </div>
@@ -183,23 +242,39 @@ function Loading({ label }: { label: string }) {
   );
 }
 
-function ChannelRow({ active, onClick, icon, title, hint }: { active: boolean; onClick: () => void; icon: React.ReactNode; title: string; hint: string }) {
+function ChannelRow({
+  active,
+  onClick,
+  icon,
+  title,
+  hint,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  hint: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
-        active ? "border-[#0BA4DB] bg-[#0BA4DB]/5" : "border-border bg-surface hover:bg-surface-alt"
+        active ? "border-primary bg-primary/5" : "border-border bg-surface hover:bg-surface-alt"
       }`}
     >
-      <span className={`flex h-8 w-8 items-center justify-center rounded-md ${active ? "bg-[#0BA4DB] text-white" : "bg-surface-alt text-muted-foreground"}`}>
+      <span
+        className={`flex h-8 w-8 items-center justify-center rounded-md ${active ? "bg-primary text-white" : "bg-surface-alt text-muted-foreground"}`}
+      >
         {icon}
       </span>
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-semibold text-foreground">{title}</span>
         <span className="block text-xs text-muted-foreground">{hint}</span>
       </span>
-      <span className={`h-4 w-4 rounded-full border-2 ${active ? "border-[#0BA4DB] bg-[#0BA4DB]" : "border-border"}`} />
+      <span
+        className={`h-4 w-4 rounded-full border-2 ${active ? "border-primary bg-primary" : "border-border"}`}
+      />
     </button>
   );
 }
