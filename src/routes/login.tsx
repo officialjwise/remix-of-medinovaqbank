@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, LogIn, Loader2 } from "lucide-react";
 import { AuthSplit, AuthDivider, GoogleButton } from "@/components/auth/AuthSplit";
 import { authApi } from "@/api/auth.api";
 import { useAuthStore } from "@/stores/authStore";
@@ -44,9 +44,9 @@ function LoginPage() {
       const { accessToken, user } = await authApi.adminLogin(email, password);
       localStorage.setItem("accessToken", accessToken);
       login(accessToken, user);
-      
+
       // Redirect based on role
-      if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
+      if (user.role === "SUPER_ADMIN") {
         navigate({ to: "/admin/dashboard" });
       } else {
         navigate({ to: "/dashboard" });
@@ -60,9 +60,10 @@ function LoginPage() {
 
   return (
     <AuthSplit>
-      <h1 className="text-3xl font-bold tracking-tight text-foreground">
-        Welcome Back
-      </h1>
+      <span className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15">
+        <LogIn className="h-6 w-6" />
+      </span>
+      <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome Back</h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
         Sign in to continue your medical journey.
       </p>
@@ -113,23 +114,29 @@ function LoginPage() {
           </div>
         </div>
 
-        {error && (
-          <p className="rounded-lg bg-error-light px-3 py-2 text-sm text-error">
-            {error}
-          </p>
-        )}
+        {error && <p className="rounded-lg bg-error-light px-3 py-2 text-sm text-error">{error}</p>}
 
         <button
           type="submit"
           disabled={loading}
           className="inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-light disabled:opacity-60"
         >
-          {loading ? "Signing in…" : "Sign In"}
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Signing in…
+            </>
+          ) : (
+            "Sign In"
+          )}
         </button>
       </form>
 
       <div className="mt-6 flex items-center justify-between text-sm">
-        <Link to="/forgot-password" className="font-medium text-muted-foreground hover:text-foreground">
+        <Link
+          to="/forgot-password"
+          className="font-medium text-muted-foreground hover:text-foreground"
+        >
           Forgot password?
         </Link>
         {DEV_MODE && (
@@ -141,13 +148,20 @@ function LoginPage() {
 
       <p className="mt-10 text-xs leading-relaxed text-muted-foreground">
         By signing in, you agree to our{" "}
-        <Link to="/terms" className="font-medium text-foreground hover:underline">Terms of Service</Link>{" "}
+        <Link to="/terms" className="font-medium text-foreground hover:underline">
+          Terms of Service
+        </Link>{" "}
         and{" "}
-        <Link to="/privacy" className="font-medium text-foreground hover:underline">Privacy Policy</Link>.
+        <Link to="/privacy" className="font-medium text-foreground hover:underline">
+          Privacy Policy
+        </Link>
+        .
       </p>
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        New to Medinovaqbank? Sign up with Google above — first 10 questions are
-        free.
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        New to Medinovaqbank?{" "}
+        <Link to="/register" className="font-semibold text-primary hover:text-primary-light">
+          Create a free account
+        </Link>
       </p>
     </AuthSplit>
   );
