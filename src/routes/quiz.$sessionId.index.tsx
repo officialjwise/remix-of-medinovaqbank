@@ -96,13 +96,25 @@ function QuizPage() {
       if (isLast) return finish();
       go(1);
     }
-  }, [session, selected, isSubmitted, qid, submitAnswer, sessionId, isLast, finish, go, handleSubmit]);
+  }, [
+    session,
+    selected,
+    isSubmitted,
+    qid,
+    submitAnswer,
+    sessionId,
+    isLast,
+    finish,
+    go,
+    handleSubmit,
+  ]);
 
   // Keyboard navigation — number/letter keys select, Enter submits, arrows move.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable))
+        return;
       if (!session || !qid || !question) return;
 
       // Number 1-5 or letter A-E selects the matching option (if it exists).
@@ -134,7 +146,15 @@ function QuizPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [
-    session, qid, question, isSubmitted, selectAnswer, sessionId, handleNextOrSubmit, go, toggleBookmark,
+    session,
+    qid,
+    question,
+    isSubmitted,
+    selectAnswer,
+    sessionId,
+    handleNextOrSubmit,
+    go,
+    toggleBookmark,
   ]);
 
   if (!session) {
@@ -167,7 +187,7 @@ function QuizPage() {
     <div className="min-h-screen bg-background">
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-4 sm:px-6">
+        <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
           <Link
             to="/banks"
             className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground"
@@ -175,7 +195,9 @@ function QuizPage() {
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Exit</span>
           </Link>
           <div className="hidden min-w-0 flex-1 items-center justify-center sm:flex">
-            <span className="truncate text-sm font-semibold text-foreground">{session.bankName}</span>
+            <span className="truncate text-sm font-semibold text-foreground">
+              {session.bankName}
+            </span>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <span
@@ -183,13 +205,19 @@ function QuizPage() {
                 isTutor ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"
               }`}
             >
-              {isTutor ? <GraduationCap className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
+              {isTutor ? (
+                <GraduationCap className="h-3.5 w-3.5" />
+              ) : (
+                <Zap className="h-3.5 w-3.5" />
+              )}
               {session.mode}
             </span>
             {remaining !== null && (
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-xs font-semibold tabular-nums transition-colors ${
-                  lowTime ? "bg-error/15 text-error animate-pulse" : "bg-surface-alt text-foreground"
+                  lowTime
+                    ? "bg-error/15 text-error animate-pulse"
+                    : "bg-surface-alt text-foreground"
                 }`}
               >
                 <Timer className="h-3.5 w-3.5" /> {formatTime(remaining)}
@@ -221,10 +249,10 @@ function QuizPage() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1400px] gap-0 lg:gap-6 lg:px-6 lg:py-6">
+      <div className="flex w-full gap-0 lg:gap-6 lg:px-6 lg:py-6">
         {/* Main content */}
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:px-0 lg:py-0">
-          <ProtectedSurface context="quiz_session" contextId={sessionId} page={index + 1} className="mx-auto max-w-3xl xl:max-w-4xl">
+          <ProtectedSurface context="quiz_session" contextId={sessionId} page={index + 1}>
             {question ? (
               <>
                 {/* Counter + actions */}
@@ -271,7 +299,9 @@ function QuizPage() {
                       aria-pressed={!!(qid && flagged[qid])}
                     >
                       <Flag className="h-4 w-4" />
-                      <span className="hidden sm:inline">{qid && flagged[qid] ? "Flagged" : "Flag"}</span>
+                      <span className="hidden sm:inline">
+                        {qid && flagged[qid] ? "Flagged" : "Flag"}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -318,7 +348,8 @@ function QuizPage() {
 
                     if (showExplanation) {
                       if (opt.key === correctKey) {
-                        cls = "border-success bg-success/10 text-foreground shadow-[0_0_0_1px_var(--color-success)]";
+                        cls =
+                          "border-success bg-success/10 text-foreground shadow-[0_0_0_1px_var(--color-success)]";
                         badge = "border-success bg-success text-white";
                       } else if (chosen) {
                         cls = "border-error bg-error/10 text-foreground";
@@ -327,7 +358,8 @@ function QuizPage() {
                         cls = "border-border bg-surface-alt/40 text-muted-foreground opacity-70";
                       }
                     } else if (chosen) {
-                      cls = "border-primary bg-primary/10 text-foreground shadow-[0_0_0_1px_var(--color-primary)]";
+                      cls =
+                        "border-primary bg-primary/10 text-foreground shadow-[0_0_0_1px_var(--color-primary)]";
                       badge = "border-primary bg-primary text-primary-foreground";
                     } else if (isSubmitted && !isTutor) {
                       cls = "border-border bg-surface-alt/40 text-muted-foreground opacity-70";
@@ -419,7 +451,8 @@ function QuizPage() {
                         onClick={() => (isLast ? finish() : go(1))}
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
                       >
-                        {isLast ? "Finish Session" : "Next Question"} <ChevronRight className="h-4 w-4" />
+                        {isLast ? "Finish Session" : "Next Question"}{" "}
+                        <ChevronRight className="h-4 w-4" />
                       </button>
                     </div>
                   </>
@@ -474,7 +507,9 @@ function QuizPage() {
                 <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                   <Timer className="h-4 w-4" /> Remaining
                 </span>
-                <span className={`font-mono font-semibold tabular-nums ${lowTime ? "text-error" : "text-foreground"}`}>
+                <span
+                  className={`font-mono font-semibold tabular-nums ${lowTime ? "text-error" : "text-foreground"}`}
+                >
                   {formatTime(remaining)}
                 </span>
               </div>

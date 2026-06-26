@@ -1,4 +1,4 @@
-export type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN";
+export type UserRole = "USER" | "SUPER_ADMIN";
 
 export interface User {
   /** Internal record id (uuid) — kept internal, not shown in the UI. */
