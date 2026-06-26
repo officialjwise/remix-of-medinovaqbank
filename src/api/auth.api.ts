@@ -8,7 +8,9 @@ export interface AuthResult {
 
 /** Friendly public id derived from the internal uuid (uuid stays internal). */
 const publicIdFor = (uuid: string, prefix: string) =>
-  `MQB-${prefix}-${parseInt(uuid.replace(/[^0-9a-f]/gi, "").slice(0, 6), 16).toString().padStart(6, "0")}`;
+  `MQB-${prefix}-${parseInt(uuid.replace(/[^0-9a-f]/gi, "").slice(0, 6), 16)
+    .toString()
+    .padStart(6, "0")}`;
 
 const mockPractitioner = (email = "doctor@medinova.app", name = "Dr. Bright Nketia"): User => {
   const id = crypto.randomUUID();
@@ -26,39 +28,69 @@ const mockPractitioner = (email = "doctor@medinova.app", name = "Dr. Bright Nket
 const mockAdmin = (email = "admin@medinova.app"): User => {
   const id = crypto.randomUUID();
   return {
-  id,
-  publicId: publicIdFor(id, "ADM"),
-  email,
-  // The admin console is the super-admin control center; the demo admin login
-  // gets full access so System Settings, Subscription Plans, Feature Catalog,
-  // etc. (all super-only) are visible. A real backend derives this per account.
-  name: /super/i.test(email) ? "Super Admin" : "Admin Console",
-  role: "SUPER_ADMIN",
-  createdAt: new Date().toISOString(),
+    id,
+    publicId: publicIdFor(id, "ADM"),
+    email,
+    // The admin console is the super-admin control center; the demo admin login
+    // gets full access so System Settings, Subscription Plans, Feature Catalog,
+    // etc. (all super-only) are visible. A real backend derives this per account.
+    name: /super/i.test(email) ? "Super Admin" : "Admin Console",
+    role: "SUPER_ADMIN",
+    createdAt: new Date().toISOString(),
   };
 };
 
+export interface RegisterInput {
+  name: string;
+  email: string;
+  password: string;
+  specialty?: string;
+}
+
 export const authApi = {
+  // Practitioner self-registration (email/password). Always creates a USER —
+  // the auth store then provisions a fresh trial off the admin trial policy.
+  register: ({ name, email, specialty }: RegisterInput) =>
+    apiClient.post<AuthResult>(
+      "/auth/register",
+      { name, email },
+      {
+        accessToken: "mock-signup-token-" + Date.now(),
+        user: { ...mockPractitioner(email, name), specialty: specialty || "General Practice" },
+      },
+    ),
+
   // Practitioners only — Google OAuth
   googleCallback: (token: string) =>
-    apiClient.post<AuthResult>("/auth/google/callback", { token }, {
-      accessToken: token || "mock-google-token-" + Date.now(),
-      user: mockPractitioner(),
-    }),
+    apiClient.post<AuthResult>(
+      "/auth/google/callback",
+      { token },
+      {
+        accessToken: token || "mock-google-token-" + Date.now(),
+        user: mockPractitioner(),
+      },
+    ),
 
   // Admin login (email/password OR Google)
   adminLogin: (email: string, _password: string) =>
-    apiClient.post<AuthResult>("/auth/admin/login", { email }, {
-      accessToken: "mock-admin-token-" + Date.now(),
-      user: mockAdmin(email),
-    }),
+    apiClient.post<AuthResult>(
+      "/auth/admin/login",
+      { email },
+      {
+        accessToken: "mock-admin-token-" + Date.now(),
+        user: mockAdmin(email),
+      },
+    ),
 
   adminGoogleCallback: (token: string) =>
-    apiClient.post<AuthResult>("/auth/admin/google", { token }, {
-      accessToken: token || "mock-admin-google-token",
-      user: mockAdmin(),
-    }),
+    apiClient.post<AuthResult>(
+      "/auth/admin/google",
+      { token },
+      {
+        accessToken: token || "mock-admin-google-token",
+        user: mockAdmin(),
+      },
+    ),
 
-  me: () =>
-    apiClient.get<User>("/auth/me", mockPractitioner()),
+  me: () => apiClient.get<User>("/auth/me", mockPractitioner()),
 };
