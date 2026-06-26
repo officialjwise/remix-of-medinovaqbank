@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Activity,
@@ -19,8 +19,13 @@ import {
   UserCheck,
   Trash2,
   X,
+  ShieldAlert,
+  ShieldCheck,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useProtectionStore, EVENT_LABELS } from "@/stores/protectionStore";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EditUserModal, ComposeEmailModal, FlagAccountModal } from "@/components/admin/UserActionModals";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -136,9 +141,20 @@ function UserDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [actionModal, setActionModal] = useState<null | "edit" | "email" | "flag" | "clearLock">(null);
   const [flagged, setFlagged] = useState(false);
+  const [showRestrict, setShowRestrict] = useState(false);
 
   const quizSessions = useMemo(() => (user ? quizSessionsByUser(user.id) : []), [user]);
   const loginSessions = useMemo(() => (user ? loginSessionsByUser(user.id) : []), [user]);
+
+  const protectionEvents = useProtectionStore((s) => s.events);
+  const restrictions = useProtectionStore((s) => s.restrictions);
+  const liftRestriction = useProtectionStore((s) => s.liftRestriction);
+  const manualRestrict = useProtectionStore((s) => s.manualRestrict);
+  const myEvents = useMemo(() => (user ? protectionEvents.filter((e) => e.userId === user.id) : []), [protectionEvents, user]);
+  const activeRestriction = useMemo(
+    () => (user ? restrictions.find((r) => r.userId === user.id && r.status === "active") ?? null : null),
+    [restrictions, user],
+  );
 
   if (!user) {
     return (
@@ -230,6 +246,50 @@ function UserDetail() {
             </ActionBtn>
             <ActionBtn icon={Trash2} tone="error" onClick={() => setConfirmDelete(true)}>Delete account</ActionBtn>
           </div>
+
+          {/* Content protection */}
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
+            <div className="flex items-center justify-between">
+              <h3 className="inline-flex items-center gap-2 text-sm font-bold text-foreground">
+                <ShieldAlert className="h-4 w-4 text-warning" /> Content protection
+              </h3>
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${myEvents.length > 0 ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}>
+                {myEvents.length} violation{myEvents.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            {activeRestriction ? (
+              <div className="mt-3 rounded-lg border border-error/30 bg-error/5 p-3">
+                <p className="inline-flex items-center gap-1.5 text-xs font-bold text-error"><Lock className="h-3.5 w-3.5" /> Restricted</p>
+                <p className="mt-1 text-xs text-muted-foreground">{activeRestriction.reason}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Unlocks {new Date(activeRestriction.unlockAt).toLocaleString()}</p>
+                <button
+                  onClick={() => { liftRestriction(activeRestriction.id); toast.success("Restriction lifted"); }}
+                  className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-xs font-semibold hover:bg-surface-alt"
+                >
+                  <Unlock className="h-3.5 w-3.5" /> Lift restriction
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowRestrict(true)}
+                className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-warning/30 bg-warning/10 text-xs font-semibold text-warning hover:bg-warning/20"
+              >
+                <Lock className="h-3.5 w-3.5" /> Restrict access
+              </button>
+            )}
+
+            {myEvents.length > 0 && (
+              <ul className="mt-3 space-y-1.5 border-t border-border pt-3">
+                {myEvents.slice(0, 4).map((e) => (
+                  <li key={e.id} className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="truncate font-medium text-foreground">{EVENT_LABELS[e.type]}</span>
+                    <span className="flex-shrink-0 text-muted-foreground">{new Date(e.createdAt).toLocaleDateString()}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </aside>
 
         {/* Main */}
@@ -262,6 +322,19 @@ function UserDetail() {
 
       {/* Override modal */}
       {showOverride && <OverrideModal user={user} onClose={() => setShowOverride(false)} />}
+
+      {/* Restrict access modal */}
+      {showRestrict && (
+        <RestrictModal
+          userName={user.name}
+          onClose={() => setShowRestrict(false)}
+          onConfirm={(reason, hours) => {
+            manualRestrict({ userId: user.id, userName: user.name, userEmail: user.email, reason, hours });
+            setShowRestrict(false);
+            toast.success(`${user.name} restricted for ${hours}h`);
+          }}
+        />
+      )}
 
       {/* Quick-action modals */}
       {actionModal === "edit" && <EditUserModal user={user} onClose={() => setActionModal(null)} onSave={() => {}} />}
@@ -868,6 +941,41 @@ function OverrideModal({ user, onClose }: { user: AdminUser; onClose: () => void
             className="inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
           >
             Apply override
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+function RestrictModal({ userName, onClose, onConfirm }: { userName: string; onClose: () => void; onConfirm: (reason: string, hours: number) => void }) {
+  const [reason, setReason] = useState("");
+  const [hours, setHours] = useState(24);
+  return (
+    <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 pt-20 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-border bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <header className="flex items-center gap-2 border-b border-border px-5 py-4">
+          <ShieldAlert className="h-4 w-4 text-warning" />
+          <h3 className="text-base font-bold text-foreground">Restrict {userName}</h3>
+        </header>
+        <div className="space-y-4 p-5">
+          <p className="text-sm text-muted-foreground">Manually block this user from protected content (notes &amp; quiz) for a set time.</p>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Reason</span>
+            <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Confirmed screen-recording of question banks" className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">Duration (hours)</span>
+            <input type="number" min={1} value={hours} onChange={(e) => setHours(Number(e.target.value))} className="h-10 w-full rounded-lg border border-border bg-surface px-3 font-mono text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          </label>
+        </div>
+        <footer className="flex justify-end gap-2 border-t border-border px-5 py-3">
+          <button onClick={onClose} className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt">Cancel</button>
+          <button
+            onClick={() => { if (!reason.trim()) return toast.error("Add a reason"); onConfirm(reason.trim(), Math.max(1, hours)); }}
+            className="h-10 rounded-lg bg-warning px-4 text-sm font-bold text-white hover:opacity-90"
+          >
+            Restrict access
           </button>
         </footer>
       </div>

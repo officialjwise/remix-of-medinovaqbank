@@ -20,6 +20,7 @@ import {
 import { useSessionStore } from "@/stores/sessionStore";
 import { ClinicalBreakdown } from "@/components/quiz/ClinicalBreakdown";
 import { QuestionNavigator } from "@/components/quiz/QuestionNavigator";
+import { ProtectedSurface } from "@/components/shared/ProtectedSurface";
 import type { Question } from "@/types";
 
 export const Route = createFileRoute("/quiz/$sessionId/")({
@@ -223,7 +224,7 @@ function QuizPage() {
       <div className="mx-auto flex w-full max-w-[1400px] gap-0 lg:gap-6 lg:px-6 lg:py-6">
         {/* Main content */}
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:px-0 lg:py-0">
-          <div className="mx-auto max-w-3xl xl:max-w-4xl">
+          <ProtectedSurface context="quiz_session" contextId={sessionId} page={index + 1} className="mx-auto max-w-3xl xl:max-w-4xl">
             {question ? (
               <>
                 {/* Counter + actions */}
@@ -456,7 +457,7 @@ function QuizPage() {
             ) : (
               <p className="text-sm text-muted-foreground">Question not available.</p>
             )}
-          </div>
+          </ProtectedSurface>
         </main>
 
         {/* Desktop navigator */}

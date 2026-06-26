@@ -26,6 +26,8 @@ import {
   Globe2,
   Layers,
   Bell,
+  NotebookText,
+  ShieldAlert,
   Menu,
   PanelLeftClose,
   PanelLeft,
@@ -57,6 +59,7 @@ const sectionContent = [
   { to: "/admin/questions", label: "Questions", icon: BookOpen },
   { to: "/admin/categories", label: "Categories & Subjects", icon: Tag },
   { to: "/admin/exam-types", label: "Exam Types", icon: GraduationCap },
+  { to: "/admin/notes", label: "High-Yield Notes", icon: NotebookText },
   { to: "/admin/uploads", label: "Bulk Uploads", icon: UploadCloud },
   { to: "/admin/flags", label: "Flagged Questions", icon: Flag },
 ] as const;
@@ -77,6 +80,7 @@ const sectionBilling = [
 
 const sectionSystem = [
   { to: "/admin/settings/system", label: "System Settings", icon: Settings, superOnly: true },
+  { to: "/admin/restrictions", label: "Restrictions", icon: ShieldAlert, superOnly: true },
   { to: "/admin/api", label: "API Keys", icon: Key, superOnly: true },
   { to: "/admin/notifications", label: "Notifications", icon: Bell },
   { to: "/admin/audit-logs", label: "Activity Logs", icon: Activity },

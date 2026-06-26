@@ -24,8 +24,15 @@ import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useProtectionStore,
+  EVENT_LABELS,
+  ALL_EVENT_TYPES,
+  type ProtectionEventType,
+} from "@/stores/protectionStore";
 import {
   useSettingsStore,
   PERMISSION_CATALOG,
@@ -54,13 +61,14 @@ export const Route = createFileRoute("/admin/settings/system")({
   component: AdminSettings,
 });
 
-type TabKey = "general" | "integrations" | "email" | "trial" | "roles" | "branding" | "cms";
+type TabKey = "general" | "integrations" | "email" | "trial" | "protection" | "roles" | "branding" | "cms";
 
 const TABS: { key: TabKey; label: string; icon: typeof Sliders }[] = [
   { key: "general", label: "General", icon: Sliders },
   { key: "integrations", label: "Integrations & API Keys", icon: KeyRound },
   { key: "email", label: "Email Templates", icon: Mail },
   { key: "trial", label: "Trial & Access", icon: ShieldCheck },
+  { key: "protection", label: "Security & Protection", icon: ShieldAlert },
   { key: "roles", label: "Roles & Permissions", icon: UserCog },
   { key: "branding", label: "Branding", icon: Palette },
   { key: "cms", label: "CMS", icon: Newspaper },
@@ -104,6 +112,7 @@ function AdminSettings() {
         {tab === "integrations" && <IntegrationsTab />}
         {tab === "email" && <EmailTemplatesTab />}
         {tab === "trial" && <TrialTab />}
+        {tab === "protection" && <ProtectionTab />}
         {tab === "roles" && <RolesTab />}
         {tab === "branding" && <BrandingTab />}
         {tab === "cms" && <CmsTab />}
@@ -570,6 +579,80 @@ function TrialTab() {
           toast.success("Trial & access control saved");
         }}
       />
+    </div>
+  );
+}
+
+/* ───────────── Tab — Security & Protection ───────────── */
+function ProtectionTab() {
+  const settings = useProtectionStore((s) => s.settings);
+  const updateSettings = useProtectionStore((s) => s.updateSettings);
+  const [form, setForm] = useState(settings);
+
+  function toggleEvent(type: ProtectionEventType) {
+    setForm((f) => ({
+      ...f,
+      countedEvents: f.countedEvents.includes(type)
+        ? f.countedEvents.filter((e) => e !== type)
+        : [...f.countedEvents, type],
+    }));
+  }
+
+  return (
+    <div className="space-y-5">
+      <Card title="Content Protection" desc="Best-effort deterrence for quiz sessions and high-yield notes.">
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface-alt/40 px-4 py-3">
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-foreground">Content protection enabled</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Best-effort deterrence: detection, watermarking, and copy/print interception. This raises the bar and lets you
+              flag repeat offenders, but it cannot truly block an OS-level screenshot or a phone camera.
+            </span>
+          </span>
+          <ToggleSwitch checked={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} ariaLabel="Content protection enabled" />
+        </div>
+      </Card>
+
+      <Card title="Strike & Lockout Policy" desc="How many flagged attempts trigger a lockout, and for how long.">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Strike Threshold"><NumberInput value={form.strikeThreshold} onChange={(v) => setForm({ ...form, strikeThreshold: v })} /></Field>
+          <Field label="Strike Window (minutes)"><NumberInput value={form.strikeWindowMin} onChange={(v) => setForm({ ...form, strikeWindowMin: v })} /></Field>
+          <Field label="Lockout Duration (hours)"><NumberInput value={form.lockoutHours} onChange={(v) => setForm({ ...form, lockoutHours: v })} /></Field>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          A user is locked out after <span className="font-semibold text-foreground">{form.strikeThreshold}</span> flagged attempts within{" "}
+          <span className="font-semibold text-foreground">{form.strikeWindowMin}</span> minutes, for{" "}
+          <span className="font-semibold text-foreground">{form.lockoutHours}</span> hours. These thresholds drive the user-facing lockout
+          directly — they are never hardcoded.
+        </p>
+      </Card>
+
+      <Card title="Counted Events" desc="Which flagged events count toward a user's strikes.">
+        <div className="flex flex-wrap gap-2">
+          {ALL_EVENT_TYPES.map((type) => {
+            const active = form.countedEvents.includes(type);
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => toggleEvent(type)}
+                aria-pressed={active}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  active ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span className={`h-2 w-2 rounded-full ${active ? "bg-accent" : "bg-muted-foreground/40"}`} />
+                {EVENT_LABELS[type]}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Events not selected here are still logged for the audit trail, but do not count toward an automatic lockout.
+        </p>
+      </Card>
+
+      <SaveBar label="Save Protection Settings" onSave={() => { updateSettings(form); toast.success("Protection settings saved"); }} />
     </div>
   );
 }
