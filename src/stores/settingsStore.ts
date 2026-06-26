@@ -142,18 +142,19 @@ function fullPerms(value: boolean) {
 }
 
 const DEFAULT_ROLES: AdminRole[] = [
-  { id: "super_admin", name: "Super Admin", description: "Unrestricted access to every part of the platform.", system: true, permissions: fullPerms(true) },
   {
-    id: "admin",
-    name: "Admin",
-    description: "Day-to-day operations. Cannot change API keys or delete users unless granted.",
-    permissions: { ...fullPerms(true), change_api_keys: false, delete_users: false },
+    id: "super_admin",
+    name: "Super Admin",
+    description: "Unrestricted access to every part of the platform.",
+    system: true,
+    permissions: fullPerms(true),
   },
   {
-    id: "support",
-    name: "Support",
-    description: "Read-only access for the support team.",
-    permissions: { ...fullPerms(false), view_analytics: true, manage_users: true },
+    id: "user",
+    name: "User",
+    description: "Standard practitioner account. No access to admin surfaces.",
+    system: true,
+    permissions: fullPerms(false),
   },
 ];
 
@@ -233,9 +234,15 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     headingFont: "Inter",
     bodyFont: "Inter",
     emailHeaderLogo: "",
-    emailFooterText: "Medinovaqbank · Accra, Ghana · You're receiving this because you have an account.",
+    emailFooterText:
+      "Medinovaqbank · Accra, Ghana · You're receiving this because you have an account.",
     companyLegalName: "Medinovaqbank Ltd.",
-    social: { twitter: "https://twitter.com/medinovaqbank", facebook: "", linkedin: "https://linkedin.com/company/medinovaqbank", instagram: "" },
+    social: {
+      twitter: "https://twitter.com/medinovaqbank",
+      facebook: "",
+      linkedin: "https://linkedin.com/company/medinovaqbank",
+      instagram: "",
+    },
   },
 };
 
@@ -270,18 +277,26 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "medinova-settings",
-      version: 3,
+      version: 4,
       // v2 expanded branding + rebuilt templates as branded HTML.
       // v3 refreshes templates again (removed "AI" wording, premium shell).
-      migrate: (persisted: any, version) => {
-        if (!persisted?.settings) return persisted;
+      // v4 collapses RBAC roles to the only two that exist: Super Admin and User.
+      migrate: (persisted, version) => {
+        const state = persisted as { settings?: SystemSettings } | null;
+        if (!state?.settings) return state;
         if (version < 2) {
-          persisted.settings.branding = { ...DEFAULT_SETTINGS.branding, ...(persisted.settings.branding ?? {}) };
+          state.settings.branding = {
+            ...DEFAULT_SETTINGS.branding,
+            ...(state.settings.branding ?? {}),
+          };
         }
         if (version < 3) {
-          persisted.settings.templates = DEFAULT_EMAIL_TEMPLATES;
+          state.settings.templates = DEFAULT_EMAIL_TEMPLATES;
         }
-        return persisted;
+        if (version < 4) {
+          state.settings.roles = DEFAULT_ROLES;
+        }
+        return state;
       },
     },
   ),
