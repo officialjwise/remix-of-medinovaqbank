@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Briefcase, Building2, GraduationCap, Mail, MapPin, Save, User as UserIcon } from "lucide-react";
+import { Briefcase, Building2, GraduationCap, Mail, MapPin, Monitor, Save, ShieldCheck, User as UserIcon } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { recentSessions } from "@/data/banks";
+import { deviceLabel } from "@/lib/trial";
 
 export const Route = createFileRoute("/_app/profile")({
   head: () => ({
@@ -108,6 +109,38 @@ function ProfilePage() {
         <MiniStat label="Accuracy" value={`${accuracy}%`} accent="text-success" />
         <MiniStat label="Best Subject" value="Cardiology" sub="88%" accent="text-accent" />
       </div>
+
+      {/* Device binding (transparency) */}
+      <section className="mt-6 rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Monitor className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-base font-bold tracking-tight text-foreground">Bound device</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                This account is currently bound to{" "}
+                <span className="font-semibold text-foreground">{subscription?.boundDevice ?? deviceLabel()}</span>.
+              </p>
+            </div>
+          </div>
+          {subscription?.status === "TRIAL" ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-3 py-1.5 text-xs font-bold text-warning">
+              <ShieldCheck className="h-3.5 w-3.5" /> Trial — single device
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1.5 text-xs font-bold text-success">
+              <ShieldCheck className="h-3.5 w-3.5" /> Multi-device enabled
+            </span>
+          )}
+        </div>
+        {subscription?.status === "TRIAL" && (
+          <p className="mt-3 rounded-lg border border-border bg-surface-alt/40 px-3 py-2 text-xs text-muted-foreground">
+            During your free trial, Medinovaqbank is locked to this device to keep your account secure. Subscribe to use it anywhere.
+          </p>
+        )}
+      </section>
 
       {/* Edit form */}
       <section className="mt-6 rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">

@@ -18,6 +18,7 @@ import { Brain, Target, TrendingUp, Trophy } from "lucide-react";
 import { recentSessions, questionBanks } from "@/data/banks";
 import { bellCurvePoints, buildAnalytics } from "@/lib/analytics";
 import { scoreColor } from "@/lib/quiz-results";
+import { FeatureLock } from "@/components/shared/FeatureLock";
 
 export const Route = createFileRoute("/_app/analytics")({
   head: () => ({
@@ -78,8 +79,10 @@ function AnalyticsPage() {
         <StatCard label="Best Subject" value={data.bestSubject.name} sub={`${data.bestSubject.pct}%`} icon={<Trophy className="h-4 w-4" />} accent="text-warning" />
       </div>
 
-      {/* Bell curve */}
-      <section className="mt-6 rounded-2xl border border-border bg-surface p-6">
+      {/* Bell curve — premium percentile analytics, gated during trial */}
+      <div className="mt-6">
+      <FeatureLock featureKey="performance_analytics">
+      <section className="rounded-2xl border border-border bg-surface p-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-lg font-bold tracking-tight text-foreground">Your Percentile Ranking</h2>
@@ -156,6 +159,8 @@ function AnalyticsPage() {
           <span>68% of test-takers fall between {data.cohort.mean - data.cohort.stddev}% – {data.cohort.mean + data.cohort.stddev}%</span>
         </div>
       </section>
+      </FeatureLock>
+      </div>
 
       {/* Subject breakdown + Difficulty */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">

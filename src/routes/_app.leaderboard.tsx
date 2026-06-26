@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Medal, Trophy } from "lucide-react";
+import { Medal, Trophy, Lock, Sparkles } from "lucide-react";
 import { buildLeaderboard } from "@/data/leaderboard";
 import { questionBanks } from "@/data/banks";
+import { useTrial } from "@/hooks/useTrial";
 
 export const Route = createFileRoute("/_app/leaderboard")({
   head: () => ({
@@ -22,6 +23,8 @@ function LeaderboardPage() {
   const [page, setPage] = useState(1);
   const rows = useMemo(() => buildLeaderboard(), []);
   const you = rows.find((r) => r.isYou)!;
+  const { isTrial, can, requireFeature } = useTrial();
+  const canCompete = can("leaderboard");
 
   const total = rows.length;
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -35,6 +38,25 @@ function LeaderboardPage() {
           Rank against {total.toLocaleString()} active medical practitioners.
         </p>
       </header>
+
+      {isTrial && !canCompete && (
+        <button
+          type="button"
+          onClick={() => requireFeature("leaderboard")}
+          className="mb-5 flex w-full items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-left transition hover:bg-warning/15"
+        >
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-warning/20 text-warning">
+            <Lock className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-foreground">You can view, but not yet compete</span>
+            <span className="block text-xs text-muted-foreground">Trial accounts don't appear in the rankings. Subscribe to claim your spot.</span>
+          </span>
+          <span className="hidden flex-shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-r from-primary to-accent px-3 py-2 text-xs font-bold text-white sm:inline-flex">
+            <Sparkles className="h-3.5 w-3.5" /> Upgrade
+          </span>
+        </button>
+      )}
 
       {/* Your rank banner */}
       <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#080F1A] via-[#1E3A8A] to-[#0D9488] p-8 text-white shadow-[0_10px_30px_-10px_rgb(0_0_0_/_0.5)]">

@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuthStore } from "@/stores/authStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 import { SplashScreen } from "@/components/layout/SplashScreen";
 import { useDeviceFingerprint } from "@/hooks/useDeviceFingerprint";
@@ -29,11 +30,13 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const { user, subscription, setUser } = useAuthStore();
+  const deviceBinding = useSettingsStore((s) => s.settings.trial.deviceBinding);
   const navigate = Route.useNavigate();
   const fingerprint = useDeviceFingerprint();
 
   useEffect(() => {
-    if (user?.role === "USER" && subscription?.status === "TRIAL" && fingerprint) {
+    // Device binding only applies to trial users, and only when the admin policy is on.
+    if (deviceBinding && user?.role === "USER" && subscription?.status === "TRIAL" && fingerprint) {
       if (user.deviceFingerprint && user.deviceFingerprint !== fingerprint) {
         if (window.location.pathname !== "/sessions/active") {
           navigate({ to: "/sessions/active" });
@@ -42,7 +45,7 @@ function AppLayout() {
         setUser({ ...user, deviceFingerprint: fingerprint });
       }
     }
-  }, [user, subscription, fingerprint, navigate]);
+  }, [user, subscription, fingerprint, navigate, deviceBinding]);
 
   return (
     <AppShell>
