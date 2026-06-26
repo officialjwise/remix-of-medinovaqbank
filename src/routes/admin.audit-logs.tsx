@@ -23,14 +23,16 @@ import {
 import { useDebounce } from "@/hooks/useDebounce";
 
 export const Route = createFileRoute("/admin/audit-logs")({
-  head: () => ({ meta: [{ title: "Admin · Audit Logs — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Admin · Audit Logs — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+  }),
   component: AuditLogsPage,
 });
 
 interface AuditEntry {
   id: string;
   actor: string;
-  actorRole: "ADMIN" | "SUPER_ADMIN" | "SYSTEM";
+  actorRole: "SUPER_ADMIN" | "SYSTEM";
   action: string;
   target: string;
   ip: string;
@@ -38,13 +40,30 @@ interface AuditEntry {
   severity: "info" | "warning" | "critical";
 }
 
-const verbs = ["created", "updated", "deleted", "suspended", "reactivated", "exported", "logged in", "rotated"];
-const targets = ["bank:cardiology-essentials", "user:akua.mensah@example.gh", "plan:12-months", "subscription:sub_4f2", "api-key:mqb_live_8a3f", "settings:ai", "settings:system"];
+const verbs = [
+  "created",
+  "updated",
+  "deleted",
+  "suspended",
+  "reactivated",
+  "exported",
+  "logged in",
+  "rotated",
+];
+const targets = [
+  "bank:cardiology-essentials",
+  "user:akua.mensah@example.gh",
+  "plan:12-months",
+  "subscription:sub_4f2",
+  "api-key:mqb_live_8a3f",
+  "settings:ai",
+  "settings:system",
+];
 
 const seed: AuditEntry[] = Array.from({ length: 30 }, (_, i) => ({
   id: `a-${i + 1}`,
   actor: ["You (super.admin)", "kofi.admin", "ama.admin", "system"][i % 4],
-  actorRole: i % 4 === 0 ? "SUPER_ADMIN" : i % 4 === 3 ? "SYSTEM" : "ADMIN",
+  actorRole: i % 4 === 0 ? "SUPER_ADMIN" : i % 4 === 3 ? "SYSTEM" : "SUPER_ADMIN",
   action: verbs[i % verbs.length],
   target: targets[i % targets.length],
   ip: ["41.66.xxx.xx", "154.160.xxx.xx", "—"][i % 3],
@@ -63,12 +82,14 @@ const sevStyle: Record<AuditEntry["severity"], string> = {
 /* ------------------------------------------------------------------ */
 
 function initialsFromName(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("") || "?";
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
 }
 
 const Avatar = React.memo(function Avatar({ name }: { name: string }) {
@@ -119,12 +140,16 @@ function AuditLogsPage() {
                 </span>
               )}
             </span>
-            {tab === t && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[#0E7C7B]" />}
+            {tab === t && (
+              <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[#0E7C7B]" />
+            )}
           </button>
         ))}
       </div>
 
-      <div className="mt-6">{tab === "Activity Log" ? <ActivityLogTab /> : <ProtectionViolationsTab />}</div>
+      <div className="mt-6">
+        {tab === "Activity Log" ? <ActivityLogTab /> : <ProtectionViolationsTab />}
+      </div>
     </div>
   );
 }
@@ -140,7 +165,10 @@ function ActivityLogTab() {
   const filtered = seed.filter(
     (e) =>
       (sev === "all" || e.severity === sev) &&
-      (query === "" || e.action.includes(query.toLowerCase()) || e.target.includes(query.toLowerCase()) || e.actor.toLowerCase().includes(query.toLowerCase())),
+      (query === "" ||
+        e.action.includes(query.toLowerCase()) ||
+        e.target.includes(query.toLowerCase()) ||
+        e.actor.toLowerCase().includes(query.toLowerCase())),
   );
 
   return (
@@ -193,16 +221,26 @@ function ActivityLogTab() {
             <tbody className="divide-y divide-border">
               {filtered.map((e) => (
                 <tr key={e.id} className="hover:bg-surface-alt/50">
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(e.at).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {new Date(e.at).toLocaleString()}
+                  </td>
                   <td className="px-4 py-3">
                     <p className="font-semibold text-foreground">{e.actor}</p>
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{e.actorRole}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {e.actorRole}
+                    </p>
                   </td>
                   <td className="px-4 py-3 font-medium text-foreground">{e.action}</td>
-                  <td className="px-4 py-3"><code className="rounded bg-surface-alt px-1.5 py-0.5 font-mono text-xs">{e.target}</code></td>
+                  <td className="px-4 py-3">
+                    <code className="rounded bg-surface-alt px-1.5 py-0.5 font-mono text-xs">
+                      {e.target}
+                    </code>
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{e.ip}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${sevStyle[e.severity]}`}>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${sevStyle[e.severity]}`}
+                    >
                       {e.severity}
                     </span>
                   </td>
@@ -211,7 +249,11 @@ function ActivityLogTab() {
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && <p className="py-12 text-center text-sm text-muted-foreground">No events match these filters.</p>}
+        {filtered.length === 0 && (
+          <p className="py-12 text-center text-sm text-muted-foreground">
+            No events match these filters.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -246,7 +288,9 @@ function SummaryCard({
     <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface-alt ${tones[tone]}`}>
+        <span
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface-alt ${tones[tone]}`}
+        >
           <Icon className="h-4 w-4" />
         </span>
       </div>
@@ -287,16 +331,30 @@ function ProtectionViolationsTab() {
 
   /* Summary metrics */
   const totalViolations = events.length;
-  const screenshotAttempts = useMemo(() => events.filter((e) => e.type === "screenshot_key").length, [events]);
+  const screenshotAttempts = useMemo(
+    () => events.filter((e) => e.type === "screenshot_key").length,
+    [events],
+  );
   const uniqueUsers = useMemo(() => new Set(events.map((e) => e.userId)).size, [events]);
-  const activeRestrictions = useMemo(() => restrictions.filter((r) => r.status === "active").length, [restrictions]);
+  const activeRestrictions = useMemo(
+    () => restrictions.filter((r) => r.status === "active").length,
+    [restrictions],
+  );
 
   /* Top offenders (highest violation count first, top 5) */
   const topOffenders = useMemo(() => {
-    const seen = new Map<string, { userId: string; userName: string; userEmail: string; count: number }>();
+    const seen = new Map<
+      string,
+      { userId: string; userName: string; userEmail: string; count: number }
+    >();
     for (const e of events) {
       if (!seen.has(e.userId)) {
-        seen.set(e.userId, { userId: e.userId, userName: e.userName, userEmail: e.userEmail, count: violationCountOf(e.userId) });
+        seen.set(e.userId, {
+          userId: e.userId,
+          userName: e.userName,
+          userEmail: e.userEmail,
+          count: violationCountOf(e.userId),
+        });
       }
     }
     return Array.from(seen.values())
@@ -336,10 +394,34 @@ function ProtectionViolationsTab() {
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <SummaryCard label="Total violations" value={totalViolations} icon={ShieldAlert} tone="error" accent="all protection events" />
-        <SummaryCard label="Screenshot attempts" value={screenshotAttempts} icon={Camera} tone="warning" accent="PrintScreen key" />
-        <SummaryCard label="Users flagged" value={uniqueUsers} icon={Users} tone="primary" accent="unique offenders" />
-        <SummaryCard label="Active restrictions" value={activeRestrictions} icon={Lock} tone="error" accent="currently locked out" />
+        <SummaryCard
+          label="Total violations"
+          value={totalViolations}
+          icon={ShieldAlert}
+          tone="error"
+          accent="all protection events"
+        />
+        <SummaryCard
+          label="Screenshot attempts"
+          value={screenshotAttempts}
+          icon={Camera}
+          tone="warning"
+          accent="PrintScreen key"
+        />
+        <SummaryCard
+          label="Users flagged"
+          value={uniqueUsers}
+          icon={Users}
+          tone="primary"
+          accent="unique offenders"
+        />
+        <SummaryCard
+          label="Active restrictions"
+          value={activeRestrictions}
+          icon={Lock}
+          tone="error"
+          accent="currently locked out"
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -403,7 +485,9 @@ function ProtectionViolationsTab() {
                 setShotOnly(false);
               }}
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-                type === "all" && !shotOnly ? "bg-primary/10 text-primary" : "bg-surface-alt text-muted-foreground hover:text-foreground"
+                type === "all" && !shotOnly
+                  ? "bg-primary/10 text-primary"
+                  : "bg-surface-alt text-muted-foreground hover:text-foreground"
               }`}
             >
               All
@@ -434,7 +518,9 @@ function ProtectionViolationsTab() {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{filtered.length} violation{filtered.length === 1 ? "" : "s"}</span>
+            <span className="text-xs text-muted-foreground">
+              {filtered.length} violation{filtered.length === 1 ? "" : "s"}
+            </span>
           </div>
 
           {/* Table */}
@@ -456,7 +542,9 @@ function ProtectionViolationsTab() {
                   {pageRows.length === 0 ? (
                     <tr>
                       <td colSpan={7}>
-                        <p className="px-6 py-16 text-center text-sm text-muted-foreground">No protection violations match these filters.</p>
+                        <p className="px-6 py-16 text-center text-sm text-muted-foreground">
+                          No protection violations match these filters.
+                        </p>
                       </td>
                     </tr>
                   ) : (
@@ -506,7 +594,9 @@ function ProtectionViolationsTab() {
             <AlertTriangle className="h-4 w-4 text-warning" />
             <h3 className="text-sm font-bold tracking-tight text-foreground">Top offenders</h3>
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">Users with the most protection violations.</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Users with the most protection violations.
+          </p>
           <div className="mt-4 space-y-2">
             {topOffenders.length === 0 ? (
               <p className="text-sm text-muted-foreground">No violations recorded yet.</p>
@@ -523,7 +613,9 @@ function ProtectionViolationsTab() {
                   </span>
                   <Avatar name={o.userName} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-foreground">{o.userName}</div>
+                    <div className="truncate text-sm font-semibold text-foreground">
+                      {o.userName}
+                    </div>
                     <div className="truncate text-xs text-muted-foreground">{o.userEmail}</div>
                   </div>
                   <span className="inline-flex flex-shrink-0 rounded-full bg-error/10 px-2.5 py-0.5 text-xs font-semibold text-error">
@@ -556,7 +648,11 @@ function ViolationRow({ e, onClick }: { e: ProtectionEvent; onClick: () => void 
       </td>
       <td className="px-4 py-3">
         <span className="inline-flex items-center gap-1.5 text-foreground">
-          {e.context === "quiz_session" ? <Activity className="h-3.5 w-3.5 text-muted-foreground" /> : <FileText className="h-3.5 w-3.5 text-muted-foreground" />}
+          {e.context === "quiz_session" ? (
+            <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
           {e.context === "quiz_session" ? "Quiz" : "Note"}
         </span>
         <div className="font-mono text-xs text-muted-foreground">
@@ -567,7 +663,9 @@ function ViolationRow({ e, onClick }: { e: ProtectionEvent; onClick: () => void 
       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{e.ip}</td>
       <td className="px-4 py-3 text-xs text-foreground">{e.device}</td>
       <td className="px-4 py-3 text-xs text-muted-foreground">{e.location}</td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(e.createdAt).toLocaleString()}</td>
+      <td className="px-4 py-3 text-xs text-muted-foreground">
+        {new Date(e.createdAt).toLocaleString()}
+      </td>
     </tr>
   );
 }

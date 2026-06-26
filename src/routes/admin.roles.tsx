@@ -11,7 +11,9 @@ export const Route = createFileRoute("/admin/roles")({
       throw redirect({ to: "/admin/dashboard" });
     }
   },
-  head: () => ({ meta: [{ title: "Admin · Roles — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Admin · Roles — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+  }),
   component: RolesPage,
 });
 
@@ -49,14 +51,6 @@ const initial: Role[] = [
     permissions: allPermissions.map((p) => p.id),
   },
   {
-    key: "admin",
-    name: "Admin",
-    description: "Manages day-to-day content and users without billing or system controls.",
-    members: 7,
-    builtIn: true,
-    permissions: ["users.read", "users.write", "banks.read", "banks.write", "questions.write", "subscriptions.read", "audit.read"],
-  },
-  {
     key: "user",
     name: "User",
     description: "Standard practitioner account. Cannot access admin surfaces.",
@@ -75,7 +69,12 @@ function RolesPage() {
     setRoles(
       roles.map((r) =>
         r.key === active
-          ? { ...r, permissions: r.permissions.includes(p) ? r.permissions.filter((x) => x !== p) : [...r.permissions, p] }
+          ? {
+              ...r,
+              permissions: r.permissions.includes(p)
+                ? r.permissions.filter((x) => x !== p)
+                : [...r.permissions, p],
+            }
           : r,
       ),
     );
@@ -105,7 +104,9 @@ function RolesPage() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-bold text-foreground">{r.name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{r.members.toLocaleString()} members</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {r.members.toLocaleString()} members
+                  </p>
                 </div>
                 {r.builtIn && (
                   <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -146,7 +147,9 @@ function RolesPage() {
                 >
                   <div>
                     <p className="text-sm font-semibold text-foreground">{p.label}</p>
-                    <code className="mt-0.5 block text-[10px] font-mono text-muted-foreground">{p.id}</code>
+                    <code className="mt-0.5 block text-[10px] font-mono text-muted-foreground">
+                      {p.id}
+                    </code>
                   </div>
                   <span
                     className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${
