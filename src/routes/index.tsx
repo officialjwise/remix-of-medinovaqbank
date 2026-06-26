@@ -101,8 +101,7 @@ function LandingPage() {
       <section
         className="relative overflow-hidden text-white"
         style={{
-          background:
-            "linear-gradient(135deg, #06302E 0%, #0E7C7B 45%, #1A9F7A 100%)",
+          background: "linear-gradient(135deg, #06302E 0%, #0E7C7B 45%, #1A9F7A 100%)",
         }}
       >
         <div
@@ -133,7 +132,7 @@ function LandingPage() {
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
-                to="/login"
+                to="/register"
                 className="rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-[#0E7C7B] shadow-[0_10px_30px_-8px_rgb(0_0_0_/_0.4)] transition-transform hover:-translate-y-0.5"
               >
                 Start free trial
@@ -165,7 +164,9 @@ function LandingPage() {
                     <Star key={i} className="h-4 w-4 fill-current" />
                   ))}
                 </div>
-                <p className="mt-0.5 text-xs font-medium text-white/75">Join 6,000+ practitioners preparing smarter</p>
+                <p className="mt-0.5 text-xs font-medium text-white/75">
+                  Join 6,000+ practitioners preparing smarter
+                </p>
               </div>
             </div>
 
@@ -193,7 +194,9 @@ function LandingPage() {
             {stats.map((s) => (
               <div key={s.label} className="text-center md:text-left">
                 <p className="text-2xl font-bold tracking-tight md:text-3xl">{s.value}</p>
-                <p className="mt-1 text-xs font-medium uppercase tracking-wide text-white/65">{s.label}</p>
+                <p className="mt-1 text-xs font-medium uppercase tracking-wide text-white/65">
+                  {s.label}
+                </p>
               </div>
             ))}
           </div>
@@ -208,7 +211,10 @@ function LandingPage() {
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
             {institutions.map((name) => (
-              <span key={name} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground/80">
+              <span
+                key={name}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground/80"
+              >
                 <Stethoscope className="h-4 w-4 text-[#0E7C7B]" />
                 {name}
               </span>
@@ -220,7 +226,9 @@ function LandingPage() {
       {/* FEATURE HIGHLIGHTS — from cms.about.features */}
       <section className="container-page py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">Why Medinovaqbank</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">
+            Why Medinovaqbank
+          </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Everything you need to walk into the exam confident
           </h2>
@@ -249,7 +257,9 @@ function LandingPage() {
       <section className="border-y border-border bg-surface-alt/40">
         <div className="container-page py-20">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">How it works</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">
+              How it works
+            </p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               From sign-in to top of the leaderboard
             </h2>
@@ -257,8 +267,13 @@ function LandingPage() {
 
           <div className="mt-14 grid gap-6 md:grid-cols-3">
             {howItWorks.map((step, i) => (
-              <div key={step.title} className="relative rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-                <span className="absolute right-6 top-6 text-4xl font-bold text-border">{i + 1}</span>
+              <div
+                key={step.title}
+                className="relative rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]"
+              >
+                <span className="absolute right-6 top-6 text-4xl font-bold text-border">
+                  {i + 1}
+                </span>
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#0E7C7B] to-[#2BC97F] text-white shadow-md">
                   <step.icon className="h-5 w-5" />
                 </span>
@@ -273,7 +288,9 @@ function LandingPage() {
       {/* TUTOR VS QUIZ */}
       <section className="container-page py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">Two ways to study</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">
+            Two ways to study
+          </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Learn in Tutor mode, prove it in Quiz mode
           </h2>
@@ -286,13 +303,19 @@ function LandingPage() {
             </span>
             <h3 className="mt-4 text-lg font-bold text-foreground">Tutor mode</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Instant feedback after every answer. The clinical breakdown appears the moment you commit — perfect for
-              learning a topic from scratch and locking in the reasoning.
+              Instant feedback after every answer. The clinical breakdown appears the moment you
+              commit — perfect for learning a topic from scratch and locking in the reasoning.
             </p>
             <ul className="mt-4 space-y-2 text-sm text-foreground">
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /> Explanation after each question</li>
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /> No timer pressure</li>
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /> Build understanding fast</li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-accent" /> Explanation after each question
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-accent" /> No timer pressure
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-accent" /> Build understanding fast
+              </li>
             </ul>
           </div>
 
@@ -302,13 +325,19 @@ function LandingPage() {
             </span>
             <h3 className="mt-4 text-lg font-bold text-foreground">Quiz mode</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Simulate real exam conditions. Answers are hidden until you finish, then a full review walks you
-              through every question — exactly like sitting the real thing.
+              Simulate real exam conditions. Answers are hidden until you finish, then a full review
+              walks you through every question — exactly like sitting the real thing.
             </p>
             <ul className="mt-4 space-y-2 text-sm text-foreground">
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /> Timed, exam-style sessions</li>
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /> Full review at the end</li>
-              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /> Benchmark your readiness</li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-accent" /> Timed, exam-style sessions
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-accent" /> Full review at the end
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-accent" /> Benchmark your readiness
+              </li>
             </ul>
           </div>
         </div>
@@ -325,14 +354,23 @@ function LandingPage() {
               Every answer, explained like a consultant on call
             </h2>
             <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-              Every breakdown doesn't just mark you right or wrong. It explains why the correct option wins, why each
-              distractor fails, the single key learning point, and the clinical scenario where another option would
-              flip to correct.
+              Every breakdown doesn't just mark you right or wrong. It explains why the correct
+              option wins, why each distractor fails, the single key learning point, and the
+              clinical scenario where another option would flip to correct.
             </p>
             <ul className="mt-6 space-y-3 text-sm text-foreground">
-              <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" /> Distractor-by-distractor rationale</li>
-              <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" /> Key learning point on every question</li>
-              <li className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" /> Links to related concepts</li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />{" "}
+                Distractor-by-distractor rationale
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" /> Key learning point on
+                every question
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" /> Links to related
+                concepts
+              </li>
             </ul>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card-hover)]">
@@ -345,15 +383,22 @@ function LandingPage() {
             <div className="mt-4 space-y-3 text-sm">
               <div className="rounded-lg border border-success/30 bg-success-light/40 p-3">
                 <p className="font-semibold text-foreground">B · Aortic dissection — correct</p>
-                <p className="mt-1 text-muted-foreground">Tearing pain radiating to the back with an inter-arm BP differential is the classic presentation.</p>
+                <p className="mt-1 text-muted-foreground">
+                  Tearing pain radiating to the back with an inter-arm BP differential is the
+                  classic presentation.
+                </p>
               </div>
               <div className="rounded-lg border border-border bg-surface-alt/50 p-3">
                 <p className="font-semibold text-foreground">A · Myocardial infarction — why not</p>
-                <p className="mt-1 text-muted-foreground">Would not explain the &gt;20 mmHg inter-arm differential or the tearing quality.</p>
+                <p className="mt-1 text-muted-foreground">
+                  Would not explain the &gt;20 mmHg inter-arm differential or the tearing quality.
+                </p>
               </div>
               <div className="rounded-lg border border-border bg-surface-alt/50 p-3">
                 <p className="font-semibold text-foreground">Key learning point</p>
-                <p className="mt-1 text-muted-foreground">Always check both arms in sudden severe chest pain.</p>
+                <p className="mt-1 text-muted-foreground">
+                  Always check both arms in sudden severe chest pain.
+                </p>
               </div>
             </div>
           </div>
@@ -367,14 +412,18 @@ function LandingPage() {
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#0E7C7B]/10 to-[#2BC97F]/15 text-[#0E7C7B]">
               <BarChart3 className="h-5 w-5" />
             </span>
-            <h3 className="mt-4 text-lg font-bold text-foreground">Gaussian performance analytics</h3>
+            <h3 className="mt-4 text-lg font-bold text-foreground">
+              Gaussian performance analytics
+            </h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              See exactly where you sit on the bell curve against the cohort. Percentile ranking, topic-by-topic
-              accuracy, and a trend line that tracks your trajectory to exam day.
+              See exactly where you sit on the bell curve against the cohort. Percentile ranking,
+              topic-by-topic accuracy, and a trend line that tracks your trajectory to exam day.
             </p>
             <div className="mt-5 flex items-center gap-3 rounded-xl border border-border bg-surface-alt/40 p-4">
               <p className="text-3xl font-bold text-foreground">88th</p>
-              <p className="text-sm text-muted-foreground">percentile — you scored higher than 88% of peers this week.</p>
+              <p className="text-sm text-muted-foreground">
+                percentile — you scored higher than 88% of peers this week.
+              </p>
             </div>
           </div>
 
@@ -384,8 +433,8 @@ function LandingPage() {
             </span>
             <h3 className="mt-4 text-lg font-bold text-foreground">National leaderboard</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Compete with medical professionals nationwide. Weekly rankings keep you accountable and turn revision
-              into a habit you actually look forward to.
+              Compete with medical professionals nationwide. Weekly rankings keep you accountable
+              and turn revision into a habit you actually look forward to.
             </p>
             <div className="mt-5 space-y-2">
               {[
@@ -396,11 +445,19 @@ function LandingPage() {
                 <div
                   key={row.r}
                   className={`flex items-center gap-3 rounded-lg border p-2.5 text-sm ${
-                    row.you ? "border-accent/40 bg-accent-light/40" : "border-border bg-surface-alt/40"
+                    row.you
+                      ? "border-accent/40 bg-accent-light/40"
+                      : "border-border bg-surface-alt/40"
                   }`}
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#0E7C7B] to-[#2BC97F] text-xs font-bold text-white">{row.r}</span>
-                  <span className={`flex-1 font-semibold ${row.you ? "text-foreground" : "text-muted-foreground"}`}>{row.n}</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#0E7C7B] to-[#2BC97F] text-xs font-bold text-white">
+                    {row.r}
+                  </span>
+                  <span
+                    className={`flex-1 font-semibold ${row.you ? "text-foreground" : "text-muted-foreground"}`}
+                  >
+                    {row.n}
+                  </span>
                   <span className="font-mono font-bold text-foreground">{row.s}</span>
                 </div>
               ))}
@@ -412,12 +469,15 @@ function LandingPage() {
       {/* SPECIALTIES / QUESTION BANKS */}
       <section className="container-page py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">Question banks</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">
+            Question banks
+          </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             {questionBanks.length} specialties, thousands of vignettes
           </h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            Board-style cases across every core rotation — each with clinical breakdowns and analytics.
+            Board-style cases across every core rotation — each with clinical breakdowns and
+            analytics.
           </p>
         </div>
 
@@ -453,7 +513,9 @@ function LandingPage() {
       {activeExams.length > 0 && (
         <section className="border-y border-border bg-surface-alt/40">
           <div className="container-page py-20 text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">Exam coverage</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">
+              Exam coverage
+            </p>
             <h2 className="mx-auto mt-3 max-w-2xl text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               One bank, every exam that matters
             </h2>
@@ -498,20 +560,27 @@ function LandingPage() {
                     {p.badgeLabel}
                   </span>
                 )}
-                <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{p.name}</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                  {p.name}
+                </h3>
                 <div className="mt-4 flex items-baseline gap-1">
                   <span className="text-xs font-semibold text-muted-foreground">GHS</span>
-                  <span className="text-3xl font-bold tracking-tight text-foreground">{p.price.toLocaleString()}</span>
+                  <span className="text-3xl font-bold tracking-tight text-foreground">
+                    {p.price.toLocaleString()}
+                  </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{p.durationLabel}</p>
 
                 <ul className="mt-5 flex-1 space-y-2 text-sm">
-                  {p.bullets.filter((b) => b.included).slice(0, 4).map((b) => (
-                    <li key={b.id} className="flex items-start gap-2 text-foreground">
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
-                      <span>{b.text}</span>
-                    </li>
-                  ))}
+                  {p.bullets
+                    .filter((b) => b.included)
+                    .slice(0, 4)
+                    .map((b) => (
+                      <li key={b.id} className="flex items-start gap-2 text-foreground">
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
+                        <span>{b.text}</span>
+                      </li>
+                    ))}
                 </ul>
 
                 <Link
@@ -554,7 +623,10 @@ function LandingPage() {
 
             <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {cms.about.testimonials.map((t) => (
-                <figure key={t.id} className="flex h-full flex-col rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
+                <figure
+                  key={t.id}
+                  className="flex h-full flex-col rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]"
+                >
                   <Quote className="h-5 w-5 text-[#2BC97F]" />
                   <blockquote className="mt-3 flex-1 text-sm leading-relaxed text-foreground">
                     "{t.quote}"
@@ -596,8 +668,7 @@ function LandingPage() {
       <section
         className="text-white"
         style={{
-          background:
-            "linear-gradient(135deg, #06302E 0%, #0E7C7B 50%, #1A9F7A 100%)",
+          background: "linear-gradient(135deg, #06302E 0%, #0E7C7B 50%, #1A9F7A 100%)",
         }}
       >
         <div className="container-page flex flex-col items-center gap-6 py-16 text-center md:flex-row md:justify-between md:text-left">
@@ -608,7 +679,7 @@ function LandingPage() {
             </p>
           </div>
           <Link
-            to="/login"
+            to="/register"
             className="rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-[#0E7C7B] shadow-[0_10px_30px_-8px_rgb(0_0_0_/_0.4)] transition-transform hover:-translate-y-0.5"
           >
             Start free trial
@@ -643,7 +714,9 @@ function FaqItem({ q, a }: { q: string; a: string }) {
     >
       <span className="flex items-center justify-between gap-4">
         <span className="text-sm font-semibold text-foreground">{q}</span>
-        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </span>
       {open && <span className="mt-2 text-sm leading-relaxed text-muted-foreground">{a}</span>}
     </button>

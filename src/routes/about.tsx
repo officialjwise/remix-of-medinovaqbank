@@ -45,7 +45,9 @@ function AboutPage() {
         <div className="container-page py-20 md:py-24">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wide text-white/75">Our story</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">{about.heroTitle}</h1>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+              {about.heroTitle}
+            </h1>
             <p className="mt-6 text-lg leading-relaxed text-white/85">{about.heroSubtitle}</p>
           </div>
         </div>
@@ -54,7 +56,9 @@ function AboutPage() {
       {/* FEATURES */}
       <section className="container-page py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">What sets us apart</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">
+            What sets us apart
+          </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Built for the way you actually study
           </h2>
@@ -80,7 +84,9 @@ function AboutPage() {
       {about.testimonials.length > 0 && (
         <section className="container-page pb-20">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">In their words</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">
+              In their words
+            </p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Trusted by clinicians on the wards
             </h2>
@@ -120,7 +126,7 @@ function AboutPage() {
             </p>
           </div>
           <Link
-            to="/login"
+            to="/register"
             className="rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-primary shadow-[0_10px_30px_-8px_rgb(0_0_0_/_0.4)] transition-transform hover:-translate-y-0.5"
           >
             Start free trial

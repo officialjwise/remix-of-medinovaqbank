@@ -42,7 +42,8 @@ function PricingPage() {
     if (match) setCheckoutPlan(match);
   }
 
-  const gridCols = paid.length >= 4 ? "lg:grid-cols-4" : paid.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2";
+  const gridCols =
+    paid.length >= 4 ? "lg:grid-cols-4" : paid.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2";
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,33 +56,45 @@ function PricingPage() {
             Flexible Plans for Every Medical Professional
           </h1>
           <p className="mt-4 text-muted-foreground">
-            {trial ? `Start with ${trial.questionCap ?? 10} free questions. No credit card required.` : "No credit card required to get started."}
+            {trial
+              ? `Start with ${trial.questionCap ?? 10} free questions. No credit card required.`
+              : "No credit card required to get started."}
           </p>
         </div>
 
         <div className={`mx-auto mt-14 grid max-w-7xl gap-6 sm:grid-cols-2 ${gridCols}`}>
           {paid.map((p) => (
-            <PlanCard key={p.id} plan={p} isAuthenticated={isAuthenticated} onSubscribe={() => startCheckout(p)} />
+            <PlanCard
+              key={p.id}
+              plan={p}
+              isAuthenticated={isAuthenticated}
+              onSubscribe={() => startCheckout(p)}
+            />
           ))}
         </div>
 
         {/* Free trial callout — driven from the trial plan */}
         {trial && (
           <div className="mx-auto mt-10 max-w-3xl rounded-2xl bg-gradient-to-r from-accent to-[#008C82] p-6 text-center text-white shadow-[var(--shadow-card-hover)]">
-            <p className="text-xs font-bold uppercase tracking-wide text-white/80">{trial.name} · {trial.durationLabel}</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-white/80">
+              {trial.name} · {trial.durationLabel}
+            </p>
             <p className="mt-2 text-base font-semibold">
-              Not sure yet? Try {trial.questionCap ?? 10} free questions — {trial.badgeLabel || "no card required"}. Just sign in with Google.
+              Not sure yet? Try {trial.questionCap ?? 10} free questions —{" "}
+              {trial.badgeLabel || "no card required"}. Just sign in with Google.
             </p>
             <ul className="mx-auto mt-4 flex max-w-xl flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-white/90">
-              {trial.bullets.filter((b) => b.included).map((b) => (
-                <li key={b.id} className="inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4" />
-                  {b.text}
-                </li>
-              ))}
+              {trial.bullets
+                .filter((b) => b.included)
+                .map((b) => (
+                  <li key={b.id} className="inline-flex items-center gap-1.5">
+                    <Check className="h-4 w-4" />
+                    {b.text}
+                  </li>
+                ))}
             </ul>
             <Link
-              to="/login"
+              to="/register"
               className="mt-5 inline-flex h-10 items-center justify-center rounded-lg bg-white px-5 text-sm font-bold text-accent hover:bg-white/90"
             >
               Start Free Trial
@@ -113,15 +126,26 @@ function PricingPage() {
   );
 }
 
-function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: Plan; isAuthenticated: boolean; onSubscribe: () => void }) {
+function PlanCard({
+  plan,
+  isAuthenticated,
+  onSubscribe,
+}: {
+  plan: Plan;
+  isAuthenticated: boolean;
+  onSubscribe: () => void;
+}) {
   const isPopular = plan.id === "q3";
   const includedBullets = plan.bullets.filter((b) => b.included);
-  const perMonth = plan.durationDays > 0 ? Math.round(plan.price / (plan.durationDays / 30)) : plan.price;
+  const perMonth =
+    plan.durationDays > 0 ? Math.round(plan.price / (plan.durationDays / 30)) : plan.price;
 
   return (
     <div
       className={`relative flex flex-col rounded-2xl border bg-surface p-6 transition-all hover:-translate-y-0.5 ${
-        isPopular ? "border-2 border-accent shadow-[var(--shadow-card-hover)]" : "border-border shadow-[var(--shadow-card)]"
+        isPopular
+          ? "border-2 border-accent shadow-[var(--shadow-card-hover)]"
+          : "border-border shadow-[var(--shadow-card)]"
       }`}
     >
       {plan.badgeLabel && (
@@ -133,10 +157,14 @@ function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: Plan; isAuthen
 
       <div className="mt-4 flex items-baseline gap-1">
         <span className="text-xs font-semibold text-muted-foreground">GHS</span>
-        <span className="text-4xl font-bold tracking-tight text-foreground">{plan.price.toLocaleString()}</span>
+        <span className="text-4xl font-bold tracking-tight text-foreground">
+          {plan.price.toLocaleString()}
+        </span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{plan.durationLabel}</p>
-      <p className="mt-1 text-[11px] text-muted-foreground">≈ GHS {perMonth.toLocaleString()}/month</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        ≈ GHS {perMonth.toLocaleString()}/month
+      </p>
 
       <ul className="mt-5 space-y-2.5 text-sm">
         {includedBullets.map((b) => (
@@ -161,7 +189,7 @@ function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: Plan; isAuthen
         </button>
       ) : (
         <Link
-          to="/login"
+          to="/register"
           className={`mt-6 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
             isPopular
               ? "bg-accent text-accent-foreground hover:bg-accent/90"
@@ -186,7 +214,9 @@ function FaqItem({ q, a }: { q: string; a: string }) {
     >
       <span className="flex items-center justify-between gap-4">
         <span className="text-sm font-semibold text-foreground">{q}</span>
-        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </span>
       {open && <span className="mt-2 text-sm text-muted-foreground">{a}</span>}
     </button>
