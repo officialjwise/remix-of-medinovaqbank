@@ -70,11 +70,14 @@ import { Route as AdminSettingsFeaturesRouteImport } from './routes/admin.settin
 import { Route as AdminQuestionsCreateRouteImport } from './routes/admin.questions.create'
 import { Route as AdminBanksCreateRouteImport } from './routes/admin.banks.create'
 import { Route as AppSessionsActiveRouteImport } from './routes/_app.sessions_.active'
+import { Route as AdminSubscriptionsPlansIndexRouteImport } from './routes/admin.subscriptions.plans.index'
 import { Route as AdminSettingsPlansIndexRouteImport } from './routes/admin.settings.plans.index'
+import { Route as AdminSubscriptionsPlansCreateRouteImport } from './routes/admin.subscriptions.plans.create'
 import { Route as AdminSettingsPlansCreateRouteImport } from './routes/admin.settings.plans.create'
 import { Route as AdminBanksBankIdUploadRouteImport } from './routes/admin.banks.$bankId.upload'
 import { Route as AdminBanksBankIdEditRouteImport } from './routes/admin.banks.$bankId.edit'
 import { Route as AdminBanksBankIdQuestionsIndexRouteImport } from './routes/admin.banks.$bankId.questions.index'
+import { Route as AdminSubscriptionsPlansPlanIdEditRouteImport } from './routes/admin.subscriptions.plans.$planId.edit'
 import { Route as AdminSettingsPlansPlanIdEditRouteImport } from './routes/admin.settings.plans.$planId.edit'
 import { Route as AdminBanksBankIdQuestionsNewRouteImport } from './routes/admin.banks.$bankId.questions.new'
 import { Route as AdminBanksBankIdQuestionsQuestionIdRouteImport } from './routes/admin.banks.$bankId.questions.$questionId'
@@ -383,11 +386,23 @@ const AppSessionsActiveRoute = AppSessionsActiveRouteImport.update({
   path: '/sessions/active',
   getParentRoute: () => AppRoute,
 } as any)
+const AdminSubscriptionsPlansIndexRoute =
+  AdminSubscriptionsPlansIndexRouteImport.update({
+    id: '/plans/',
+    path: '/plans/',
+    getParentRoute: () => AdminSubscriptionsRoute,
+  } as any)
 const AdminSettingsPlansIndexRoute = AdminSettingsPlansIndexRouteImport.update({
   id: '/settings/plans/',
   path: '/settings/plans/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSubscriptionsPlansCreateRoute =
+  AdminSubscriptionsPlansCreateRouteImport.update({
+    id: '/plans/create',
+    path: '/plans/create',
+    getParentRoute: () => AdminSubscriptionsRoute,
+  } as any)
 const AdminSettingsPlansCreateRoute =
   AdminSettingsPlansCreateRouteImport.update({
     id: '/settings/plans/create',
@@ -409,6 +424,12 @@ const AdminBanksBankIdQuestionsIndexRoute =
     id: '/banks/$bankId/questions/',
     path: '/banks/$bankId/questions/',
     getParentRoute: () => AdminRoute,
+  } as any)
+const AdminSubscriptionsPlansPlanIdEditRoute =
+  AdminSubscriptionsPlansPlanIdEditRouteImport.update({
+    id: '/plans/$planId/edit',
+    path: '/plans/$planId/edit',
+    getParentRoute: () => AdminSubscriptionsRoute,
   } as any)
 const AdminSettingsPlansPlanIdEditRoute =
   AdminSettingsPlansPlanIdEditRouteImport.update({
@@ -469,7 +490,7 @@ export interface FileRoutesByFullPath {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/sessions': typeof AdminSessionsRoute
-  '/admin/subscriptions': typeof AdminSubscriptionsRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRouteWithChildren
   '/admin/traffic': typeof AdminTrafficRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/uploads': typeof AdminUploadsRoute
@@ -493,10 +514,13 @@ export interface FileRoutesByFullPath {
   '/admin/banks/$bankId/edit': typeof AdminBanksBankIdEditRoute
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
   '/admin/settings/plans/create': typeof AdminSettingsPlansCreateRoute
+  '/admin/subscriptions/plans/create': typeof AdminSubscriptionsPlansCreateRoute
   '/admin/settings/plans/': typeof AdminSettingsPlansIndexRoute
+  '/admin/subscriptions/plans/': typeof AdminSubscriptionsPlansIndexRoute
   '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
   '/admin/banks/$bankId/questions/new': typeof AdminBanksBankIdQuestionsNewRoute
   '/admin/settings/plans/$planId/edit': typeof AdminSettingsPlansPlanIdEditRoute
+  '/admin/subscriptions/plans/$planId/edit': typeof AdminSubscriptionsPlansPlanIdEditRoute
   '/admin/banks/$bankId/questions/': typeof AdminBanksBankIdQuestionsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -539,7 +563,7 @@ export interface FileRoutesByTo {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/sessions': typeof AdminSessionsRoute
-  '/admin/subscriptions': typeof AdminSubscriptionsRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRouteWithChildren
   '/admin/traffic': typeof AdminTrafficRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/uploads': typeof AdminUploadsRoute
@@ -562,10 +586,13 @@ export interface FileRoutesByTo {
   '/admin/banks/$bankId/edit': typeof AdminBanksBankIdEditRoute
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
   '/admin/settings/plans/create': typeof AdminSettingsPlansCreateRoute
+  '/admin/subscriptions/plans/create': typeof AdminSubscriptionsPlansCreateRoute
   '/admin/settings/plans': typeof AdminSettingsPlansIndexRoute
+  '/admin/subscriptions/plans': typeof AdminSubscriptionsPlansIndexRoute
   '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
   '/admin/banks/$bankId/questions/new': typeof AdminBanksBankIdQuestionsNewRoute
   '/admin/settings/plans/$planId/edit': typeof AdminSettingsPlansPlanIdEditRoute
+  '/admin/subscriptions/plans/$planId/edit': typeof AdminSubscriptionsPlansPlanIdEditRoute
   '/admin/banks/$bankId/questions': typeof AdminBanksBankIdQuestionsIndexRoute
 }
 export interface FileRoutesById {
@@ -610,7 +637,7 @@ export interface FileRoutesById {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/sessions': typeof AdminSessionsRoute
-  '/admin/subscriptions': typeof AdminSubscriptionsRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRouteWithChildren
   '/admin/traffic': typeof AdminTrafficRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/uploads': typeof AdminUploadsRoute
@@ -634,10 +661,13 @@ export interface FileRoutesById {
   '/admin/banks/$bankId/edit': typeof AdminBanksBankIdEditRoute
   '/admin/banks/$bankId/upload': typeof AdminBanksBankIdUploadRoute
   '/admin/settings/plans/create': typeof AdminSettingsPlansCreateRoute
+  '/admin/subscriptions/plans/create': typeof AdminSubscriptionsPlansCreateRoute
   '/admin/settings/plans/': typeof AdminSettingsPlansIndexRoute
+  '/admin/subscriptions/plans/': typeof AdminSubscriptionsPlansIndexRoute
   '/admin/banks/$bankId/questions/$questionId': typeof AdminBanksBankIdQuestionsQuestionIdRoute
   '/admin/banks/$bankId/questions/new': typeof AdminBanksBankIdQuestionsNewRoute
   '/admin/settings/plans/$planId/edit': typeof AdminSettingsPlansPlanIdEditRoute
+  '/admin/subscriptions/plans/$planId/edit': typeof AdminSubscriptionsPlansPlanIdEditRoute
   '/admin/banks/$bankId/questions/': typeof AdminBanksBankIdQuestionsIndexRoute
 }
 export interface FileRouteTypes {
@@ -706,10 +736,13 @@ export interface FileRouteTypes {
     | '/admin/banks/$bankId/edit'
     | '/admin/banks/$bankId/upload'
     | '/admin/settings/plans/create'
+    | '/admin/subscriptions/plans/create'
     | '/admin/settings/plans/'
+    | '/admin/subscriptions/plans/'
     | '/admin/banks/$bankId/questions/$questionId'
     | '/admin/banks/$bankId/questions/new'
     | '/admin/settings/plans/$planId/edit'
+    | '/admin/subscriptions/plans/$planId/edit'
     | '/admin/banks/$bankId/questions/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -775,10 +808,13 @@ export interface FileRouteTypes {
     | '/admin/banks/$bankId/edit'
     | '/admin/banks/$bankId/upload'
     | '/admin/settings/plans/create'
+    | '/admin/subscriptions/plans/create'
     | '/admin/settings/plans'
+    | '/admin/subscriptions/plans'
     | '/admin/banks/$bankId/questions/$questionId'
     | '/admin/banks/$bankId/questions/new'
     | '/admin/settings/plans/$planId/edit'
+    | '/admin/subscriptions/plans/$planId/edit'
     | '/admin/banks/$bankId/questions'
   id:
     | '__root__'
@@ -846,10 +882,13 @@ export interface FileRouteTypes {
     | '/admin/banks/$bankId/edit'
     | '/admin/banks/$bankId/upload'
     | '/admin/settings/plans/create'
+    | '/admin/subscriptions/plans/create'
     | '/admin/settings/plans/'
+    | '/admin/subscriptions/plans/'
     | '/admin/banks/$bankId/questions/$questionId'
     | '/admin/banks/$bankId/questions/new'
     | '/admin/settings/plans/$planId/edit'
+    | '/admin/subscriptions/plans/$planId/edit'
     | '/admin/banks/$bankId/questions/'
   fileRoutesById: FileRoutesById
 }
@@ -1304,12 +1343,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSessionsActiveRouteImport
       parentRoute: typeof AppRoute
     }
+    '/admin/subscriptions/plans/': {
+      id: '/admin/subscriptions/plans/'
+      path: '/plans'
+      fullPath: '/admin/subscriptions/plans/'
+      preLoaderRoute: typeof AdminSubscriptionsPlansIndexRouteImport
+      parentRoute: typeof AdminSubscriptionsRoute
+    }
     '/admin/settings/plans/': {
       id: '/admin/settings/plans/'
       path: '/settings/plans'
       fullPath: '/admin/settings/plans/'
       preLoaderRoute: typeof AdminSettingsPlansIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/admin/subscriptions/plans/create': {
+      id: '/admin/subscriptions/plans/create'
+      path: '/plans/create'
+      fullPath: '/admin/subscriptions/plans/create'
+      preLoaderRoute: typeof AdminSubscriptionsPlansCreateRouteImport
+      parentRoute: typeof AdminSubscriptionsRoute
     }
     '/admin/settings/plans/create': {
       id: '/admin/settings/plans/create'
@@ -1338,6 +1391,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/banks/$bankId/questions/'
       preLoaderRoute: typeof AdminBanksBankIdQuestionsIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/admin/subscriptions/plans/$planId/edit': {
+      id: '/admin/subscriptions/plans/$planId/edit'
+      path: '/plans/$planId/edit'
+      fullPath: '/admin/subscriptions/plans/$planId/edit'
+      preLoaderRoute: typeof AdminSubscriptionsPlansPlanIdEditRouteImport
+      parentRoute: typeof AdminSubscriptionsRoute
     }
     '/admin/settings/plans/$planId/edit': {
       id: '/admin/settings/plans/$planId/edit'
@@ -1391,6 +1451,22 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface AdminSubscriptionsRouteChildren {
+  AdminSubscriptionsPlansCreateRoute: typeof AdminSubscriptionsPlansCreateRoute
+  AdminSubscriptionsPlansIndexRoute: typeof AdminSubscriptionsPlansIndexRoute
+  AdminSubscriptionsPlansPlanIdEditRoute: typeof AdminSubscriptionsPlansPlanIdEditRoute
+}
+
+const AdminSubscriptionsRouteChildren: AdminSubscriptionsRouteChildren = {
+  AdminSubscriptionsPlansCreateRoute: AdminSubscriptionsPlansCreateRoute,
+  AdminSubscriptionsPlansIndexRoute: AdminSubscriptionsPlansIndexRoute,
+  AdminSubscriptionsPlansPlanIdEditRoute:
+    AdminSubscriptionsPlansPlanIdEditRoute,
+}
+
+const AdminSubscriptionsRouteWithChildren =
+  AdminSubscriptionsRoute._addFileChildren(AdminSubscriptionsRouteChildren)
+
 interface AdminRouteChildren {
   AdminActivityLogsRoute: typeof AdminActivityLogsRoute
   AdminAiSettingsRoute: typeof AdminAiSettingsRoute
@@ -1408,7 +1484,7 @@ interface AdminRouteChildren {
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminSessionsRoute: typeof AdminSessionsRoute
-  AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
+  AdminSubscriptionsRoute: typeof AdminSubscriptionsRouteWithChildren
   AdminTrafficRoute: typeof AdminTrafficRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminUploadsRoute: typeof AdminUploadsRoute
@@ -1448,7 +1524,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminReportsRoute: AdminReportsRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminSessionsRoute: AdminSessionsRoute,
-  AdminSubscriptionsRoute: AdminSubscriptionsRoute,
+  AdminSubscriptionsRoute: AdminSubscriptionsRouteWithChildren,
   AdminTrafficRoute: AdminTrafficRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUploadsRoute: AdminUploadsRoute,

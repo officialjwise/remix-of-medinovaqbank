@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
+import { useCmsStore } from "@/stores/cmsStore";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -14,56 +15,31 @@ export const Route = createFileRoute("/privacy")({
   component: Privacy,
 });
 
+function formatDate(value: string) {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime())
+    ? value
+    : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
+
 function Privacy() {
+  const { cms } = useCmsStore();
+  const doc = cms.legal.privacy;
+
   return (
     <div className="min-h-screen bg-background">
       <PublicNav />
       <main className="container-page max-w-3xl py-16">
         <p className="text-xs font-bold uppercase tracking-wide text-accent">Legal</p>
-        <h1 className="mt-2 text-4xl font-bold tracking-tight text-foreground">Privacy Policy</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Last updated: June 1, 2026</p>
+        <h1 className="mt-2 text-4xl font-bold tracking-tight text-foreground">{doc.title}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Last updated: {formatDate(doc.updatedAt)}</p>
 
-        <article className="mt-10 space-y-6 text-sm leading-relaxed">
-          <Section title="What we collect">
-            Account profile (name, email, specialty, institution), quiz activity (answers, scores,
-            timing), device metadata, and payment confirmations from Paystack. We never see or
-            store your card details.
-          </Section>
-          <Section title="How we use it">
-            To deliver the Service, personalise recommendations, generate analytics, send essential
-            account emails, and meet legal obligations. We do not sell your personal data.
-          </Section>
-          <Section title="Storage & security">
-            Data is encrypted in transit (TLS 1.3) and at rest. Access is restricted to staff who
-            need it to operate the Service.
-          </Section>
-          <Section title="Cookies">
-            We use first-party cookies for authentication and core functionality. No advertising
-            trackers.
-          </Section>
-          <Section title="Your rights">
-            You may request export or deletion of your data at any time by emailing{" "}
-            <a className="text-accent hover:underline" href="mailto:privacy@medinovaqbank.com">privacy@medinovaqbank.com</a>.
-          </Section>
-          <Section title="Retention">
-            Account data is retained while your account is active and for 12 months after closure
-            for accounting and abuse-prevention purposes.
-          </Section>
-          <Section title="Children">
-            The Service is not intended for users under 18.
-          </Section>
-        </article>
+        <article
+          className="prose prose-sm dark:prose-invert mt-10 max-w-none text-sm leading-relaxed text-muted-foreground [&_a]:text-accent [&_a]:underline [&_h2]:mb-2 [&_h2]:mt-8 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-foreground [&_h3]:mb-1 [&_h3]:mt-6 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-foreground [&_li]:my-1 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-3 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5"
+          dangerouslySetInnerHTML={{ __html: doc.body }}
+        />
       </main>
       <PublicFooter />
     </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h2 className="text-lg font-bold text-foreground">{title}</h2>
-      <p className="mt-2 text-muted-foreground">{children}</p>
-    </section>
   );
 }

@@ -3,9 +3,11 @@ import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
-import { durationPlans, pricingFaqs, type DurationPlan } from "@/data/plans";
+import { durationPlans, type DurationPlan } from "@/data/plans";
 import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
 import { useAuthStore } from "@/stores/authStore";
+import { usePlansStore, selectPaidPlans, selectTrialPlan, type Plan } from "@/stores/plansStore";
+import { useCmsStore } from "@/stores/cmsStore";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -28,7 +30,19 @@ export const Route = createFileRoute("/pricing")({
 
 function PricingPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const paid = usePlansStore(selectPaidPlans);
+  const trial = usePlansStore(selectTrialPlan);
+  const { cms } = useCmsStore();
   const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
+
+  // The checkout modal/payment flow needs the rich DurationPlan (months, currency,
+  // perMonth). Store plan ids mirror durationPlans, so look it up by id.
+  function startCheckout(plan: Plan) {
+    const match = durationPlans.find((d) => d.id === plan.id);
+    if (match) setCheckoutPlan(match);
+  }
+
+  const gridCols = paid.length >= 4 ? "lg:grid-cols-4" : paid.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2";
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,45 +55,48 @@ function PricingPage() {
             Flexible Plans for Every Medical Professional
           </h1>
           <p className="mt-4 text-muted-foreground">
-            Start with 10 free questions. No credit card required.
+            {trial ? `Start with ${trial.questionCap ?? 10} free questions. No credit card required.` : "No credit card required to get started."}
           </p>
         </div>
 
-        <div className="mx-auto mt-14 grid max-w-7xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {durationPlans.map((p) => (
-            <PlanCard key={p.id} plan={p} isAuthenticated={isAuthenticated} onSubscribe={() => setCheckoutPlan(p)} />
+        <div className={`mx-auto mt-14 grid max-w-7xl gap-6 sm:grid-cols-2 ${gridCols}`}>
+          {paid.map((p) => (
+            <PlanCard key={p.id} plan={p} isAuthenticated={isAuthenticated} onSubscribe={() => startCheckout(p)} />
           ))}
         </div>
 
-        {/* Savings callout */}
-        <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-border bg-surface p-5 text-center">
-          <p className="text-sm text-foreground">
-            <span className="font-bold text-accent">Less than GHS 0.08 per question.</span>{" "}
-            At GHS 799 for 12 months across 10,000+ questions, that's the smartest investment you'll make this year.
-          </p>
-        </div>
+        {/* Free trial callout — driven from the trial plan */}
+        {trial && (
+          <div className="mx-auto mt-10 max-w-3xl rounded-2xl bg-gradient-to-r from-accent to-[#008C82] p-6 text-center text-white shadow-[var(--shadow-card-hover)]">
+            <p className="text-xs font-bold uppercase tracking-wide text-white/80">{trial.name} · {trial.durationLabel}</p>
+            <p className="mt-2 text-base font-semibold">
+              Not sure yet? Try {trial.questionCap ?? 10} free questions — {trial.badgeLabel || "no card required"}. Just sign in with Google.
+            </p>
+            <ul className="mx-auto mt-4 flex max-w-xl flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-white/90">
+              {trial.bullets.filter((b) => b.included).map((b) => (
+                <li key={b.id} className="inline-flex items-center gap-1.5">
+                  <Check className="h-4 w-4" />
+                  {b.text}
+                </li>
+              ))}
+            </ul>
+            <Link
+              to="/login"
+              className="mt-5 inline-flex h-10 items-center justify-center rounded-lg bg-white px-5 text-sm font-bold text-accent hover:bg-white/90"
+            >
+              Start Free Trial
+            </Link>
+          </div>
+        )}
 
-        {/* Free trial banner */}
-        <div className="mx-auto mt-6 max-w-3xl rounded-2xl bg-gradient-to-r from-accent to-[#008C82] p-6 text-center text-white shadow-[var(--shadow-card-hover)]">
-          <p className="text-base font-semibold">
-            🎯 Not sure yet? Try 10 free questions — no card required. Just sign in with Google.
-          </p>
-          <Link
-            to="/login"
-            className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-white px-5 text-sm font-bold text-accent hover:bg-white/90"
-          >
-            Start Free Trial
-          </Link>
-        </div>
-
-        {/* FAQ */}
+        {/* FAQ — from CMS */}
         <div className="mx-auto mt-20 max-w-3xl">
           <h2 className="text-center text-2xl font-bold tracking-tight text-foreground">
             Frequently Asked Questions
           </h2>
           <div className="mt-8 divide-y divide-border rounded-2xl border border-border bg-surface">
-            {pricingFaqs.map((f, i) => (
-              <FaqItem key={i} q={f.q} a={f.a} />
+            {cms.faqs.map((f) => (
+              <FaqItem key={f.id} q={f.question} a={f.answer} />
             ))}
           </div>
         </div>
@@ -96,46 +113,36 @@ function PricingPage() {
   );
 }
 
-function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: (typeof durationPlans)[number]; isAuthenticated: boolean; onSubscribe: () => void }) {
+function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: Plan; isAuthenticated: boolean; onSubscribe: () => void }) {
   const isPopular = plan.id === "q3";
-  const badgeCls =
-    plan.badge?.tone === "accent"
-      ? "bg-accent text-accent-foreground"
-      : plan.badge?.tone === "amber"
-        ? "bg-warning text-white"
-        : plan.badge?.tone === "navy"
-          ? "bg-primary text-primary-foreground"
-          : "";
+  const includedBullets = plan.bullets.filter((b) => b.included);
+  const perMonth = plan.durationDays > 0 ? Math.round(plan.price / (plan.durationDays / 30)) : plan.price;
 
   return (
     <div
-      className={`relative flex flex-col rounded-2xl border bg-surface p-6 ${
+      className={`relative flex flex-col rounded-2xl border bg-surface p-6 transition-all hover:-translate-y-0.5 ${
         isPopular ? "border-2 border-accent shadow-[var(--shadow-card-hover)]" : "border-border shadow-[var(--shadow-card)]"
       }`}
     >
-      {plan.badge && (
-        <span className={`absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${badgeCls}`}>
-          {plan.badge.label}
+      {plan.badgeLabel && (
+        <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-accent px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-accent-foreground">
+          {plan.badgeLabel}
         </span>
       )}
-      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-        {plan.name}
-      </p>
+      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{plan.name}</p>
 
       <div className="mt-4 flex items-baseline gap-1">
-        <span className="text-xs font-semibold text-muted-foreground">{plan.currency}</span>
-        <span className="text-4xl font-bold tracking-tight text-foreground">
-          {plan.price.toLocaleString()}
-        </span>
+        <span className="text-xs font-semibold text-muted-foreground">GHS</span>
+        <span className="text-4xl font-bold tracking-tight text-foreground">{plan.price.toLocaleString()}</span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{plan.durationLabel}</p>
-      <p className="mt-1 text-[11px] text-muted-foreground">≈ GHS {plan.perMonth}/month</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">≈ GHS {perMonth.toLocaleString()}/month</p>
 
       <ul className="mt-5 space-y-2.5 text-sm">
-        {plan.features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-foreground">
+        {includedBullets.map((b) => (
+          <li key={b.id} className="flex items-start gap-2 text-foreground">
             <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
-            <span>{f}</span>
+            <span>{b.text}</span>
           </li>
         ))}
       </ul>
@@ -150,7 +157,7 @@ function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: (typeof durati
               : "border border-border bg-surface text-foreground hover:bg-surface-alt"
           }`}
         >
-          {plan.cta}
+          Subscribe
         </button>
       ) : (
         <Link
@@ -161,7 +168,7 @@ function PlanCard({ plan, isAuthenticated, onSubscribe }: { plan: (typeof durati
               : "border border-border bg-surface text-foreground hover:bg-surface-alt"
           }`}
         >
-          {plan.cta}
+          Subscribe
         </Link>
       )}
     </div>

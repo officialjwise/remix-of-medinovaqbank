@@ -35,6 +35,27 @@ export function PublicNav() {
           >
             About
           </Link>
+          <Link
+            to="/faq"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            activeProps={{ className: "text-foreground text-sm font-semibold" }}
+          >
+            FAQ
+          </Link>
+          <Link
+            to="/help"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            activeProps={{ className: "text-foreground text-sm font-semibold" }}
+          >
+            Help
+          </Link>
+          <Link
+            to="/contact"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            activeProps={{ className: "text-foreground text-sm font-semibold" }}
+          >
+            Contact
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">

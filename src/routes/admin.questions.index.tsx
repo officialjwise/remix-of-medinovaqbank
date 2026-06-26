@@ -1,9 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Plus, Search, Edit, Eye, Filter } from "lucide-react";
+import { Copy, Edit, Eye, Filter, ImageIcon, Plus, Search, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { questionBanks } from "@/data/banks";
 import { getQuestionsForBank } from "@/data/questions";
-import type { Question } from "@/types";
+import type { Difficulty, Question } from "@/types";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export const Route = createFileRoute("/admin/questions/")({
   head: () => ({
@@ -15,25 +19,144 @@ export const Route = createFileRoute("/admin/questions/")({
   component: AdminQuestions,
 });
 
+const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
+
+/** Deterministic answer stats seeded from the question id (stable across renders). */
+function statsFor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 100000;
+  const answered = 40 + (h % 1960); // 40–1999
+  const rate = 18 + ((h >> 3) % 78); // 18–95
+  return { answered, rate };
+}
+/** Deterministic "has image" flag so the has-image filter has something to bite on. */
+function seededHasImage(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 17 + id.charCodeAt(i)) % 100000;
+  return h % 3 === 0;
+}
+function rateTone(rate: number) {
+  return rate >= 70 ? "text-success" : rate >= 40 ? "text-warning" : "text-error";
+}
+function ratePill(rate: number) {
+  return rate >= 70 ? "bg-success/10 text-success" : rate >= 40 ? "bg-warning/10 text-warning" : "bg-error/10 text-error";
+}
+
+interface Row extends Question {
+  answered: number;
+  rate: number;
+  hasImage: boolean;
+}
+
 function AdminQuestions() {
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounce(query, 250);
   const [bankFilter, setBankFilter] = useState("All");
+  const [imageFilter, setImageFilter] = useState<"All" | "Yes" | "No">("All");
+  const [rateBucket, setRateBucket] = useState<"All" | "high" | "mid" | "low">("All");
+  const [topicFilter, setTopicFilter] = useState("All");
 
-  const allQuestions: Question[] = useMemo(
-    () => questionBanks.flatMap((b) => getQuestionsForBank(b.id, 12)),
+  const allQuestions: Row[] = useMemo(
+    () =>
+      questionBanks
+        .flatMap((b) => getQuestionsForBank(b.id, 12))
+        .map((q) => {
+          const s = statsFor(q.id);
+          return { ...q, answered: s.answered, rate: s.rate, hasImage: !!q.imageUrl || seededHasImage(q.id) };
+        }),
     [],
   );
 
+  const topics = useMemo(() => ["All", ...Array.from(new Set(allQuestions.map((q) => q.topic)))], [allQuestions]);
+
+  // ---- Local mutation state (mock) ----
+  const [inactive, setInactive] = useState<Set<string>>(new Set());
+  const [deleted, setDeleted] = useState<Set<string>>(new Set());
+  const [overrides, setOverrides] = useState<Record<string, { difficulty?: Difficulty; topic?: string }>>({});
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [preview, setPreview] = useState<Row | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [moveTarget, setMoveTarget] = useState("");
+
   const rows = useMemo(() => {
-    return allQuestions.filter((q) => {
-      if (bankFilter !== "All" && q.bankId !== bankFilter) return false;
-      if (query.trim()) {
-        const s = query.toLowerCase();
-        return q.stem.toLowerCase().includes(s) || q.topic.toLowerCase().includes(s);
-      }
-      return true;
+    return allQuestions
+      .filter((q) => !deleted.has(q.id))
+      .map((q) => ({ ...q, ...overrides[q.id] }))
+      .filter((q) => {
+        if (bankFilter !== "All" && q.bankId !== bankFilter) return false;
+        if (imageFilter !== "All" && q.hasImage !== (imageFilter === "Yes")) return false;
+        if (topicFilter !== "All" && q.topic !== topicFilter) return false;
+        if (rateBucket === "high" && q.rate < 70) return false;
+        if (rateBucket === "mid" && (q.rate < 40 || q.rate >= 70)) return false;
+        if (rateBucket === "low" && q.rate >= 40) return false;
+        if (debouncedQuery.trim()) {
+          const s = debouncedQuery.toLowerCase();
+          return q.stem.toLowerCase().includes(s) || q.topic.toLowerCase().includes(s);
+        }
+        return true;
+      });
+  }, [allQuestions, deleted, overrides, bankFilter, imageFilter, topicFilter, rateBucket, debouncedQuery]);
+
+  const visibleIds = rows.map((q) => q.id);
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+  const someSelected = selected.size > 0;
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
-  }, [query, bankFilter, allQuestions]);
+  }
+  function toggleSelectAll() {
+    setSelected((prev) => {
+      if (visibleIds.every((id) => prev.has(id))) {
+        const next = new Set(prev);
+        visibleIds.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...prev, ...visibleIds]);
+    });
+  }
+  function setActive(id: string, active: boolean) {
+    setInactive((prev) => {
+      const next = new Set(prev);
+      if (active) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    toast.success(active ? "Question activated" : "Question deactivated");
+  }
+  function bulkActivate(active: boolean) {
+    setInactive((prev) => {
+      const next = new Set(prev);
+      selected.forEach((id) => (active ? next.delete(id) : next.add(id)));
+      return next;
+    });
+    toast.success(`${selected.size} question${selected.size === 1 ? "" : "s"} ${active ? "activated" : "deactivated"}`);
+  }
+  function bulkMove(targetBankId: string) {
+    if (!targetBankId) return;
+    const bank = questionBanks.find((b) => b.id === targetBankId);
+    toast.success(`Moved ${selected.size} question${selected.size === 1 ? "" : "s"} to ${bank?.name ?? "bank"}`);
+    setMoveTarget("");
+    setSelected(new Set());
+  }
+  function bulkDelete() {
+    setDeleted((prev) => new Set([...prev, ...selected]));
+    toast.success(`Deleted ${selected.size} question${selected.size === 1 ? "" : "s"}`);
+    setSelected(new Set());
+    setConfirmBulkDelete(false);
+  }
+  function duplicate(id: string) {
+    void id;
+    toast.success("Question duplicated");
+  }
+  function quickEdit(id: string, patch: { difficulty?: Difficulty; topic?: string }) {
+    setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+    toast.success(patch.difficulty ? "Difficulty updated" : "Topic updated");
+  }
 
   return (
     <div>
@@ -41,7 +164,7 @@ function AdminQuestions() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Questions</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {allQuestions.length.toLocaleString()} questions across {questionBanks.length} banks
+            {(allQuestions.length - deleted.size).toLocaleString()} questions across {questionBanks.length} banks
           </p>
         </div>
         <Link
@@ -53,6 +176,7 @@ function AdminQuestions() {
         </Link>
       </header>
 
+      {/* Filters */}
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[240px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -74,48 +198,102 @@ function AdminQuestions() {
             {questionBanks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         </div>
+        <Select value={topicFilter} onChange={setTopicFilter} options={topics} />
+        <Select
+          value={imageFilter}
+          onChange={(v) => setImageFilter(v as typeof imageFilter)}
+          options={["All", "Yes", "No"]}
+          labels={{ All: "Image: any", Yes: "Has image", No: "No image" }}
+        />
+        <Select
+          value={rateBucket}
+          onChange={(v) => setRateBucket(v as typeof rateBucket)}
+          options={["All", "high", "mid", "low"]}
+          labels={{ All: "Correct: any", high: "≥ 70%", mid: "40–69%", low: "< 40%" }}
+        />
       </div>
 
-      <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
+      {/* Bulk action bar */}
+      {someSelected && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-3 py-2">
+          <span className="text-sm font-semibold text-foreground">{selected.size} selected</span>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <button onClick={() => bulkActivate(true)} className="inline-flex h-8 items-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt">Activate</button>
+            <button onClick={() => bulkActivate(false)} className="inline-flex h-8 items-center rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt">Deactivate</button>
+            <select
+              value={moveTarget}
+              onChange={(e) => { setMoveTarget(e.target.value); bulkMove(e.target.value); }}
+              className="h-8 rounded-lg border border-border bg-surface px-2 text-xs font-semibold text-foreground"
+            >
+              <option value="">Move to bank…</option>
+              {questionBanks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <button onClick={() => setConfirmBulkDelete(true)} className="inline-flex h-8 items-center gap-1 rounded-lg bg-error/10 px-3 text-xs font-semibold text-error hover:bg-error/20">
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </button>
+            <button onClick={() => setSelected(new Set())} className="rounded-md p-1.5 text-muted-foreground hover:text-foreground" aria-label="Clear selection"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+      )}
+
+      <section className="mt-6 overflow-x-auto rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
         {rows.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-sm font-semibold text-foreground">No questions found</p>
             <p className="mt-1 text-xs text-muted-foreground">Try adjusting filters or create a new question.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[920px] text-sm">
             <thead className="bg-surface-alt/50 text-left text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-5 py-3">Question</th>
-                <th className="px-5 py-3">Bank</th>
-                <th className="px-5 py-3">Topic</th>
-                <th className="px-5 py-3">Difficulty</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className="w-10 px-4 py-3">
+                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" className="h-4 w-4 accent-[var(--color-accent)]" />
+                </th>
+                <th className="px-4 py-3">Question</th>
+                <th className="px-4 py-3">Bank</th>
+                <th className="px-4 py-3">Topic</th>
+                <th className="px-4 py-3">Difficulty</th>
+                <th className="px-4 py-3 text-right">Answered</th>
+                <th className="px-4 py-3 text-right">Correct %</th>
+                <th className="px-4 py-3 text-center">Active</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {rows.map((q) => {
                 const bank = questionBanks.find((b) => b.id === q.bankId);
+                const isInactive = inactive.has(q.id);
+                const isSelected = selected.has(q.id);
                 return (
-                  <tr key={q.id} className="hover:bg-surface-alt/40">
-                    <td className="max-w-[420px] truncate px-5 py-3 font-medium text-foreground">{q.stem}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{bank?.name ?? "—"}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{q.topic}</td>
-                    <td className="px-5 py-3">
-                      <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-bold uppercase">
-                        {q.difficulty}
-                      </span>
+                  <tr key={q.id} className={`hover:bg-surface-alt/40 ${isSelected ? "bg-accent/5" : ""}`}>
+                    <td className="px-4 py-3">
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(q.id)} aria-label="Select question" className="h-4 w-4 accent-[var(--color-accent)]" />
                     </td>
-                    <td className="px-5 py-3 text-right">
-                      <div className="inline-flex items-center gap-1">
-                        <Link
-                          to="/admin/banks/$bankId/questions/$questionId"
-                          params={{ bankId: q.bankId, questionId: q.id }}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-surface-alt"
-                          aria-label="View"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Link>
+                    <td className="max-w-[360px] px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {q.hasImage && <ImageIcon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" aria-label="Has image" />}
+                        <span className={`truncate font-medium ${isInactive ? "text-muted-foreground line-through" : "text-foreground"}`} title={q.stem}>{q.stem}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{bank?.name ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <InlineTopic value={q.topic} onChange={(t) => quickEdit(q.id, { topic: t })} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <InlineDifficulty value={q.difficulty} onChange={(d) => quickEdit(q.id, { difficulty: d })} />
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">{q.answered.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`font-mono text-xs font-bold ${rateTone(q.rate)}`}>{q.rate}%</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center">
+                        <ToggleSwitch checked={!isInactive} onChange={(next) => setActive(q.id, next)} size="sm" ariaLabel="Toggle active" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex items-center gap-0.5">
+                        <button onClick={() => setPreview(q)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-surface-alt" aria-label="Preview"><Eye className="h-3.5 w-3.5" /></button>
                         <Link
                           to="/admin/banks/$bankId/questions/$questionId"
                           params={{ bankId: q.bankId, questionId: q.id }}
@@ -124,6 +302,7 @@ function AdminQuestions() {
                         >
                           <Edit className="h-3.5 w-3.5" />
                         </Link>
+                        <button onClick={() => duplicate(q.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-surface-alt" aria-label="Duplicate"><Copy className="h-3.5 w-3.5" /></button>
                       </div>
                     </td>
                   </tr>
@@ -133,6 +312,120 @@ function AdminQuestions() {
           </table>
         )}
       </section>
+
+      {preview && <StudentPreview q={preview} onClose={() => setPreview(null)} />}
+
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        title={`Delete ${selected.size} question${selected.size === 1 ? "" : "s"}?`}
+        description="This removes the selected questions. This cannot be undone."
+        variant="destructive"
+        confirmLabel="Delete"
+        onCancel={() => setConfirmBulkDelete(false)}
+        onConfirm={bulkDelete}
+      />
     </div>
+  );
+}
+
+/** Student-facing preview modal with a reveal-answer toggle. */
+function StudentPreview({ q, onClose }: { q: Row; onClose: () => void }) {
+  const [reveal, setReveal] = useState(false);
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-2xl bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <header className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h3 className="text-sm font-bold text-foreground">Student preview</h3>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+              Reveal answer
+              <ToggleSwitch checked={reveal} onChange={setReveal} size="sm" ariaLabel="Reveal answer" />
+            </label>
+            <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground" aria-label="Close"><X className="h-4 w-4" /></button>
+          </div>
+        </header>
+        <div className="space-y-5 p-6">
+          {q.imageUrl && (
+            <img src={q.imageUrl} alt="Question illustration" className="max-h-72 w-full rounded-lg border border-border object-contain" />
+          )}
+          <p className="text-base font-medium leading-relaxed text-foreground">{q.stem}</p>
+          <ul className="space-y-2">
+            {q.options.map((o) => {
+              const correct = o.key === q.correctKey;
+              const showCorrect = reveal && correct;
+              return (
+                <li
+                  key={o.key}
+                  className={`flex items-start gap-3 rounded-lg border p-3 text-sm transition-colors ${showCorrect ? "border-success/50 bg-success/5" : "border-border hover:bg-surface-alt/40"}`}
+                >
+                  <span className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${showCorrect ? "bg-success text-white" : "bg-surface-alt text-foreground"}`}>{o.key}</span>
+                  <div className="space-y-2">
+                    <span className="text-foreground">{o.text}</span>
+                    {o.imageUrl && <img src={o.imageUrl} alt={`Option ${o.key}`} className="max-h-28 w-auto rounded-md border border-border object-contain" />}
+                  </div>
+                  {showCorrect && <span className="ml-auto flex-shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success">Correct</span>}
+                </li>
+              );
+            })}
+          </ul>
+          {reveal && (
+            <div className={`rounded-lg px-3 py-2 text-xs font-semibold ${ratePill(q.rate)}`}>
+              {q.rate}% of students answer this correctly · {q.answered.toLocaleString()} attempts
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InlineDifficulty({ value, onChange }: { value: Difficulty; onChange: (d: Difficulty) => void }) {
+  const tone = value === "Beginner" ? "bg-success/10 text-success" : value === "Advanced" ? "bg-error/10 text-error" : "bg-warning/10 text-warning";
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as Difficulty)}
+      aria-label="Quick-edit difficulty"
+      className={`cursor-pointer rounded-full border-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide outline-none focus:ring-2 focus:ring-accent/30 ${tone}`}
+    >
+      {DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}
+    </select>
+  );
+}
+
+function InlineTopic({ value, onChange }: { value: string; onChange: (t: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { setEditing(false); if (draft.trim() && draft !== value) onChange(draft.trim()); else setDraft(value); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.currentTarget.blur(); }
+          if (e.key === "Escape") { setDraft(value); setEditing(false); }
+        }}
+        className="h-7 w-32 rounded-md border border-border bg-surface px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-accent/20"
+      />
+    );
+  }
+  return (
+    <button onClick={() => setEditing(true)} className="rounded-md px-1.5 py-0.5 text-left text-muted-foreground hover:bg-surface-alt hover:text-foreground" title="Click to edit topic">
+      {value}
+    </button>
+  );
+}
+
+function Select({ value, onChange, options, labels }: { value: string; onChange: (v: string) => void; options: string[]; labels?: Record<string, string> }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-10 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+    >
+      {options.map((o) => <option key={o} value={o}>{labels?.[o] ?? o}</option>)}
+    </select>
   );
 }

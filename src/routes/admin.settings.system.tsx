@@ -6,6 +6,7 @@ import {
   EyeOff,
   KeyRound,
   Mail,
+  Newspaper,
   Palette,
   Pencil,
   Plus,
@@ -21,6 +22,8 @@ import {
   UserCog,
   Wallet,
   ChevronDown,
+  ChevronUp,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,15 +32,29 @@ import {
   type IntegrationStatus,
   type EmailTemplate,
   type AdminRole,
+  type BrandingSettings,
 } from "@/stores/settingsStore";
 import { useFeatureCatalogStore } from "@/stores/featureCatalogStore";
+import {
+  useCmsStore,
+  type FaqEntry,
+  type HelpArticle,
+  type Testimonial,
+  type AboutContent,
+  type ContactInfo,
+  type CmsContent,
+} from "@/stores/cmsStore";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { RichTextEditor } from "@/components/shared/RichTextEditor";
+import { renderBrandedEmail, fillVars } from "@/lib/emailRender";
+import { DEFAULT_EMAIL_TEMPLATES } from "@/data/emailTemplates";
 
 export const Route = createFileRoute("/admin/settings/system")({
   head: () => ({ meta: [{ title: "Admin · Settings — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
   component: AdminSettings,
 });
 
-type TabKey = "general" | "integrations" | "email" | "trial" | "roles" | "branding";
+type TabKey = "general" | "integrations" | "email" | "trial" | "roles" | "branding" | "cms";
 
 const TABS: { key: TabKey; label: string; icon: typeof Sliders }[] = [
   { key: "general", label: "General", icon: Sliders },
@@ -46,13 +63,14 @@ const TABS: { key: TabKey; label: string; icon: typeof Sliders }[] = [
   { key: "trial", label: "Trial & Access", icon: ShieldCheck },
   { key: "roles", label: "Roles & Permissions", icon: UserCog },
   { key: "branding", label: "Branding", icon: Palette },
+  { key: "cms", label: "CMS", icon: Newspaper },
 ];
 
 function AdminSettings() {
   const [tab, setTab] = useState<TabKey>("general");
 
   return (
-    <div>
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">System Settings</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -60,32 +78,35 @@ function AdminSettings() {
         </p>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-1 border-b border-border">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
-                active ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Icon className="h-4 w-4" /> {t.label}
-            </button>
-          );
-        })}
+      <div className="sticky top-16 z-10 -mx-4 border-b border-border bg-background/80 px-4 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`-mb-px inline-flex flex-shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+                  active ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4" /> {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="mt-6 max-w-4xl">
+      <div>
         {tab === "general" && <GeneralTab />}
         {tab === "integrations" && <IntegrationsTab />}
         {tab === "email" && <EmailTemplatesTab />}
         {tab === "trial" && <TrialTab />}
         {tab === "roles" && <RolesTab />}
         {tab === "branding" && <BrandingTab />}
+        {tab === "cms" && <CmsTab />}
       </div>
     </div>
   );
@@ -101,39 +122,41 @@ function GeneralTab() {
 
   return (
     <div className="space-y-5">
-      <Card title="Platform" desc="Core identity and contact details shown across the app.">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Platform Name"><Input value={form.platformName} onChange={(v) => setForm({ ...form, platformName: v })} /></Field>
-          <Field label="Tagline"><Input value={form.tagline} onChange={(v) => setForm({ ...form, tagline: v })} /></Field>
-          <Field label="Support Email"><Input value={form.supportEmail} onChange={(v) => setForm({ ...form, supportEmail: v })} /></Field>
-          <Field label="Support Phone"><Input value={form.supportPhone} onChange={(v) => setForm({ ...form, supportPhone: v })} /></Field>
-          <Field label="Default Currency"><Input value={form.currency} onChange={(v) => setForm({ ...form, currency: v })} /></Field>
-          <Field label="Timezone">
-            <Select value={form.timezone} onChange={(v) => setForm({ ...form, timezone: v })} options={["Africa/Accra", "Africa/Lagos", "Europe/London", "America/New_York", "UTC"]} />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title="Platform" desc="Core identity and contact details shown across the app.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Platform Name"><Input value={form.platformName} onChange={(v) => setForm({ ...form, platformName: v })} /></Field>
+            <Field label="Tagline"><Input value={form.tagline} onChange={(v) => setForm({ ...form, tagline: v })} /></Field>
+            <Field label="Support Email"><Input value={form.supportEmail} onChange={(v) => setForm({ ...form, supportEmail: v })} /></Field>
+            <Field label="Support Phone"><Input value={form.supportPhone} onChange={(v) => setForm({ ...form, supportPhone: v })} /></Field>
+            <Field label="Default Currency"><Input value={form.currency} onChange={(v) => setForm({ ...form, currency: v })} /></Field>
+            <Field label="Timezone">
+              <Select value={form.timezone} onChange={(v) => setForm({ ...form, timezone: v })} options={["Africa/Accra", "Africa/Lagos", "Europe/London", "America/New_York", "UTC"]} />
+            </Field>
+          </div>
+          <Field label="Logo">
+            <FileUpload value={logo} onChange={setLogo} label="Upload logo (PNG/SVG)" />
           </Field>
-        </div>
-        <Field label="Logo">
-          <FileUpload value={logo} onChange={setLogo} label="Upload logo (PNG/SVG)" />
-        </Field>
-        <SaveBar onSave={() => { update("general", form); update("branding", { logoLight: logo }); toast.success("General settings saved"); }} />
-      </Card>
+          <SaveBar onSave={() => { update("general", form); update("branding", { logoLight: logo }); toast.success("General settings saved"); }} />
+        </Card>
 
-      <Card title="Quiz & Trial Limits" desc="Defaults applied to new sessions and free trials.">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Free Trial Duration (days)"><NumberInput value={form.trialDays} onChange={(v) => setForm({ ...form, trialDays: v })} /></Field>
-          <Field label="Free Trial Question Limit"><NumberInput value={form.trialQuestionLimit} onChange={(v) => setForm({ ...form, trialQuestionLimit: v })} /></Field>
-          <Field label="Max Questions / Quiz Session"><NumberInput value={form.maxQuestionsPerSession} onChange={(v) => setForm({ ...form, maxQuestionsPerSession: v })} /></Field>
-          <Field label="Default Session Time Limit (min)"><NumberInput value={form.defaultSessionTimeLimitMin} onChange={(v) => setForm({ ...form, defaultSessionTimeLimitMin: v })} /></Field>
-        </div>
-        <label className="mt-4 flex items-center justify-between rounded-lg border border-border bg-surface-alt/40 px-4 py-3 text-sm font-medium text-foreground">
-          <span>
-            Maintenance mode
-            <span className="ml-2 text-xs font-normal text-muted-foreground">Non-admins see a maintenance page when enabled.</span>
-          </span>
-          <Toggle value={form.maintenanceMode} onChange={(v) => setForm({ ...form, maintenanceMode: v })} />
-        </label>
-        <SaveBar onSave={() => { update("general", form); toast.success(form.maintenanceMode ? "Maintenance mode ON" : "Quiz & trial limits saved"); }} />
-      </Card>
+        <Card title="Quiz & Trial Limits" desc="Defaults applied to new sessions and free trials.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Free Trial Duration (days)"><NumberInput value={form.trialDays} onChange={(v) => setForm({ ...form, trialDays: v })} /></Field>
+            <Field label="Free Trial Question Limit"><NumberInput value={form.trialQuestionLimit} onChange={(v) => setForm({ ...form, trialQuestionLimit: v })} /></Field>
+            <Field label="Max Questions / Quiz Session"><NumberInput value={form.maxQuestionsPerSession} onChange={(v) => setForm({ ...form, maxQuestionsPerSession: v })} /></Field>
+            <Field label="Default Session Time Limit (min)"><NumberInput value={form.defaultSessionTimeLimitMin} onChange={(v) => setForm({ ...form, defaultSessionTimeLimitMin: v })} /></Field>
+          </div>
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-alt/40 px-4 py-3 text-sm font-medium text-foreground">
+            <span>
+              Maintenance mode
+              <span className="ml-2 text-xs font-normal text-muted-foreground">Non-admins see a maintenance page when enabled.</span>
+            </span>
+            <ToggleSwitch checked={form.maintenanceMode} onChange={(v) => setForm({ ...form, maintenanceMode: v })} ariaLabel="Maintenance mode" />
+          </div>
+          <SaveBar onSave={() => { update("general", form); toast.success(form.maintenanceMode ? "Maintenance mode ON" : "Quiz & trial limits saved"); }} />
+        </Card>
+      </div>
     </div>
   );
 }
@@ -174,43 +197,55 @@ function IntegrationsTab() {
         and the full key is never shown again after saving — only the last 4 characters, unless explicitly revealed.
       </div>
 
-      {/* AI Provider */}
-      <IntegrationCard icon={<Sparkles className="h-5 w-5 text-accent" />} title="AI Provider" desc="Generates clinical breakdowns for quiz questions." status={aiForm.status}>
-        <div className="flex flex-wrap gap-2">
-          <Radio label="Google Gemini" checked readOnly />
-        </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-[1fr_220px]">
-          <Field label="API Key"><SecretInput value={aiForm.apiKey} onChange={(v) => setAiForm({ ...aiForm, apiKey: v })} placeholder="AIza…" /></Field>
-          <Field label="Model">
-            <Select value={aiForm.model} onChange={(v) => setAiForm({ ...aiForm, model: v })} options={["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.0-pro"]} />
-          </Field>
-        </div>
-
-        <button type="button" onClick={() => setAdvanced((a) => !a)} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
-          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${advanced ? "rotate-180" : ""}`} /> Advanced
-        </button>
-        {advanced && (
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
-            <Field label="Temperature"><NumberInput step="0.1" value={aiForm.temperature} onChange={(v) => setAiForm({ ...aiForm, temperature: v })} /></Field>
-            <Field label="Max Tokens"><NumberInput value={aiForm.maxTokens} onChange={(v) => setAiForm({ ...aiForm, maxTokens: v })} /></Field>
+      <div className="grid gap-5 xl:grid-cols-2">
+        {/* AI Provider */}
+        <IntegrationCard icon={<Sparkles className="h-5 w-5 text-accent" />} title="AI Provider" desc="Generates clinical breakdowns for quiz questions." status={aiForm.status}>
+          <div className="flex flex-wrap gap-2">
+            <Radio label="Google Gemini" checked readOnly />
           </div>
-        )}
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-alt/60 p-3">
-          <div className="text-xs text-muted-foreground">
-            {aiForm.lastTestedAt ? `Last tested ${new Date(aiForm.lastTestedAt).toLocaleString()}` : "Not yet tested"} · {aiForm.callsThisMonth.toLocaleString()} calls this month · ≈ ${aiForm.estCostUsd.toFixed(2)}
+          <div className="mt-5 grid gap-4 md:grid-cols-[1fr_220px]">
+            <Field label="API Key"><SecretInput value={aiForm.apiKey} onChange={(v) => setAiForm({ ...aiForm, apiKey: v })} placeholder="AIza…" /></Field>
+            <Field label="Model">
+              <Select value={aiForm.model} onChange={(v) => setAiForm({ ...aiForm, model: v })} options={["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.0-pro"]} />
+            </Field>
           </div>
-          <button type="button" onClick={() => testConnection("ai", setAiForm, "Gemini")} className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt">
-            <TestTube2 className="h-3.5 w-3.5" /> Test Connection
+
+          <button type="button" onClick={() => setAdvanced((a) => !a)} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${advanced ? "rotate-180" : ""}`} /> Advanced
           </button>
-        </div>
-        <SaveBar label="Save AI Settings" onSave={() => { update("ai", aiForm); toast.success("AI provider saved"); }} />
-      </IntegrationCard>
+          {advanced && (
+            <div className="mt-3 grid gap-4 md:grid-cols-2">
+              <Field label="Temperature"><NumberInput step="0.1" value={aiForm.temperature} onChange={(v) => setAiForm({ ...aiForm, temperature: v })} /></Field>
+              <Field label="Max Tokens"><NumberInput value={aiForm.maxTokens} onChange={(v) => setAiForm({ ...aiForm, maxTokens: v })} /></Field>
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-alt/60 p-3">
+            <div className="text-xs text-muted-foreground">
+              {aiForm.lastTestedAt ? `Last tested ${new Date(aiForm.lastTestedAt).toLocaleString()}` : "Not yet tested"} · {aiForm.callsThisMonth.toLocaleString()} calls this month · ≈ ${aiForm.estCostUsd.toFixed(2)}
+            </div>
+            <button type="button" onClick={() => testConnection("ai", setAiForm, "Gemini")} className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt">
+              <TestTube2 className="h-3.5 w-3.5" /> Test Connection
+            </button>
+          </div>
+          <SaveBar label="Save AI Settings" onSave={() => { update("ai", aiForm); toast.success("AI provider saved"); }} />
+        </IntegrationCard>
+
+        {/* OAuth */}
+        <IntegrationCard icon={<KeyRound className="h-5 w-5 text-accent" />} title="Google OAuth" desc="Credentials for Sign in with Google." status={oauthForm.status}>
+          <div className="grid gap-4">
+            <Field label="Client ID"><SecretInput value={oauthForm.clientId} onChange={(v) => setOauthForm({ ...oauthForm, clientId: v })} placeholder="…apps.googleusercontent.com" /></Field>
+            <Field label="Client Secret"><SecretInput value={oauthForm.clientSecret} onChange={(v) => setOauthForm({ ...oauthForm, clientSecret: v })} placeholder="GOCSPX-…" /></Field>
+            <Field label="Callback URL (read-only)"><CopyField value={oauthForm.callbackUrl} /></Field>
+          </div>
+          <SaveBar label="Save OAuth Settings" onSave={() => { const status: IntegrationStatus = oauthForm.clientId && oauthForm.clientSecret ? "connected" : "not_configured"; update("oauth", { ...oauthForm, status }); setOauthForm({ ...oauthForm, status }); toast.success("Google OAuth saved"); }} />
+        </IntegrationCard>
+      </div>
 
       {/* Payment */}
       <IntegrationCard icon={<Wallet className="h-5 w-5 text-accent" />} title="Payment Gateway" desc="Card & mobile-money processing for subscriptions." status={payForm.status}>
         <div className="flex flex-wrap gap-2"><Radio label="Paystack" checked readOnly /></div>
-        <div className="mt-5 grid gap-4">
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="Public Key"><SecretInput value={payForm.publicKey} onChange={(v) => setPayForm({ ...payForm, publicKey: v })} placeholder="pk_…" /></Field>
           <Field label="Secret Key"><SecretInput value={payForm.secretKey} onChange={(v) => setPayForm({ ...payForm, secretKey: v })} placeholder="sk_…" /></Field>
           <Field label="Webhook Secret"><SecretInput value={payForm.webhookSecret} onChange={(v) => setPayForm({ ...payForm, webhookSecret: v })} placeholder="whsec_…" /></Field>
@@ -228,16 +263,6 @@ function IntegrationsTab() {
           </div>
         </div>
         <SaveBar label="Save Payment Settings" onSave={() => { update("payment", payForm); toast.success("Payment gateway saved"); }} />
-      </IntegrationCard>
-
-      {/* OAuth */}
-      <IntegrationCard icon={<KeyRound className="h-5 w-5 text-accent" />} title="Google OAuth" desc="Credentials for Sign in with Google." status={oauthForm.status}>
-        <div className="grid gap-4">
-          <Field label="Client ID"><SecretInput value={oauthForm.clientId} onChange={(v) => setOauthForm({ ...oauthForm, clientId: v })} placeholder="…apps.googleusercontent.com" /></Field>
-          <Field label="Client Secret"><SecretInput value={oauthForm.clientSecret} onChange={(v) => setOauthForm({ ...oauthForm, clientSecret: v })} placeholder="GOCSPX-…" /></Field>
-          <Field label="Callback URL (read-only)"><CopyField value={oauthForm.callbackUrl} /></Field>
-        </div>
-        <SaveBar label="Save OAuth Settings" onSave={() => { const status: IntegrationStatus = oauthForm.clientId && oauthForm.clientSecret ? "connected" : "not_configured"; update("oauth", { ...oauthForm, status }); setOauthForm({ ...oauthForm, status }); toast.success("Google OAuth saved"); }} />
       </IntegrationCard>
 
       {/* SMTP */}
@@ -276,114 +301,223 @@ function IntegrationsTab() {
 }
 
 /* ───────────── Tab 3 — Email Templates ───────────── */
-const TEMPLATE_VARS = ["{{name}}", "{{platformName}}", "{{planName}}", "{{daysLeft}}", "{{trialDays}}", "{{trialQuestions}}", "{{renewsAt}}", "{{resetLink}}"];
+const TEMPLATE_VARS = [
+  "{{userName}}",
+  "{{platformName}}",
+  "{{planName}}",
+  "{{price}}",
+  "{{amount}}",
+  "{{daysLeft}}",
+  "{{trialEndDate}}",
+  "{{loginTime}}",
+  "{{location}}",
+  "{{device}}",
+  "{{rank}}",
+  "{{score}}",
+  "{{receiptNumber}}",
+  "{{supportEmail}}",
+  "{{ctaUrl}}",
+];
 
 function EmailTemplatesTab() {
   const templates = useSettingsStore((s) => s.settings.templates);
   const setTemplates = useSettingsStore((s) => s.setTemplates);
+  const branding = useSettingsStore((s) => s.settings.branding);
+  const [selectedKey, setSelectedKey] = useState(templates[0]?.key ?? "");
   const [editing, setEditing] = useState<EmailTemplate | null>(null);
 
+  const selected = templates.find((t) => t.key === selectedKey) ?? templates[0];
+
+  function patch(next: EmailTemplate) {
+    setTemplates(templates.map((x) => (x.key === next.key ? next : x)));
+  }
+
+  function resetOne(key: string) {
+    const def = DEFAULT_EMAIL_TEMPLATES.find((d) => d.key === key);
+    if (!def) return;
+    setTemplates(templates.map((x) => (x.key === key ? def : x)));
+    setEditing((e) => (e && e.key === key ? def : e));
+    toast.success(`${def.name} reset to default`);
+  }
+
   return (
-    <Card title="Email Templates" desc="Transactional message copy. Variables like {{name}} are interpolated at send time.">
-      <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
-        {templates.map((t) => (
-          <li key={t.key} className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-foreground">{t.name}</span>
-                {!t.enabled && <span className="rounded-full bg-surface-alt px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">Off</span>}
-                {t.daysBefore != null && <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning">{t.daysBefore}d before</span>}
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,360px)_1fr]">
+      {/* Left — template list */}
+      <Card title="Templates" desc="Branded transactional emails. Toggle, preview, and edit each one.">
+        <ul className="-mx-1 max-h-[560px] space-y-1 overflow-y-auto pr-1">
+          {templates.map((t) => {
+            const active = t.key === selectedKey;
+            return (
+              <li key={t.key}>
+                <div
+                  className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition ${
+                    active ? "border-accent/40 bg-accent/5" : "border-border bg-surface hover:bg-surface-alt/60"
+                  }`}
+                >
+                  <button type="button" onClick={() => setSelectedKey(t.key)} className="min-w-0 flex-1 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-semibold text-foreground">{t.name}</span>
+                      {t.daysBefore != null && <span className="flex-shrink-0 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning">{t.daysBefore}d before</span>}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{fillVars(t.subject)}</p>
+                  </button>
+                  <ToggleSwitch
+                    size="sm"
+                    checked={t.enabled}
+                    onChange={(v) => patch({ ...t, enabled: v })}
+                    ariaLabel={`Toggle ${t.name}`}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
+
+      {/* Right — live preview */}
+      <Card
+        title="Live Preview"
+        desc="Exactly how the email renders with your branding and sample data."
+      >
+        {selected ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Subject</p>
+                <p className="mt-0.5 text-sm font-semibold text-foreground">{fillVars(selected.subject)}</p>
+                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className={`inline-flex items-center gap-1 ${selected.enabled ? "text-success" : "text-muted-foreground"}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${selected.enabled ? "bg-success" : "bg-muted-foreground/50"}`} />
+                    {selected.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                  {selected.daysBefore != null && <span>· sends {selected.daysBefore}d before event</span>}
+                </div>
               </div>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">{t.subject}</p>
+              <div className="flex flex-shrink-0 gap-2">
+                <button type="button" onClick={() => toast.success(`Test "${selected.name}" sent to you`)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt">
+                  <Send className="h-3.5 w-3.5" /> Test send
+                </button>
+                <button type="button" onClick={() => setEditing(selected)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-semibold text-accent-foreground hover:bg-accent/90">
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </button>
+              </div>
             </div>
-            <div className="flex flex-shrink-0 items-center gap-2">
-              <Toggle value={t.enabled} onChange={(v) => setTemplates(templates.map((x) => (x.key === t.key ? { ...x, enabled: v } : x)))} />
-              <button type="button" onClick={() => setEditing(t)} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"><Pencil className="h-3 w-3" /> Edit</button>
-            </div>
-          </li>
-        ))}
-      </ul>
+            <iframe
+              title="preview"
+              srcDoc={renderBrandedEmail(selected.body, selected.subject, branding)}
+              className="h-[520px] w-full rounded-xl border border-border bg-white"
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No templates configured.</p>
+        )}
+      </Card>
 
       {editing && (
         <TemplateEditor
           template={editing}
+          branding={branding}
           onClose={() => setEditing(null)}
-          onSave={(next) => { setTemplates(templates.map((x) => (x.key === next.key ? next : x))); setEditing(null); toast.success(`${next.name} template saved`); }}
+          onChange={setEditing}
+          onSave={(next) => { patch(next); setSelectedKey(next.key); setEditing(null); toast.success(`${next.name} template saved`); }}
+          onReset={() => resetOne(editing.key)}
         />
       )}
-    </Card>
+    </div>
   );
 }
 
-function TemplateEditor({ template, onClose, onSave }: { template: EmailTemplate; onClose: () => void; onSave: (t: EmailTemplate) => void }) {
-  const [draft, setDraft] = useState(template);
-  const [preview, setPreview] = useState(false);
+function TemplateEditor({
+  template,
+  branding,
+  onClose,
+  onChange,
+  onSave,
+  onReset,
+}: {
+  template: EmailTemplate;
+  branding: BrandingSettings;
+  onClose: () => void;
+  onChange: (t: EmailTemplate) => void;
+  onSave: (t: EmailTemplate) => void;
+  onReset: () => void;
+}) {
+  const draft = template;
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   function insertVar(v: string) {
     const el = bodyRef.current;
-    if (!el) return setDraft({ ...draft, body: draft.body + v });
+    if (!el) return onChange({ ...draft, body: draft.body + v });
     const start = el.selectionStart;
     const next = draft.body.slice(0, start) + v + draft.body.slice(el.selectionEnd);
-    setDraft({ ...draft, body: next });
+    onChange({ ...draft, body: next });
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 pt-12 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-2xl rounded-2xl border border-border bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 pt-10 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-5xl rounded-2xl border border-border bg-surface shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h3 className="text-base font-bold text-foreground">{draft.name} template</h3>
-          <button type="button" onClick={() => setPreview((p) => !p)} className="text-xs font-semibold text-accent hover:underline">{preview ? "Edit" : "Preview"}</button>
+          <div>
+            <h3 className="text-base font-bold text-foreground">{draft.name}</h3>
+            <p className="text-xs text-muted-foreground">Editing template body & subject</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ToggleSwitch size="sm" checked={draft.enabled} onChange={(v) => onChange({ ...draft, enabled: v })} ariaLabel="Enabled" />
+            <span className="text-xs font-semibold text-muted-foreground">{draft.enabled ? "Enabled" : "Disabled"}</span>
+          </div>
         </header>
-        <div className="space-y-4 p-5">
-          {preview ? (
-            <div className="rounded-xl border border-border bg-surface-alt/40 p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Subject</p>
-              <p className="mt-1 text-sm font-semibold text-foreground">{fillVars(draft.subject)}</p>
-              <div className="mt-4 whitespace-pre-wrap border-t border-border pt-4 text-sm text-foreground">{fillVars(draft.body)}</div>
-            </div>
-          ) : (
-            <>
-              <Field label="Subject"><Input value={draft.subject} onChange={(v) => setDraft({ ...draft, subject: v })} /></Field>
-              {draft.daysBefore != null && (
-                <Field label="Send days before event"><NumberInput value={draft.daysBefore} onChange={(v) => setDraft({ ...draft, daysBefore: v })} /></Field>
-              )}
-              <Field label="Body">
-                <textarea ref={bodyRef} rows={9} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} className="w-full rounded-lg border border-border bg-surface px-3 py-2 font-mono text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
-              </Field>
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Insert variable</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {TEMPLATE_VARS.map((v) => (
-                    <button key={v} type="button" onClick={() => insertVar(v)} className="rounded-md border border-border bg-surface-alt px-2 py-1 font-mono text-[11px] text-foreground hover:bg-surface-alt/70">{v}</button>
-                  ))}
-                </div>
+
+        <div className="grid gap-0 lg:grid-cols-2">
+          {/* Editor */}
+          <div className="space-y-4 border-b border-border p-5 lg:border-b-0 lg:border-r">
+            <Field label="Subject"><Input value={draft.subject} onChange={(v) => onChange({ ...draft, subject: v })} /></Field>
+            {draft.daysBefore != null && (
+              <Field label="Send days before event"><NumberInput value={draft.daysBefore} onChange={(v) => onChange({ ...draft, daysBefore: v })} /></Field>
+            )}
+            <Field label="Body (inner HTML)">
+              <textarea
+                ref={bodyRef}
+                rows={14}
+                value={draft.body}
+                onChange={(e) => onChange({ ...draft, body: e.target.value })}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs leading-relaxed focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+              />
+            </Field>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Insert variable</p>
+              <div className="flex flex-wrap gap-1.5">
+                {TEMPLATE_VARS.map((v) => (
+                  <button key={v} type="button" onClick={() => insertVar(v)} className="rounded-md border border-border bg-surface-alt px-2 py-1 font-mono text-[11px] text-foreground hover:bg-surface-alt/70">{v}</button>
+                ))}
               </div>
-            </>
-          )}
+            </div>
+          </div>
+
+          {/* Live preview */}
+          <div className="space-y-2 bg-surface-alt/30 p-5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Live preview</p>
+            <p className="truncate text-sm font-semibold text-foreground">{fillVars(draft.subject)}</p>
+            <iframe
+              title="preview"
+              srcDoc={renderBrandedEmail(draft.body, draft.subject, branding)}
+              className="h-[460px] w-full rounded-xl border border-border bg-white"
+            />
+          </div>
         </div>
-        <footer className="flex justify-between gap-2 border-t border-border px-5 py-3">
-          <button type="button" onClick={() => toast.success("Test email sent to you")} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"><Send className="h-4 w-4" /> Test send</button>
+
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3">
+          <div className="flex gap-2">
+            <button type="button" onClick={() => toast.success("Test email sent to you")} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"><Send className="h-4 w-4" /> Test send</button>
+            <button type="button" onClick={onReset} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-muted-foreground hover:bg-surface-alt hover:text-foreground"><RotateCcw className="h-4 w-4" /> Reset to default</button>
+          </div>
           <div className="flex gap-2">
             <button onClick={onClose} className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt">Cancel</button>
-            <button onClick={() => onSave(draft)} className="h-10 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90">Save template</button>
+            <button onClick={() => onSave(draft)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90"><Save className="h-4 w-4" /> Save template</button>
           </div>
         </footer>
       </div>
     </div>
   );
-}
-
-function fillVars(s: string) {
-  return s
-    .replace(/\{\{name\}\}/g, "Akua")
-    .replace(/\{\{platformName\}\}/g, "Medinovaqbank")
-    .replace(/\{\{planName\}\}/g, "12-Month")
-    .replace(/\{\{daysLeft\}\}/g, "3")
-    .replace(/\{\{trialDays\}\}/g, "7")
-    .replace(/\{\{trialQuestions\}\}/g, "10")
-    .replace(/\{\{renewsAt\}\}/g, "Mar 2027")
-    .replace(/\{\{resetLink\}\}/g, "https://medinovaqbank.com/reset/…");
 }
 
 /* ───────────── Tab 4 — Trial & Access ───────────── */
@@ -406,22 +540,22 @@ function TrialTab() {
           <Field label="Question Limit"><NumberInput value={limit} onChange={setLimit} /></Field>
           <Field label="Grace Period (days)"><NumberInput value={grace} onChange={setGrace} /></Field>
         </div>
-        <label className="mt-4 flex items-center justify-between rounded-lg border border-border bg-surface-alt/40 px-4 py-3 text-sm font-medium text-foreground">
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-alt/40 px-4 py-3 text-sm font-medium text-foreground">
           <span>Device binding — lock trial accounts to the device they signed up on<span className="ml-2 text-xs font-normal text-muted-foreground">Prevents trial account sharing.</span></span>
-          <Toggle value={binding} onChange={setBinding} />
-        </label>
+          <ToggleSwitch checked={binding} onChange={setBinding} ariaLabel="Device binding" />
+        </div>
       </Card>
 
       <Card title="Trial Feature Access" desc="Choose which features are available during the free trial. Unchecked features prompt an upgrade.">
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {catalog.filter((f) => f.type === "boolean").map((f) => (
-            <label key={f.key} className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+            <div key={f.key} className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3">
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-foreground">{f.name}</span>
                 <span className="block text-xs text-muted-foreground">{f.description}</span>
               </span>
-              <Toggle value={features[f.key] ?? false} onChange={(v) => setFeatures({ ...features, [f.key]: v })} />
-            </label>
+              <ToggleSwitch checked={features[f.key] ?? false} onChange={(v) => setFeatures({ ...features, [f.key]: v })} ariaLabel={f.name} />
+            </div>
           ))}
         </div>
       </Card>
@@ -470,12 +604,12 @@ function RolesTab() {
             {groups.map((g) => (
               <div key={g}>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{g}</p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {PERMISSION_CATALOG.filter((p) => p.group === g).map((p) => (
-                    <label key={p.key} className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground">
+                    <div key={p.key} className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground">
                       <span>{p.label}</span>
-                      <Toggle value={role.permissions[p.key] ?? false} onChange={(v) => setPerm(role.id, p.key, v)} />
-                    </label>
+                      <ToggleSwitch checked={role.permissions[p.key] ?? false} onChange={(v) => setPerm(role.id, p.key, v)} ariaLabel={`${role.name}: ${p.label}`} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -515,40 +649,117 @@ function RolesTab() {
 }
 
 /* ───────────── Tab 6 — Branding ───────────── */
+const FONT_OPTIONS = ["Inter", "system-ui", "Georgia", "JetBrains Mono"];
+
 function BrandingTab() {
   const branding = useSettingsStore((s) => s.settings.branding);
   const update = useSettingsStore((s) => s.update);
   const [form, setForm] = useState(branding);
 
-  // Live-apply colors as the admin tweaks them.
+  // Live-apply palette colors as the admin tweaks them.
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty("--primary", form.primaryColor);
     root.style.setProperty("--primary-light", form.primaryColor);
     root.style.setProperty("--accent", form.accentColor);
-  }, [form.primaryColor, form.accentColor]);
+    root.style.setProperty("--success", form.successColor);
+    root.style.setProperty("--warning", form.warningColor);
+  }, [form.primaryColor, form.accentColor, form.successColor, form.warningColor]);
+
+  function setField<K extends keyof BrandingSettings>(key: K, value: BrandingSettings[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+  function setSocial(key: keyof BrandingSettings["social"], value: string) {
+    setForm((f) => ({ ...f, social: { ...f.social, [key]: value } }));
+  }
 
   return (
     <div className="space-y-5">
-      <Card title="Colors" desc="Brand colors apply instantly across the app — preview live below.">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Primary Color"><ColorInput value={form.primaryColor} onChange={(v) => setForm({ ...form, primaryColor: v })} /></Field>
-          <Field label="Accent Color"><ColorInput value={form.accentColor} onChange={(v) => setForm({ ...form, accentColor: v })} /></Field>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-alt/40 p-4">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Preview</span>
-          <button className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Primary button</button>
-          <button className="rounded-lg bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">Accent button</button>
-          <span className="rounded-full bg-gradient-to-r from-primary to-accent px-3 py-1 text-xs font-bold text-white">Gradient chip</span>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title="Color Palette" desc="Primary, accent, success & warning apply live across the app.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Primary Color"><ColorInput value={form.primaryColor} onChange={(v) => setField("primaryColor", v)} /></Field>
+            <Field label="Accent Color"><ColorInput value={form.accentColor} onChange={(v) => setField("accentColor", v)} /></Field>
+            <Field label="Success Color"><ColorInput value={form.successColor} onChange={(v) => setField("successColor", v)} /></Field>
+            <Field label="Warning Color"><ColorInput value={form.warningColor} onChange={(v) => setField("warningColor", v)} /></Field>
+          </div>
+        </Card>
+
+        <Card title="Typography" desc="Fonts used for headings and body copy.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Heading Font"><Select value={form.headingFont} onChange={(v) => setField("headingFont", v)} options={FONT_OPTIONS} /></Field>
+            <Field label="Body Font"><Select value={form.bodyFont} onChange={(v) => setField("bodyFont", v)} options={FONT_OPTIONS} /></Field>
+          </div>
+          <div className="mt-4 rounded-xl border border-border bg-surface-alt/40 p-4">
+            <p style={{ fontFamily: form.headingFont }} className="text-lg font-bold text-foreground">The quick brown fox — heading</p>
+            <p style={{ fontFamily: form.bodyFont }} className="mt-1 text-sm text-muted-foreground">Body copy renders in {form.bodyFont}. Master Medicine. Pass with Confidence.</p>
+          </div>
+        </Card>
+      </div>
+
+      <Card title="Logos & Assets" desc="Logos, favicon, PWA icon, email logo and the login page background.">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <Field label="Logo (light backgrounds)"><FileUpload value={form.logoLight} onChange={(v) => setField("logoLight", v)} label="Upload light logo" /></Field>
+          <Field label="Logo (dark backgrounds)"><FileUpload value={form.logoDark} onChange={(v) => setField("logoDark", v)} label="Upload dark logo" /></Field>
+          <Field label="Email header logo"><FileUpload value={form.emailHeaderLogo} onChange={(v) => setField("emailHeaderLogo", v)} label="Upload email logo" /></Field>
+          <Field label="Favicon"><FileUpload value={form.favicon} onChange={(v) => setField("favicon", v)} label="Upload favicon" /></Field>
+          <Field label="PWA icon"><FileUpload value={form.pwaIcon} onChange={(v) => setField("pwaIcon", v)} label="Upload PWA icon" /></Field>
+          <Field label="Login background"><FileUpload value={form.loginBackground} onChange={(v) => setField("loginBackground", v)} label="Upload background" /></Field>
         </div>
       </Card>
 
-      <Card title="Assets" desc="Logos, favicon, and the login page background.">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Logo (light backgrounds)"><FileUpload value={form.logoLight} onChange={(v) => setForm({ ...form, logoLight: v })} label="Upload light logo" /></Field>
-          <Field label="Logo (dark backgrounds)"><FileUpload value={form.logoDark} onChange={(v) => setForm({ ...form, logoDark: v })} label="Upload dark logo" /></Field>
-          <Field label="Favicon"><FileUpload value={form.favicon} onChange={(v) => setForm({ ...form, favicon: v })} label="Upload favicon" /></Field>
-          <Field label="Login background"><FileUpload value={form.loginBackground} onChange={(v) => setForm({ ...form, loginBackground: v })} label="Upload background" /></Field>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title="Company & Email Footer" desc="Legal name and the footer line shown on every email.">
+          <Field label="Company Legal Name"><Input value={form.companyLegalName} onChange={(v) => setField("companyLegalName", v)} /></Field>
+          <Field label="Email Footer Text">
+            <textarea value={form.emailFooterText} onChange={(e) => setField("emailFooterText", e.target.value)} rows={3} className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          </Field>
+        </Card>
+
+        <Card title="Social Links" desc="Shown in email footers and the public site.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Twitter / X"><Input value={form.social.twitter} onChange={(v) => setSocial("twitter", v)} /></Field>
+            <Field label="Facebook"><Input value={form.social.facebook} onChange={(v) => setSocial("facebook", v)} /></Field>
+            <Field label="LinkedIn"><Input value={form.social.linkedin} onChange={(v) => setSocial("linkedin", v)} /></Field>
+            <Field label="Instagram"><Input value={form.social.instagram} onChange={(v) => setSocial("instagram", v)} /></Field>
+          </div>
+        </Card>
+      </div>
+
+      <Card title="Preview" desc="A sample UI card and email header using your current branding.">
+        <div className="grid gap-4 lg:grid-cols-2">
+          {/* Sample UI card */}
+          <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-bold text-success">Active</span>
+              <span className="rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-bold text-warning">3 days left</span>
+            </div>
+            <p className="mt-3 text-base font-bold text-foreground" style={{ fontFamily: form.headingFont }}>Sample dashboard card</p>
+            <p className="mt-1 text-sm text-muted-foreground" style={{ fontFamily: form.bodyFont }}>Buttons and chips below use your palette.</p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Primary button</button>
+              <button className="rounded-lg bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">Accent button</button>
+              <span className="rounded-full bg-gradient-to-r from-primary to-accent px-3 py-1 text-xs font-bold text-white">Gradient chip</span>
+            </div>
+          </div>
+
+          {/* Sample email header */}
+          <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-[var(--shadow-card)]">
+            <div className="flex items-center px-6 py-5" style={{ background: `linear-gradient(135deg, ${form.primaryColor}, ${form.accentColor})` }}>
+              {form.emailHeaderLogo || form.logoLight ? (
+                <img src={form.emailHeaderLogo || form.logoLight} alt="email logo" className="h-8 object-contain" />
+              ) : (
+                <span className="text-xl font-extrabold tracking-tight text-white">Medinova<span className="text-emerald-200">qbank</span></span>
+              )}
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm font-bold text-slate-900" style={{ fontFamily: form.headingFont }}>Welcome aboard 🎉</p>
+              <p className="mt-1 text-sm text-slate-600" style={{ fontFamily: form.bodyFont }}>This is how your branded email header looks to recipients.</p>
+            </div>
+            <div className="border-t border-slate-200 bg-slate-50 px-6 py-3">
+              <p className="text-[11px] text-slate-500">© 2026 {form.companyLegalName || "Medinovaqbank"}</p>
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -557,10 +768,273 @@ function BrandingTab() {
   );
 }
 
+/* ───────────── Tab 7 — CMS ───────────── */
+type CmsSection = "faq" | "help" | "legal" | "about" | "contact";
+const CMS_SECTIONS: { key: CmsSection; label: string }[] = [
+  { key: "faq", label: "FAQ" },
+  { key: "help", label: "Help Center" },
+  { key: "legal", label: "Legal" },
+  { key: "about", label: "About" },
+  { key: "contact", label: "Contact" },
+];
+
+function CmsTab() {
+  const [section, setSection] = useState<CmsSection>("faq");
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap gap-1.5">
+        {CMS_SECTIONS.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => setSection(s.key)}
+            className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+              section === s.key ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {section === "faq" && <CmsFaq />}
+      {section === "help" && <CmsHelp />}
+      {section === "legal" && <CmsLegal />}
+      {section === "about" && <CmsAbout />}
+      {section === "contact" && <CmsContactSection />}
+    </div>
+  );
+}
+
+function CmsFaq() {
+  const faqs = useCmsStore((s) => s.cms.faqs);
+  const setFaqs = useCmsStore((s) => s.setFaqs);
+  const [draft, setDraft] = useState<FaqEntry[]>(faqs);
+
+  function update(id: string, patch: Partial<FaqEntry>) {
+    setDraft(draft.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
+  function move(index: number, dir: -1 | 1) {
+    const next = [...draft];
+    const target = index + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    setDraft(next);
+  }
+
+  return (
+    <Card title="Frequently Asked Questions" desc="Questions shown on the public FAQ page.">
+      <div className="space-y-4">
+        {draft.map((f, i) => (
+          <div key={f.id} className="rounded-xl border border-border bg-surface p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-muted-foreground">#{i + 1}</span>
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground disabled:opacity-30" aria-label="Move up"><ChevronUp className="h-4 w-4" /></button>
+                <button type="button" onClick={() => move(i, 1)} disabled={i === draft.length - 1} className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground disabled:opacity-30" aria-label="Move down"><ChevronDown className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setDraft(draft.filter((x) => x.id !== f.id))} className="rounded-md p-1.5 text-muted-foreground hover:bg-error/10 hover:text-error" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Question"><Input value={f.question} onChange={(v) => update(f.id, { question: v })} /></Field>
+              <Field label="Category"><Input value={f.category} onChange={(v) => update(f.id, { category: v })} /></Field>
+            </div>
+            <Field label="Answer">
+              <textarea value={f.answer} onChange={(e) => update(f.id, { answer: e.target.value })} rows={3} className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            </Field>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <button type="button" onClick={() => setDraft([...draft, { id: `f_${Date.now()}`, category: "General", question: "", answer: "" }])} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-dashed border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">
+          <Plus className="h-4 w-4" /> Add question
+        </button>
+        <button type="button" onClick={() => { setFaqs(draft); toast.success("FAQ saved"); }} className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90"><Save className="h-4 w-4" /> Save FAQ</button>
+      </div>
+    </Card>
+  );
+}
+
+function CmsHelp() {
+  const articles = useCmsStore((s) => s.cms.helpArticles);
+  const setHelpArticles = useCmsStore((s) => s.setHelpArticles);
+  const [draft, setDraft] = useState<HelpArticle[]>(articles);
+
+  function update(id: string, patch: Partial<HelpArticle>) {
+    setDraft(draft.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  }
+
+  return (
+    <Card title="Help Center" desc="In-depth articles with rich formatting.">
+      <div className="space-y-5">
+        {draft.map((a) => (
+          <div key={a.id} className="rounded-xl border border-border bg-surface p-4">
+            <div className="grid gap-3 sm:grid-cols-[1fr_220px]">
+              <Field label="Title"><Input value={a.title} onChange={(v) => update(a.id, { title: v })} /></Field>
+              <Field label="Category"><Input value={a.category} onChange={(v) => update(a.id, { category: v })} /></Field>
+            </div>
+            <Field label="Body">
+              <RichTextEditor value={a.body} onChange={(html) => update(a.id, { body: html })} />
+            </Field>
+            <div className="mt-3 flex justify-end">
+              <button type="button" onClick={() => setDraft(draft.filter((x) => x.id !== a.id))} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-muted-foreground hover:bg-error/10 hover:text-error"><Trash2 className="h-3.5 w-3.5" /> Delete article</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <button type="button" onClick={() => setDraft([...draft, { id: `h_${Date.now()}`, category: "General", title: "", body: "" }])} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-dashed border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">
+          <Plus className="h-4 w-4" /> Add article
+        </button>
+        <button type="button" onClick={() => { setHelpArticles(draft); toast.success("Help Center saved"); }} className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90"><Save className="h-4 w-4" /> Save articles</button>
+      </div>
+    </Card>
+  );
+}
+
+const LEGAL_KEYS: { key: keyof CmsContent["legal"]; label: string }[] = [
+  { key: "terms", label: "Terms of Service" },
+  { key: "privacy", label: "Privacy Policy" },
+  { key: "refund", label: "Refund Policy" },
+  { key: "cookie", label: "Cookie Policy" },
+];
+
+function CmsLegal() {
+  const legal = useCmsStore((s) => s.cms.legal);
+  const setLegal = useCmsStore((s) => s.setLegal);
+  const [active, setActive] = useState<keyof CmsContent["legal"]>("terms");
+  const [draft, setDraft] = useState(legal);
+
+  const doc = draft[active];
+
+  function update(patch: Partial<typeof doc>) {
+    setDraft({ ...draft, [active]: { ...doc, ...patch } });
+  }
+
+  return (
+    <Card title="Legal Documents" desc="Terms, privacy, refund and cookie policies.">
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {LEGAL_KEYS.map((l) => (
+          <button
+            key={l.key}
+            type="button"
+            onClick={() => setActive(l.key)}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+              active === l.key ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
+      <Field label="Title"><Input value={doc.title} onChange={(v) => update({ title: v })} /></Field>
+      <Field label="Document body">
+        <RichTextEditor value={doc.body} onChange={(html) => update({ body: html })} minHeight={240} />
+      </Field>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <span className="text-xs text-muted-foreground">Last updated {doc.updatedAt}</span>
+        <button
+          type="button"
+          onClick={() => { setLegal(active, { title: doc.title, body: doc.body, updatedAt: "2026-06-26" }); setDraft({ ...draft, [active]: { ...doc, updatedAt: "2026-06-26" } }); toast.success(`${doc.title} saved`); }}
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
+        >
+          <Save className="h-4 w-4" /> Save document
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+function CmsAbout() {
+  const about = useCmsStore((s) => s.cms.about);
+  const setAbout = useCmsStore((s) => s.setAbout);
+  const [draft, setDraft] = useState<AboutContent>(about);
+
+  function updateFeature(id: string, patch: Partial<AboutContent["features"][number]>) {
+    setDraft({ ...draft, features: draft.features.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
+  }
+  function updateTestimonial(id: string, patch: Partial<Testimonial>) {
+    setDraft({ ...draft, testimonials: draft.testimonials.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
+  }
+
+  return (
+    <div className="space-y-5">
+      <Card title="About — Hero" desc="The headline and intro on the About page.">
+        <Field label="Hero Title"><Input value={draft.heroTitle} onChange={(v) => setDraft({ ...draft, heroTitle: v })} /></Field>
+        <Field label="Hero Subtitle">
+          <textarea value={draft.heroSubtitle} onChange={(e) => setDraft({ ...draft, heroSubtitle: e.target.value })} rows={3} className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+        </Field>
+      </Card>
+
+      <Card title="Features" desc="Highlighted product features.">
+        <div className="space-y-3">
+          {draft.features.map((f) => (
+            <div key={f.id} className="rounded-xl border border-border bg-surface p-4">
+              <div className="mb-2 flex justify-end">
+                <button type="button" onClick={() => setDraft({ ...draft, features: draft.features.filter((x) => x.id !== f.id) })} className="rounded-md p-1.5 text-muted-foreground hover:bg-error/10 hover:text-error" aria-label="Delete feature"><Trash2 className="h-4 w-4" /></button>
+              </div>
+              <Field label="Title"><Input value={f.title} onChange={(v) => updateFeature(f.id, { title: v })} /></Field>
+              <Field label="Body">
+                <textarea value={f.body} onChange={(e) => updateFeature(f.id, { body: e.target.value })} rows={2} className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+              </Field>
+            </div>
+          ))}
+        </div>
+        <button type="button" onClick={() => setDraft({ ...draft, features: [...draft.features, { id: `a_${Date.now()}`, title: "", body: "" }] })} className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg border border-dashed border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">
+          <Plus className="h-4 w-4" /> Add feature
+        </button>
+      </Card>
+
+      <Card title="Testimonials" desc="Social proof from users.">
+        <div className="space-y-3">
+          {draft.testimonials.map((t) => (
+            <div key={t.id} className="rounded-xl border border-border bg-surface p-4">
+              <div className="mb-2 flex justify-end">
+                <button type="button" onClick={() => setDraft({ ...draft, testimonials: draft.testimonials.filter((x) => x.id !== t.id) })} className="rounded-md p-1.5 text-muted-foreground hover:bg-error/10 hover:text-error" aria-label="Delete testimonial"><Trash2 className="h-4 w-4" /></button>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Name"><Input value={t.name} onChange={(v) => updateTestimonial(t.id, { name: v })} /></Field>
+                <Field label="Role"><Input value={t.role} onChange={(v) => updateTestimonial(t.id, { role: v })} /></Field>
+              </div>
+              <Field label="Quote">
+                <textarea value={t.quote} onChange={(e) => updateTestimonial(t.id, { quote: e.target.value })} rows={2} className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+              </Field>
+            </div>
+          ))}
+        </div>
+        <button type="button" onClick={() => setDraft({ ...draft, testimonials: [...draft.testimonials, { id: `t_${Date.now()}`, name: "", role: "", quote: "" }] })} className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg border border-dashed border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt">
+          <Plus className="h-4 w-4" /> Add testimonial
+        </button>
+      </Card>
+
+      <SaveBar label="Save About Page" onSave={() => { setAbout(draft); toast.success("About page saved"); }} />
+    </div>
+  );
+}
+
+function CmsContactSection() {
+  const contact = useCmsStore((s) => s.cms.contact);
+  const setContact = useCmsStore((s) => s.setContact);
+  const [draft, setDraft] = useState<ContactInfo>(contact);
+
+  return (
+    <Card title="Contact Details" desc="How users reach you — shown on the Contact page and in footers.">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Email"><Input value={draft.email} onChange={(v) => setDraft({ ...draft, email: v })} /></Field>
+        <Field label="Phone"><Input value={draft.phone} onChange={(v) => setDraft({ ...draft, phone: v })} /></Field>
+      </div>
+      <Field label="Address">
+        <textarea value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} rows={2} className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
+      </Field>
+      <SaveBar label="Save Contact" onSave={() => { setContact(draft); toast.success("Contact details saved"); }} />
+    </Card>
+  );
+}
+
 /* ───────────── Shared primitives ───────────── */
 function Card({ title, desc, icon, children }: { title: string; desc?: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-[var(--shadow-card)]">
+    <section className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)] sm:p-6">
       <div className="flex items-start gap-3">
         {icon}
         <div>
@@ -575,7 +1049,7 @@ function Card({ title, desc, icon, children }: { title: string; desc?: string; i
 
 function IntegrationCard({ icon, title, desc, status, children }: { icon: React.ReactNode; title: string; desc?: string; status: IntegrationStatus; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-[var(--shadow-card)]">
+    <section className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)] sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           {icon}
@@ -735,14 +1209,6 @@ function FileUpload({ value, onChange, label }: { value: string; onChange: (v: s
         </button>
       )}
     </div>
-  );
-}
-
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button type="button" role="switch" aria-checked={value} onClick={() => onChange(!value)} className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${value ? "bg-accent" : "border border-border bg-surface-alt"}`}>
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${value ? "translate-x-5" : "translate-x-0.5"}`} />
-    </button>
   );
 }
 

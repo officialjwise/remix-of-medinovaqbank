@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, MapPin, Phone, Send } from "lucide-react";
+import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Send, Twitter } from "lucide-react";
 import { toast } from "sonner";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
+import { useCmsStore } from "@/stores/cmsStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -18,7 +20,18 @@ export const Route = createFileRoute("/contact")({
 });
 
 function Contact() {
+  const { cms } = useCmsStore();
+  const { settings } = useSettingsStore();
+  const contact = cms.contact;
+  const social = settings.branding.social;
   const [submitting, setSubmitting] = useState(false);
+
+  const socials = [
+    { href: social.twitter, label: "Twitter", icon: Twitter },
+    { href: social.facebook, label: "Facebook", icon: Facebook },
+    { href: social.linkedin, label: "LinkedIn", icon: Linkedin },
+    { href: social.instagram, label: "Instagram", icon: Instagram },
+  ].filter((s) => s.href && s.href.trim().length > 0);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,9 +57,35 @@ function Contact() {
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[1fr_1.4fr]">
           <aside className="space-y-5">
-            <ContactCard icon={<Mail className="h-5 w-5" />} label="Email" value="support@medinovaqbank.com" />
-            <ContactCard icon={<Phone className="h-5 w-5" />} label="Phone" value="+233 30 000 0000" />
-            <ContactCard icon={<MapPin className="h-5 w-5" />} label="Office" value="Accra, Ghana" />
+            {contact.email && (
+              <ContactCard icon={<Mail className="h-5 w-5" />} label="Email" value={contact.email} href={`mailto:${contact.email}`} />
+            )}
+            {contact.phone && (
+              <ContactCard icon={<Phone className="h-5 w-5" />} label="Phone" value={contact.phone} href={`tel:${contact.phone.replace(/\s+/g, "")}`} />
+            )}
+            {contact.address && (
+              <ContactCard icon={<MapPin className="h-5 w-5" />} label="Office" value={contact.address} />
+            )}
+
+            {socials.length > 0 && (
+              <div className="rounded-xl border border-border bg-surface p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Follow us</p>
+                <div className="mt-3 flex items-center gap-2">
+                  {socials.map((s) => (
+                    <a
+                      key={s.label}
+                      href={s.href}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      aria-label={s.label}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground transition-colors hover:border-accent hover:text-accent"
+                    >
+                      <s.icon className="h-4 w-4" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </aside>
 
           <form onSubmit={onSubmit} className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
@@ -81,9 +120,9 @@ function Contact() {
   );
 }
 
-function ContactCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-border bg-surface p-4">
+function ContactCard({ icon, label, value, href }: { icon: React.ReactNode; label: string; value: string; href?: string }) {
+  const inner = (
+    <div className="flex items-start gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-accent">
       <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-light text-accent">{icon}</span>
       <div>
         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -91,6 +130,7 @@ function ContactCard({ icon, label, value }: { icon: React.ReactNode; label: str
       </div>
     </div>
   );
+  return href ? <a href={href} className="block">{inner}</a> : inner;
 }
 
 function Field({ label, name, type = "text", required, className }: { label: string; name: string; type?: string; required?: boolean; className?: string }) {

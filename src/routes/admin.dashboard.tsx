@@ -23,6 +23,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Admin · Dashboard — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
@@ -119,20 +120,20 @@ function AdminDashboard() {
 
       {/* KPI grid */}
       <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Kpi tone="teal"   label="Total users"              value="3,482"   delta="+124 this month"  icon={<Users className="h-5 w-5" />} trend="up" />
-        <Kpi tone="emerald" label="Active subscriptions"     value="1,254"   delta="+43 this week"    icon={<CreditCard className="h-5 w-5" />} trend="up" />
-        <Kpi tone="amber"  label="Trial users"               value="341"     delta="Convert rate 28%" icon={<Zap className="h-5 w-5" />} trend="up" />
-        <Kpi tone="green"  label="Monthly Revenue (GHS)"     value="142,890" delta="+18% vs last"     icon={<TrendingUp className="h-5 w-5" />} trend="up" />
-        <Kpi tone="blue"   label="Questions answered today"  value="12,841"  delta="+2,100 vs yest."  icon={<Activity className="h-5 w-5" />} trend="up" />
-        <Kpi tone="rose"   label="Sessions active now"       value="12"      delta="Live tracking"    icon={<Bell className="h-5 w-5" />} trend="neutral" />
+        <GradientKpiCard gradient="teal"    label="Total users"              value="3,482"   trend={{ value: "+124 this month", up: true }} icon={Users} />
+        <GradientKpiCard gradient="emerald" label="Active subscriptions"     value="1,254"   trend={{ value: "+43 this week", up: true }}   icon={CreditCard} />
+        <GradientKpiCard gradient="amber"   label="Trial users"              value="341"     trend={{ value: "Convert rate 28%", up: true }} icon={Zap} />
+        <GradientKpiCard gradient="navy"    label="Monthly Revenue (GHS)"    value="142,890" trend={{ value: "+18% vs last", up: true }}    icon={TrendingUp} />
+        <GradientKpiCard gradient="blue"    label="Questions answered today" value="12,841"  trend={{ value: "+2,100 vs yest.", up: true }} icon={Activity} />
+        <GradientKpiCard gradient="rose"    label="Sessions active now"      value="12"      sub="Live tracking"                            icon={Bell} />
       </section>
 
       {/* Secondary metrics row */}
       <section className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MiniMetric label="DAU" value="486" sub="+6% vs yesterday" />
-        <MiniMetric label="WAU" value="2,134" sub="61% of total users" />
-        <MiniMetric label="Avg accuracy" value="74%" sub="↑ 1.2 pts MoM" />
-        <MiniMetric label="Question banks" value="9" sub="2 published this month" />
+        <GradientKpiCard gradient="indigo" label="DAU" value="486" sub="+6% vs yesterday" icon={Activity} />
+        <GradientKpiCard gradient="violet" label="WAU" value="2,134" sub="61% of total users" icon={Users} />
+        <GradientKpiCard gradient="emerald" label="Avg accuracy" value="74%" sub="↑ 1.2 pts MoM" icon={TrendingUp} />
+        <GradientKpiCard gradient="teal" label="Question banks" value="9" sub="2 published this month" icon={Library} />
       </section>
 
       {/* Charts grid */}
@@ -230,62 +231,6 @@ function AdminDashboard() {
           <QuickAction to="/admin/ai-settings" label="Configure AI" icon={<Zap className="h-4 w-4" />} />
         </div>
       </section>
-    </div>
-  );
-}
-
-const kpiTones = {
-  teal:    "bg-[#0E7C7B]/10 text-[#0E7C7B]",
-  emerald: "bg-[#2BC97F]/10 text-[#1FA968]",
-  green:   "bg-[#047857]/10 text-[#047857]",
-  amber:   "bg-[#E89A1A]/10 text-[#B45309]",
-  blue:    "bg-[#3B82F6]/10 text-[#3B82F6]",
-  rose:    "bg-[#E11D48]/10 text-[#E11D48]",
-} as const;
-
-function Kpi({
-  tone,
-  label,
-  value,
-  delta,
-  icon,
-  trend,
-}: {
-  tone: keyof typeof kpiTones;
-  label: string;
-  value: string;
-  delta: string;
-  icon: React.ReactNode;
-  trend?: "up" | "down" | "neutral";
-}) {
-  return (
-    <div className="group relative overflow-hidden rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-        <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${kpiTones[tone]}`}>
-          {icon}
-        </span>
-      </div>
-      <p className="mt-3 text-3xl font-extrabold tracking-tight text-foreground">{value}</p>
-      <div className="mt-3 flex items-center gap-1.5">
-        {trend === "up" && <TrendingUp className="h-3.5 w-3.5 text-success" />}
-        {trend === "down" && (
-          <svg className="h-3.5 w-3.5 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>
-        )}
-        <span className={`text-[11px] font-semibold ${trend === "up" ? "text-success" : trend === "down" ? "text-error" : "text-muted-foreground"}`}>
-          {delta}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function MiniMetric({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-bold text-foreground">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{sub}</p>
     </div>
   );
 }

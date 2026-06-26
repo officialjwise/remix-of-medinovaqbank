@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -15,6 +15,7 @@ import {
 import {
   Activity,
   Globe2,
+  Map as MapIcon,
   MapPin,
   TrendingDown,
   TrendingUp,
@@ -34,6 +35,16 @@ import {
   usageHeatmap,
 } from "@/data/traffic";
 import { GeoBubbleMap } from "@/components/admin/GeoBubbleMap";
+import { UsageHeatmap } from "@/components/admin/UsageHeatmap";
+import { flagForCountry, countryFlag } from "@/lib/flags";
+import type { GlobeMarker } from "@/components/admin/TrafficGlobe";
+
+// Lazy-load the WebGL globe so cobe never blocks initial paint.
+const TrafficGlobe = lazy(() =>
+  import("@/components/admin/TrafficGlobe").then((m) => ({
+    default: m.TrafficGlobe,
+  })),
+);
 
 export const Route = createFileRoute("/admin/traffic")({
   head: () => ({
@@ -106,6 +117,38 @@ const newSignupsToday =
 
 const cityMaxPct = Math.max(...ghanaCities.map((c) => c.pct));
 const trafficTotal = trafficSources.reduce((acc, s) => acc + s.value, 0);
+
+const usersMax = Math.max(...countryTraffic.map((c) => c.users));
+
+// Globe markers sized by traffic volume (computed once at module scope).
+const globeMarkers: GlobeMarker[] = countryTraffic.map((c) => ({
+  location: [c.lat, c.lng] as [number, number],
+  size: 0.04 + (c.users / usersMax) * 0.12,
+}));
+
+// Synthesized 30-day visits trend (seeded LCG → deterministic across renders).
+const trafficOverTime = (() => {
+  let seed = 20260626;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+  const today = new Date(2026, 5, 26);
+  return Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (29 - i));
+    const dow = d.getDay();
+    const weekend = dow === 0 || dow === 6 ? 0.78 : 1;
+    const trend = 1 + i * 0.012; // gentle upward growth
+    const wave = 1 + Math.sin(i / 3.2) * 0.12;
+    const visits = Math.round(1850 * weekend * trend * wave + rand() * 220);
+    return {
+      label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      visits,
+      sessions: Math.round(visits * (1.35 + rand() * 0.25)),
+    };
+  });
+})();
 
 /* ------------------------------------------------------------------ */
 /* Small components                                                    */
@@ -261,14 +304,24 @@ function Donut({
 const RANGES = ["7d", "30d", "90d"] as const;
 type Range = (typeof RANGES)[number];
 
-const HOUR_LABELS = [0, 6, 12, 18];
-
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
 function TrafficPage() {
   const [range, setRange] = useState<Range>("30d");
+  const [mapMode, setMapMode] = useState<"flat" | "globe">("flat");
+  const [dark, setDark] = useState(false);
+
+  // Track dark mode so the globe's palette matches the theme.
+  useEffect(() => {
+    const root = document.documentElement;
+    const sync = () => setDark(root.classList.contains("dark"));
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   const sortedCountries = useMemo(
     () => [...countryTraffic].sort((a, b) => b.users - a.users),
@@ -278,6 +331,8 @@ function TrafficPage() {
     () => Math.max(...countryTraffic.map((c) => c.pct)),
     [],
   );
+  // Memoize the markers array so the globe effect doesn't re-init each render.
+  const markers = useMemo(() => globeMarkers, []);
 
   return (
     <div className="space-y-6">
@@ -351,21 +406,71 @@ function TrafficPage() {
 
       {/* Geographic distribution + Live now */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Panel
-          title="Where your users are"
-          subtitle="Geographic distribution — bubble size = users"
-          className="lg:col-span-2"
-        >
-          <div className="mt-4 overflow-hidden rounded-xl border border-border">
-            <GeoBubbleMap points={geoPoints} max={geoMax} />
+        <section className={`${cardClass} lg:col-span-2`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-sm font-bold tracking-tight text-foreground">
+                Where your users are
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Geographic distribution — marker size = users
+              </p>
+            </div>
+            {/* Flat map | 3D globe toggle */}
+            <div className="inline-flex shrink-0 items-center gap-1 self-start rounded-xl border border-border bg-surface-alt p-1">
+              <button
+                type="button"
+                onClick={() => setMapMode("flat")}
+                aria-pressed={mapMode === "flat"}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  mapMode === "flat"
+                    ? "bg-surface text-foreground shadow-[var(--shadow-card)]"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <MapIcon className="h-3.5 w-3.5" />
+                Flat map
+              </button>
+              <button
+                type="button"
+                onClick={() => setMapMode("globe")}
+                aria-pressed={mapMode === "globe"}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  mapMode === "globe"
+                    ? "bg-surface text-foreground shadow-[var(--shadow-card)]"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Globe2 className="h-3.5 w-3.5" />
+                3D globe
+              </button>
+            </div>
           </div>
+
+          {mapMode === "flat" ? (
+            <div className="mt-4 overflow-hidden rounded-xl border border-border">
+              <GeoBubbleMap points={geoPoints} max={geoMax} />
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-col items-center">
+              <Suspense
+                fallback={
+                  <div className="aspect-square w-full max-w-[420px] animate-pulse rounded-full bg-surface-alt" />
+                }
+              >
+                <TrafficGlobe markers={markers} dark={dark} />
+              </Suspense>
+              <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Globe2 className="h-3 w-3" />
+                Drag to rotate · auto-spins
+              </p>
+            </div>
+          )}
+
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             {sortedCountries.slice(0, 5).map((c) => (
               <span key={c.code} className="inline-flex items-center gap-1.5">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: palette.teal }}
-                />
+                <span aria-hidden>{countryFlag(c.code)}</span>
                 {c.country}
                 <span className="font-semibold tabular-nums text-foreground">
                   {c.users.toLocaleString()}
@@ -373,7 +478,7 @@ function TrafficPage() {
               </span>
             ))}
           </div>
-        </Panel>
+        </section>
 
         {/* Active users right now */}
         <Panel title="Active users right now" subtitle="Real-time activity feed">
@@ -393,8 +498,12 @@ function TrafficPage() {
                 key={a.id}
                 className="flex items-start gap-2.5 rounded-lg border border-border bg-surface-alt px-3 py-2"
               >
-                <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md bg-[#0E7C7B]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0E7C7B]">
-                  {a.country}
+                <span
+                  className="mt-0.5 shrink-0 text-base leading-none"
+                  aria-label={a.country}
+                  title={a.country}
+                >
+                  {countryFlag(a.country)}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-xs text-foreground">
@@ -433,11 +542,18 @@ function TrafficPage() {
                   >
                     <td className="py-2.5 pr-4">
                       <span className="inline-flex items-center gap-2">
-                        <span className="rounded bg-surface-alt px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                          {c.code}
+                        <span
+                          className="text-base leading-none"
+                          aria-hidden
+                          title={c.country}
+                        >
+                          {flagForCountry(c.country)}
                         </span>
                         <span className="font-medium text-foreground">
                           {c.country}
+                        </span>
+                        <span className="rounded bg-surface-alt px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                          {c.code}
                         </span>
                       </span>
                     </td>
@@ -649,6 +765,95 @@ function TrafficPage() {
         </Panel>
       </div>
 
+      {/* Traffic over time */}
+      <Panel
+        title="Traffic over time"
+        subtitle="Visits &amp; sessions across the last 30 days"
+      >
+        <div className="mt-4 h-72 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trafficOverTime}>
+              <defs>
+                <linearGradient id="gVisits" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={palette.teal} stopOpacity={0.45} />
+                  <stop offset="100%" stopColor={palette.teal} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gSessions" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="0%"
+                    stopColor={palette.emerald}
+                    stopOpacity={0.35}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={palette.emerald}
+                    stopOpacity={0}
+                  />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={gridStroke}
+                vertical={false}
+              />
+              <XAxis
+                dataKey="label"
+                stroke={axisStroke}
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                minTickGap={28}
+              />
+              <YAxis
+                stroke={axisStroke}
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                width={42}
+                tickFormatter={(v: number) =>
+                  v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`
+                }
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                cursor={{ stroke: gridStroke }}
+                formatter={(v: number) => v.toLocaleString()}
+              />
+              <Area
+                type="monotone"
+                dataKey="sessions"
+                name="Sessions"
+                stroke={palette.emerald}
+                strokeWidth={2}
+                fill="url(#gSessions)"
+              />
+              <Area
+                type="monotone"
+                dataKey="visits"
+                name="Visits"
+                stroke={palette.teal}
+                strokeWidth={2.5}
+                fill="url(#gVisits)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+          {[
+            { name: "Visits", color: palette.teal },
+            { name: "Sessions", color: palette.emerald },
+          ].map((s) => (
+            <span key={s.name} className="inline-flex items-center gap-1.5">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: s.color }}
+              />
+              {s.name}
+            </span>
+          ))}
+        </div>
+      </Panel>
+
       {/* Device / browser / OS donuts */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Donut title="Device" data={deviceBreakdown} />
@@ -659,59 +864,9 @@ function TrafficPage() {
       {/* Peak usage heatmap */}
       <Panel
         title="Peak usage times"
-        subtitle="Relative activity by day &amp; hour (local time)"
+        subtitle="Relative activity by day &amp; hour (local time) — hover a cell for detail"
       >
-        <div className="mt-4 overflow-x-auto">
-          <div className="min-w-[640px]">
-            {/* hour axis */}
-            <div className="flex pl-10">
-              <div className="grid flex-1 grid-cols-[repeat(24,minmax(0,1fr))] gap-1">
-                {Array.from({ length: 24 }, (_, h) => (
-                  <div
-                    key={h}
-                    className="text-center text-[10px] text-muted-foreground"
-                  >
-                    {HOUR_LABELS.includes(h) ? h : ""}
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* rows */}
-            <div className="mt-1 space-y-1">
-              {usageHeatmap.map((row) => (
-                <div key={row.day} className="flex items-center">
-                  <div className="w-10 pr-2 text-right text-[11px] font-medium text-muted-foreground">
-                    {row.day}
-                  </div>
-                  <div className="grid flex-1 grid-cols-[repeat(24,minmax(0,1fr))] gap-1">
-                    {row.hours.map((v, h) => (
-                      <div
-                        key={h}
-                        className="aspect-square rounded-[3px] border border-border/40"
-                        style={{
-                          backgroundColor: `rgba(14,124,123,${v / 100})`,
-                        }}
-                        title={`${row.day} ${h}:00 — ${v}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        {/* legend */}
-        <div className="mt-4 flex items-center gap-2 pl-10 text-[11px] text-muted-foreground">
-          <span>Less</span>
-          {[0.1, 0.3, 0.5, 0.7, 0.9].map((o) => (
-            <span
-              key={o}
-              className="h-3 w-3 rounded-[3px] border border-border/40"
-              style={{ backgroundColor: `rgba(14,124,123,${o})` }}
-            />
-          ))}
-          <span>More</span>
-        </div>
+        <UsageHeatmap data={usageHeatmap} />
       </Panel>
     </div>
   );

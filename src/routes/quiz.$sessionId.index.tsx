@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   Bookmark,
@@ -7,17 +7,27 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Flag,
-  Lightbulb,
-  Sparkles,
+  GraduationCap,
+  Keyboard,
+  LayoutGrid,
+  SkipForward,
+  Timer,
   X,
+  Zap,
 } from "lucide-react";
 import { useSessionStore } from "@/stores/sessionStore";
+import { ClinicalBreakdown } from "@/components/quiz/ClinicalBreakdown";
+import { QuestionNavigator } from "@/components/quiz/QuestionNavigator";
 import type { Question } from "@/types";
 
 export const Route = createFileRoute("/quiz/$sessionId/")({
   component: QuizPage,
 });
+
+const OPTION_KEYS = ["A", "B", "C", "D", "E"] as const;
+type OptionKey = (typeof OPTION_KEYS)[number];
 
 function QuizPage() {
   const { sessionId } = Route.useParams();
@@ -30,15 +40,101 @@ function QuizPage() {
   const finishSession = useSessionStore((s) => s.finishSession);
 
   const [index, setIndex] = useState(0);
-  const [navOpen, setNavOpen] = useState(true);
+  const [navOpen, setNavOpen] = useState(false); // mobile sheet
   const [elapsed, setElapsed] = useState(0);
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
+  const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
 
-  // Timer tick
+  // Timer tick (counts up; converted to remaining if the session has a duration)
   useEffect(() => {
     const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
   }, []);
+
+  const total = session?.questionIds.length ?? 0;
+
+  const go = useCallback(
+    (delta: number) => {
+      setFeedback(null);
+      setIndex((i) => Math.min(total - 1, Math.max(0, i + delta)));
+    },
+    [total],
+  );
+
+  const jump = useCallback((i: number) => {
+    setFeedback(null);
+    setIndex(i);
+    setNavOpen(false);
+  }, []);
+
+  const qid = session?.questionIds[index];
+  const question: Question | undefined = qid ? questionMap[qid] : undefined;
+  const selected = qid ? session?.answers[qid] : undefined;
+  const isSubmitted = qid ? !!session?.submitted[qid] : false;
+  const isLast = index === total - 1;
+
+  const finish = useCallback(() => {
+    finishSession(sessionId);
+    navigate({ to: "/quiz/$sessionId/results", params: { sessionId } });
+  }, [finishSession, navigate, sessionId]);
+
+  const handleSubmit = useCallback(() => {
+    if (!qid || !question || !selected || isSubmitted) return;
+    submitAnswer(sessionId, qid);
+    setFeedback(selected === question.correctKey ? "correct" : "incorrect");
+  }, [qid, question, selected, isSubmitted, submitAnswer, sessionId]);
+
+  const handleNextOrSubmit = useCallback(() => {
+    if (!session) return;
+    if (session.mode === "QUIZ") {
+      if (selected && !isSubmitted && qid) submitAnswer(sessionId, qid);
+      if (isLast) return finish();
+      go(1);
+    } else {
+      if (!isSubmitted) return handleSubmit();
+      if (isLast) return finish();
+      go(1);
+    }
+  }, [session, selected, isSubmitted, qid, submitAnswer, sessionId, isLast, finish, go, handleSubmit]);
+
+  // Keyboard navigation — number/letter keys select, Enter submits, arrows move.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      if (!session || !qid || !question) return;
+
+      // Number 1-5 or letter A-E selects the matching option (if it exists).
+      let key: OptionKey | null = null;
+      if (/^[1-5]$/.test(e.key)) key = OPTION_KEYS[Number(e.key) - 1] ?? null;
+      else if (/^[a-eA-E]$/.test(e.key)) key = e.key.toUpperCase() as OptionKey;
+      if (key && question.options.some((o) => o.key === key)) {
+        if (!isSubmitted) {
+          e.preventDefault();
+          selectAnswer(sessionId, qid, key);
+        }
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleNextOrSubmit();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        go(1);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        go(-1);
+      } else if (e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleBookmark(sessionId, qid);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [
+    session, qid, question, isSubmitted, selectAnswer, sessionId, handleNextOrSubmit, go, toggleBookmark,
+  ]);
 
   if (!session) {
     return (
@@ -59,87 +155,57 @@ function QuizPage() {
     );
   }
 
-  const qid = session.questionIds[index];
-  const question: Question | undefined = questionMap[qid];
-  const total = session.questionIds.length;
-  const selected = session.answers[qid];
-  const isSubmitted = !!session.submitted[qid];
   const showExplanation = session.mode === "TUTOR" && isSubmitted;
   const answeredCount = session.questionIds.filter((id) => session.submitted[id]).length;
-  const progressPct = Math.round((answeredCount / total) * 100);
+  const progressPct = total === 0 ? 0 : Math.round((answeredCount / total) * 100);
   const remaining = session.durationSec ? Math.max(0, session.durationSec - elapsed) : null;
-  const isLast = index === total - 1;
-
-  function go(delta: number) {
-    setIndex((i) => Math.min(total - 1, Math.max(0, i + delta)));
-  }
-
-  function handleSubmit() {
-    if (!selected) return;
-    submitAnswer(sessionId, qid);
-  }
-
-  function finish() {
-    finishSession(sessionId);
-    navigate({ to: "/quiz/$sessionId/results", params: { sessionId } });
-  }
-
-  function handleNextOrSubmit() {
-    if (session.mode === "QUIZ") {
-      if (selected && !isSubmitted) submitAnswer(sessionId, qid);
-      if (isLast) {
-        finish();
-        return;
-      }
-      go(1);
-    } else {
-      if (!isSubmitted) {
-        handleSubmit();
-        return;
-      }
-      if (isLast) {
-        finish();
-        return;
-      }
-      go(1);
-    }
-  }
+  const isTutor = session.mode === "TUTOR";
+  const lowTime = remaining !== null && remaining <= 60;
 
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-border bg-surface">
+      <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
         <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-4 sm:px-6">
           <Link
             to="/banks"
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground"
           >
-            <ArrowLeft className="h-4 w-4" /> Exit
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Exit</span>
           </Link>
-          <div className="hidden flex-1 items-center justify-center sm:flex">
-            <span className="truncate text-sm font-semibold text-foreground">
-              {session.bankName}
-            </span>
+          <div className="hidden min-w-0 flex-1 items-center justify-center sm:flex">
+            <span className="truncate text-sm font-semibold text-foreground">{session.bankName}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <span
-              className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                session.mode === "TUTOR"
-                  ? "bg-accent-light text-accent"
-                  : "bg-warning-light text-warning"
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                isTutor ? "bg-primary/15 text-primary" : "bg-accent/15 text-accent"
               }`}
             >
+              {isTutor ? <GraduationCap className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
               {session.mode}
             </span>
             {remaining !== null && (
-              <span className="rounded-full bg-surface-alt px-2.5 py-1 text-xs font-mono font-semibold tabular-nums text-foreground">
-                {formatTime(remaining)}
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-xs font-semibold tabular-nums transition-colors ${
+                  lowTime ? "bg-error/15 text-error animate-pulse" : "bg-surface-alt text-foreground"
+                }`}
+              >
+                <Timer className="h-3.5 w-3.5" /> {formatTime(remaining)}
               </span>
             )}
             <button
               type="button"
+              onClick={() => setNavOpen(true)}
+              className="inline-flex items-center justify-center rounded-lg border border-border bg-surface p-1.5 text-muted-foreground hover:bg-surface-alt lg:hidden"
+              aria-label="Open question navigator"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
               onClick={finish}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary-light"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-primary to-accent px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
             >
               <Check className="h-3.5 w-3.5" /> Finish
             </button>
@@ -148,145 +214,135 @@ function QuizPage() {
         {/* Progress bar */}
         <div className="h-1 w-full bg-surface-alt">
           <div
-            className="h-full bg-accent transition-all"
+            className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1400px]">
-        {/* Sidebar nav */}
-        <aside
-          className={`hidden border-r border-border bg-surface md:block ${
-            navOpen ? "w-64" : "w-16"
-          } transition-all duration-300 min-h-[calc(100vh-3.5rem)]`}
-        >
-          <div className="flex h-12 items-center justify-between px-3">
-            <span className={`text-xs font-bold uppercase tracking-wide text-muted-foreground ${navOpen ? "" : "sr-only"}`}>
-              Questions
-            </span>
-            <button
-              type="button"
-              onClick={() => setNavOpen((v) => !v)}
-              className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt"
-              aria-label="Toggle navigator"
-            >
-              <ChevronLeft className={`h-4 w-4 transition-transform ${navOpen ? "" : "rotate-180"}`} />
-            </button>
-          </div>
-          <div className={`grid gap-1.5 p-3 ${navOpen ? "grid-cols-5" : "grid-cols-1"}`}>
-            {session.questionIds.map((id, i) => {
-              const a = session.answers[id];
-              const sub = !!session.submitted[id];
-              const q = questionMap[id];
-              const correct = sub && q && a === q.correctKey;
-              const wrong = sub && q && a && a !== q.correctKey;
-              const isCurrent = i === index;
-              const cls = isCurrent
-                ? "bg-accent text-accent-foreground border-accent"
-                : session.mode === "TUTOR"
-                  ? correct
-                    ? "bg-success-light text-success border-success/30"
-                    : wrong
-                      ? "bg-error-light text-error border-error/30"
-                      : a
-                        ? "bg-warning-light text-warning border-warning/30"
-                        : "bg-surface text-muted-foreground border-border"
-                  : sub
-                    ? "bg-warning-light text-warning border-warning/30"
-                    : "bg-surface text-muted-foreground border-border";
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setIndex(i)}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold ${cls}`}
-                  aria-label={`Go to question ${i + 1}`}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
-          </div>
-        </aside>
-
+      <div className="mx-auto flex w-full max-w-[1400px] gap-0 lg:gap-6 lg:px-6 lg:py-6">
         {/* Main content */}
-        <main className="flex-1 px-4 py-6 sm:px-8 lg:px-12">
-          <div className="mx-auto max-w-4xl xl:max-w-5xl">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:px-0 lg:py-0">
+          <div className="mx-auto max-w-3xl xl:max-w-4xl">
             {question ? (
               <>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Question {index + 1} of {total}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => toggleBookmark(sessionId, qid)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-surface-alt"
-                  >
-                    {session.bookmarked[qid] ? (
-                      <BookmarkCheck className="h-4 w-4 text-accent" />
-                    ) : (
-                      <Bookmark className="h-4 w-4" />
-                    )}
-                    {session.bookmarked[qid] ? "Bookmarked" : "Bookmark"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFlagged((f) => ({ ...f, [qid]: !f[qid] }))}
-                    className={`ml-2 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                      flagged[qid]
-                        ? "border-amber-300 bg-amber-50 text-amber-700"
-                        : "border-border bg-surface text-muted-foreground hover:bg-surface-alt"
-                    }`}
-                    aria-pressed={!!flagged[qid]}
-                  >
-                    <Flag className="h-4 w-4" />
-                    {flagged[qid] ? "Flagged" : "Flag"}
-                  </button>
+                {/* Counter + actions */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-3 py-1 text-xs font-semibold text-foreground">
+                      Question <span className="text-primary">{index + 1}</span> of {total}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                      {question.topic}
+                    </span>
+                    <span className="hidden items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted-foreground sm:inline-flex">
+                      {question.difficulty}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => qid && toggleBookmark(sessionId, qid)}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                        qid && session.bookmarked[qid]
+                          ? "border-accent/40 bg-accent/10 text-accent"
+                          : "border-border bg-surface text-muted-foreground hover:bg-surface-alt"
+                      }`}
+                      aria-pressed={!!(qid && session.bookmarked[qid])}
+                    >
+                      {qid && session.bookmarked[qid] ? (
+                        <BookmarkCheck className="h-4 w-4" />
+                      ) : (
+                        <Bookmark className="h-4 w-4" />
+                      )}
+                      <span className="hidden sm:inline">
+                        {qid && session.bookmarked[qid] ? "Bookmarked" : "Bookmark"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => qid && setFlagged((f) => ({ ...f, [qid]: !f[qid] }))}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                        qid && flagged[qid]
+                          ? "border-warning/40 bg-warning/10 text-warning"
+                          : "border-border bg-surface text-muted-foreground hover:bg-surface-alt"
+                      }`}
+                      aria-pressed={!!(qid && flagged[qid])}
+                    >
+                      <Flag className="h-4 w-4" />
+                      <span className="hidden sm:inline">{qid && flagged[qid] ? "Flagged" : "Flag"}</span>
+                    </button>
+                  </div>
                 </div>
 
-                <article className="mt-3 rounded-2xl border border-white/5 bg-surface p-6 shadow-[0_10px_30px_-10px_rgb(0_0_0_/_0.3)] animate-slide-up">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#00D4C8]/5 to-transparent pointer-events-none rounded-2xl" />
-                  <p className="relative whitespace-pre-line text-[16px] leading-relaxed text-foreground/90 font-medium drop-shadow-sm">
+                {/* Question card */}
+                <article
+                  className={`relative mt-3 overflow-hidden rounded-2xl border bg-surface p-6 shadow-[var(--shadow-card)] transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${
+                    feedback === "correct"
+                      ? "border-success/50 ring-1 ring-success/30"
+                      : feedback === "incorrect"
+                        ? "border-error/50 ring-1 ring-error/30"
+                        : "border-border"
+                  }`}
+                >
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent"
+                  />
+                  {/* Optional question image (guarded — may not exist yet) */}
+                  {(question as { imageUrl?: string }).imageUrl && (
+                    <img
+                      src={(question as { imageUrl?: string }).imageUrl}
+                      alt="Clinical image for this question"
+                      className="relative mx-auto mb-4 max-h-72 rounded-xl border border-border object-contain"
+                    />
+                  )}
+                  <p className="relative whitespace-pre-line text-base font-medium leading-relaxed text-foreground">
                     {question.stem}
                   </p>
                 </article>
 
-                <div className="mt-5 space-y-3 animate-slide-up" style={{ animationDelay: '100ms' }}>
-                  {question.options.map((opt) => {
+                {/* Options */}
+                <div className="mt-5 space-y-3">
+                  {question.options.map((opt, i) => {
                     const chosen = selected === opt.key;
                     const correctKey = question.correctKey;
+                    const optImage =
+                      (opt as { image?: string; imageUrl?: string }).image ??
+                      (opt as { imageUrl?: string }).imageUrl;
+
                     let cls =
-                      "border-white/10 bg-surface/80 text-foreground hover:border-[#00D4C8]/40 hover:bg-[#00D4C8]/5 hover:shadow-[0_0_15px_rgba(0,212,200,0.1)]";
-                    let iconCls = "border-white/20 bg-surface text-foreground";
-                    
+                      "border-border bg-surface text-foreground hover:border-primary/50 hover:bg-primary/5";
+                    let badge = "border-border bg-surface-alt text-foreground";
+
                     if (showExplanation) {
                       if (opt.key === correctKey) {
-                        cls = "border-success bg-success/10 text-success shadow-[0_0_20px_rgba(31,169,104,0.2)] animate-glow-pulse";
-                        iconCls = "border-success bg-success text-white shadow-[0_0_10px_rgba(31,169,104,0.5)]";
+                        cls = "border-success bg-success/10 text-foreground shadow-[0_0_0_1px_var(--color-success)]";
+                        badge = "border-success bg-success text-white";
                       } else if (chosen) {
-                        cls = "border-error bg-error/10 text-error";
-                        iconCls = "border-error bg-error text-white";
+                        cls = "border-error bg-error/10 text-foreground";
+                        badge = "border-error bg-error text-white";
                       } else {
-                        cls = "border-white/5 bg-surface/40 text-muted-foreground opacity-60";
+                        cls = "border-border bg-surface-alt/40 text-muted-foreground opacity-70";
                       }
                     } else if (chosen) {
-                      cls = "border-[#00D4C8] bg-[#00D4C8]/10 text-foreground shadow-[0_0_15px_rgba(0,212,200,0.2)]";
-                      iconCls = "border-[#00D4C8] bg-[#00D4C8] text-white shadow-[0_0_10px_rgba(0,212,200,0.5)]";
-                    } else if (isSubmitted && session.mode === "QUIZ") {
-                      cls = "border-white/5 bg-surface/40 text-muted-foreground opacity-60";
+                      cls = "border-primary bg-primary/10 text-foreground shadow-[0_0_0_1px_var(--color-primary)]";
+                      badge = "border-primary bg-primary text-primary-foreground";
+                    } else if (isSubmitted && !isTutor) {
+                      cls = "border-border bg-surface-alt/40 text-muted-foreground opacity-70";
                     }
+
                     return (
                       <button
                         key={opt.key}
                         type="button"
                         disabled={isSubmitted}
-                        onClick={() => selectAnswer(sessionId, qid, opt.key)}
-                        className={`group relative flex w-full items-start gap-4 rounded-xl border p-4 text-left transition-all duration-300 disabled:cursor-default ${cls}`}
+                        onClick={() => qid && selectAnswer(sessionId, qid, opt.key)}
+                        className={`group relative flex w-full items-start gap-4 rounded-xl border p-4 text-left transition-all duration-200 animate-in fade-in slide-in-from-bottom-1 disabled:cursor-default ${cls}`}
+                        style={{ animationDelay: `${i * 40}ms` }}
                       >
                         <span
-                          className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border text-xs font-bold transition-all duration-300 ${iconCls}`}
+                          className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border text-xs font-bold transition-all duration-200 ${badge}`}
                         >
                           {showExplanation && opt.key === correctKey ? (
                             <Check className="h-4 w-4" />
@@ -296,45 +352,76 @@ function QuizPage() {
                             opt.key
                           )}
                         </span>
-                        <span className="flex-1 text-[15px] leading-relaxed pt-0.5">{opt.text}</span>
+                        <span className="flex-1 pt-0.5">
+                          <span className="block text-[15px] leading-relaxed">{opt.text}</span>
+                          {optImage && (
+                            <img
+                              src={optImage}
+                              alt={`Option ${opt.key}`}
+                              className="mt-2 max-h-40 rounded-lg border border-border object-contain"
+                            />
+                          )}
+                        </span>
+                        {!isSubmitted && (
+                          <span className="mt-1 hidden flex-shrink-0 rounded border border-border px-1.5 text-[10px] font-bold text-muted-foreground/70 sm:block">
+                            {opt.key}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
 
+                {/* Submit / Skip */}
                 {!isSubmitted && (
-                  <div className="mt-5 flex items-center gap-3">
-                    {session.mode === "TUTOR" ? (
+                  <div className="mt-5 flex flex-wrap items-center gap-3">
+                    {isTutor ? (
                       <button
                         type="button"
                         onClick={handleSubmit}
                         disabled={!selected}
-                        className="inline-flex h-10 items-center justify-center rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Submit Answer
+                        <Check className="h-4 w-4" /> Submit Answer
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={handleNextOrSubmit}
                         disabled={!selected}
-                        className="inline-flex h-10 items-center justify-center rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {isLast ? "Finish Session" : "Next"}
+                        {isLast ? "Finish Session" : "Next"} <ChevronRight className="h-4 w-4" />
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => (isLast ? finish() : go(1))}
-                      className="text-sm font-semibold text-muted-foreground hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      {isLast ? "Skip & finish" : "Skip Question"}
+                      <SkipForward className="h-4 w-4" />
+                      {isLast ? "Skip & finish" : "Skip question"}
                     </button>
+                    <span className="ml-auto hidden items-center gap-1.5 text-[11px] text-muted-foreground/70 md:inline-flex">
+                      <Keyboard className="h-3.5 w-3.5" /> 1-5 select · Enter submit · ← → move
+                    </span>
                   </div>
                 )}
 
+                {/* Tutor reveal: rich clinical breakdown */}
                 {showExplanation && (
-                  <Explanation question={question} selected={selected} />
+                  <>
+                    <ClinicalBreakdown question={question} selected={selected} />
+                    <div className="mt-5 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => (isLast ? finish() : go(1))}
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+                      >
+                        {isLast ? "Finish Session" : "Next Question"} <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </>
                 )}
 
                 {/* Bottom navigation */}
@@ -343,16 +430,15 @@ function QuizPage() {
                     type="button"
                     onClick={() => go(-1)}
                     disabled={index === 0}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-foreground hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronLeft className="h-4 w-4" /> Previous
                   </button>
-
-                  {index === total - 1 ? (
+                  {isLast ? (
                     <button
                       type="button"
                       onClick={finish}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-light"
                     >
                       Finish Session <Check className="h-4 w-4" />
                     </button>
@@ -360,7 +446,7 @@ function QuizPage() {
                     <button
                       type="button"
                       onClick={() => go(1)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-foreground hover:bg-surface-alt"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-alt"
                     >
                       Next Question <ChevronRight className="h-4 w-4" />
                     </button>
@@ -372,160 +458,67 @@ function QuizPage() {
             )}
           </div>
         </main>
+
+        {/* Desktop navigator */}
+        <aside className="sticky top-[4.5rem] hidden h-fit w-72 flex-shrink-0 lg:block">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
+            <QuestionNavigator
+              session={session}
+              questions={questionMap}
+              currentIndex={index}
+              onJump={jump}
+            />
+            {remaining !== null ? (
+              <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-surface-alt px-3 py-2.5 text-sm">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <Timer className="h-4 w-4" /> Remaining
+                </span>
+                <span className={`font-mono font-semibold tabular-nums ${lowTime ? "text-error" : "text-foreground"}`}>
+                  {formatTime(remaining)}
+                </span>
+              </div>
+            ) : (
+              <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-surface-alt px-3 py-2.5 text-sm">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <Clock className="h-4 w-4" /> Elapsed
+                </span>
+                <span className="font-mono font-semibold tabular-nums text-foreground">
+                  {formatTime(elapsed)}
+                </span>
+              </div>
+            )}
+          </div>
+        </aside>
       </div>
+
+      {/* Mobile navigator sheet */}
+      {navOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/50 animate-in fade-in"
+            onClick={() => setNavOpen(false)}
+            aria-hidden
+          />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-border bg-surface p-5 shadow-2xl animate-in slide-in-from-bottom duration-300">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border-strong" />
+            <QuestionNavigator
+              session={session}
+              questions={questionMap}
+              currentIndex={index}
+              onJump={jump}
+            />
+            <button
+              type="button"
+              onClick={() => setNavOpen(false)}
+              className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-surface-alt text-sm font-semibold text-foreground"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
-
-function Explanation({
-  question,
-  selected,
-}: {
-  question: Question;
-  selected: "A" | "B" | "C" | "D" | "E" | undefined;
-}) {
-  const correctOpt = useMemo(
-    () => question.options.find((o) => o.key === question.correctKey),
-    [question],
-  );
-  const isCorrect = selected === question.correctKey;
-
-  return (
-    <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
-      <header
-        className={`relative flex items-center gap-3 px-6 py-4 overflow-hidden ${
-          isCorrect
-            ? "bg-success/10"
-            : "bg-error/10"
-        }`}
-      >
-        <div className={`absolute inset-0 opacity-20 pointer-events-none ${isCorrect ? "bg-gradient-to-r from-success to-transparent" : "bg-gradient-to-r from-error to-transparent"}`} />
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl shadow-lg relative z-10 ${isCorrect ? "bg-success animate-streak-pop" : "bg-error"}`}>
-          {isCorrect ? <Sparkles className="h-5 w-5 text-white" /> : <X className="h-5 w-5 text-white" />}
-        </div>
-        <div className="relative z-10">
-          <h3 className="text-[11px] font-bold uppercase tracking-widest text-white/70">
-            {isCorrect ? "+15 XP Streak Maintained" : "Streak Reset"}
-          </h3>
-          <p className={`text-lg font-bold drop-shadow-sm ${isCorrect ? "text-success" : "text-error"}`}>
-            {isCorrect ? "Correct!" : "Incorrect"}
-          </p>
-        </div>
-        <span
-          className="ml-auto relative z-10 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest bg-surface/50 backdrop-blur border border-white/10 text-white"
-        >
-          Clinical Breakdown
-        </span>
-      </header>
-
-      <div className="space-y-5 p-5">
-        {/* Correct answer banner */}
-        <div className="flex items-start gap-3 rounded-xl border-l-4 border-success bg-success-light/50 p-4">
-          <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-success" />
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-success">
-              Correct answer · {question.correctKey}. {correctOpt?.text}
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-foreground">{question.whyCorrect}</p>
-          </div>
-        </div>
-
-        {/* Why selected was wrong (only if user got it wrong and selected something) */}
-        {!isCorrect && selected && (
-          <div className="rounded-xl border border-error/20 bg-error-light/30 p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-error">
-              Why you chose {selected} · Incorrect
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-foreground">
-              {question.whyWrong[selected] ?? "This option doesn't fit the clinical picture in this vignette."}
-            </p>
-          </div>
-        )}
-
-        {/* All distractors — "Why X is wrong" + scenario where correct */}
-        <div>
-          <div className="rounded-r-xl border-l-4 border-teal-500 bg-slate-50 dark:bg-slate-900/40 px-4 py-3">
-            <h4 className="text-[11px] font-bold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
-              When would each wrong choice be correct?
-            </h4>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              The highest-yield insight — the exact clinical scenario that flips each distractor into the right answer.
-            </p>
-          </div>
-          <ul className="mt-3 space-y-3">
-            {question.options
-              .filter((o) => o.key !== question.correctKey)
-              .map((o) => {
-                const wrongReason = question.whyWrong[o.key] ?? "Not the best answer in this scenario.";
-                const wouldBeCorrect = generateWouldBeScenario(o, question);
-                return (
-                  <li
-                    key={o.key}
-                    className="rounded-r-xl border border-l-4 border-border border-l-teal-500 bg-slate-50 p-4 dark:bg-slate-900/30"
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-error/10 text-xs font-bold text-error">
-                        {o.key}
-                      </span>
-                      <p className="text-sm font-semibold text-foreground">{o.text}</p>
-                    </div>
-                    <div className="mt-3 space-y-1.5 pl-9">
-                      <p className="text-sm leading-relaxed text-foreground">
-                        <span className="font-bold text-error">Why {o.key} is wrong — </span>
-                        {wrongReason}
-                      </p>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        <span className="font-bold text-[var(--accent)]">Scenario where {o.key} would be correct — </span>
-                        {wouldBeCorrect}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-          </ul>
-        </div>
-
-
-        {/* Key learning */}
-        <div className="rounded-xl bg-gradient-to-br from-[#0E7C7B]/10 to-[#2BC97F]/15 p-4">
-          <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#0E7C7B]">
-            <Lightbulb className="h-3.5 w-3.5" /> Clinical pearl
-          </p>
-          <p className="mt-1.5 text-sm font-medium leading-relaxed text-foreground">
-            {question.keyPoint}
-          </p>
-        </div>
-
-        {question.related.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-              Related topics:
-            </span>
-            {question.related.map((r) => (
-              <span
-                key={r}
-                className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground"
-              >
-                {r}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function generateWouldBeScenario(
-  opt: { key: string; text: string },
-  question: Question,
-): string {
-  const rationale = question.whyWrong[opt.key as "A" | "B" | "C" | "D" | "E"] ?? "";
-  if (/would|when|if|in which|patients with/i.test(rationale)) {
-    const tail = rationale.split(/—|\.|;/).filter(Boolean).slice(-1)[0]?.trim();
-    if (tail && tail.length > 20) return tail.replace(/^(?:would|when)\s*/i, "the patient ");
-  }
-  return `the clinical picture pointed instead to ${opt.text.toLowerCase()} as the underlying mechanism or required next step.`;
 }
 
 function formatTime(s: number) {

@@ -20,16 +20,18 @@ import {
   Activity,
   BookOpen,
   CalendarDays,
+  Clock,
   CreditCard,
   Download,
   GraduationCap,
   Layers,
-  TrendingDown,
+  Target,
   TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
 import { questionBanks } from "@/data/banks";
+import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 
 export const Route = createFileRoute("/admin/analytics")({
   head: () => ({ meta: [{ title: "Admin · Analytics — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
@@ -341,48 +343,6 @@ function Panel({
   );
 }
 
-const gradients: Record<string, string> = {
-  teal: "from-[#0E7C7B] to-[#15A89C]",
-  emerald: "from-[#2BC97F] to-[#1FA968]",
-  blue: "from-[#3B82F6] to-[#2563EB]",
-  amber: "from-[#E89A1A] to-[#D97706]",
-  violet: "from-[#7C3AED] to-[#8B5CF6]",
-  rose: "from-[#E11D48] to-[#DB2777]",
-};
-
-function KpiCard({
-  label,
-  value,
-  delta,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  delta?: { value: string; up: boolean };
-  icon: React.ComponentType<{ className?: string }>;
-  tone: keyof typeof gradients;
-}) {
-  return (
-    <div className={`${cardClass} relative overflow-hidden`}>
-      <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${gradients[tone]} opacity-15 blur-xl`} />
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${gradients[tone]} text-white`}>
-          <Icon className="h-4 w-4" />
-        </span>
-      </div>
-      <p className="mt-3 text-2xl font-bold tracking-tight text-foreground">{value}</p>
-      {delta && (
-        <p className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${delta.up ? "text-[#1FA968]" : "text-[#E11D48]"}`}>
-          {delta.up ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-          {delta.value}
-        </p>
-      )}
-    </div>
-  );
-}
-
 function Metric({
   label,
   value,
@@ -515,12 +475,12 @@ function OverviewTab() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Users" value="6,184" delta={{ value: "+8.2% MoM", up: true }} icon={Users} tone="teal" />
-        <KpiCard label="Active Subscriptions" value="4,240" delta={{ value: "+5.1% MoM", up: true }} icon={CreditCard} tone="emerald" />
-        <KpiCard label="Trial Users" value="912" delta={{ value: "-2.4% MoM", up: false }} icon={Activity} tone="amber" />
-        <KpiCard label="Monthly Revenue" value={GHS(186400)} delta={{ value: "+11.7% MoM", up: true }} icon={Wallet} tone="blue" />
-        <KpiCard label="Questions Today" value="38,920" delta={{ value: "+3.9% DoD", up: true }} icon={BookOpen} tone="violet" />
-        <KpiCard label="Active Sessions" value="147" delta={{ value: "live now", up: true }} icon={GraduationCap} tone="rose" />
+        <GradientKpiCard label="Total Users" value="6,184" trend={{ value: "+8.2% MoM", up: true }} icon={Users} gradient="teal" />
+        <GradientKpiCard label="Active Subscriptions" value="4,240" trend={{ value: "+5.1% MoM", up: true }} icon={CreditCard} gradient="emerald" />
+        <GradientKpiCard label="Trial Users" value="912" trend={{ value: "-2.4% MoM", up: false }} icon={Activity} gradient="amber" />
+        <GradientKpiCard label="Monthly Revenue" value={GHS(186400)} trend={{ value: "+11.7% MoM", up: true }} icon={Wallet} gradient="blue" />
+        <GradientKpiCard label="Questions Today" value="38,920" trend={{ value: "+3.9% DoD", up: true }} icon={BookOpen} gradient="violet" />
+        <GradientKpiCard label="Active Sessions" value="147" trend={{ value: "live now", up: true }} icon={GraduationCap} gradient="rose" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -718,9 +678,9 @@ function RevenueTab() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Metric label="Total Revenue (12 mo)" value={GHS(totalRevenue)} hint="across all plans" />
-        <Metric label="Monthly Recurring Revenue" value={GHS(186400)} hint="+11.7% MoM" />
-        <Metric label="ARPU" value={GHS(44)} hint="avg revenue per user / mo" />
+        <GradientKpiCard label="Total Revenue (12 mo)" value={GHS(totalRevenue)} sub="across all plans" icon={Wallet} gradient="teal" />
+        <GradientKpiCard label="Monthly Recurring Revenue" value={GHS(186400)} sub="+11.7% MoM" icon={CreditCard} gradient="emerald" trend={{ value: "+11.7% MoM", up: true }} />
+        <GradientKpiCard label="ARPU" value={GHS(44)} sub="avg revenue per user / mo" icon={Users} gradient="indigo" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -874,10 +834,10 @@ function QuizTab() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Total Sessions" value={totalBankSessions.toLocaleString()} hint="all banks" />
-        <Metric label="Questions Answered" value="1.84M" hint="lifetime" />
-        <Metric label="Platform Avg Score" value={`${platformAvgScore}%`} hint="across all banks" />
-        <Metric label="Avg Time / Question" value="48s" hint="-3s vs last month" />
+        <GradientKpiCard label="Total Sessions" value={totalBankSessions.toLocaleString()} sub="all banks" icon={Activity} gradient="teal" />
+        <GradientKpiCard label="Questions Answered" value="1.84M" sub="lifetime" icon={BookOpen} gradient="blue" />
+        <GradientKpiCard label="Platform Avg Score" value={`${platformAvgScore}%`} sub="across all banks" icon={Target} gradient="emerald" />
+        <GradientKpiCard label="Avg Time / Question" value="48s" sub="-3s vs last month" icon={Clock} gradient="amber" trend={{ value: "-3s vs last month", up: true }} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -1003,10 +963,10 @@ function ContentTab() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Question Banks" value={String(questionBanks.length)} icon={Layers} tone="teal" />
-        <KpiCard label="Total Questions" value={totalBankQuestions.toLocaleString()} icon={BookOpen} tone="blue" />
-        <KpiCard label="Topics / Categories" value={String(totalCategories)} icon={GraduationCap} tone="violet" />
-        <KpiCard label="Avg Score" value={`${platformAvgScore}%`} icon={CalendarDays} tone="emerald" />
+        <GradientKpiCard label="Question Banks" value={String(questionBanks.length)} icon={Layers} gradient="teal" />
+        <GradientKpiCard label="Total Questions" value={totalBankQuestions.toLocaleString()} icon={BookOpen} gradient="blue" />
+        <GradientKpiCard label="Topics / Categories" value={String(totalCategories)} icon={GraduationCap} gradient="violet" />
+        <GradientKpiCard label="Avg Score" value={`${platformAvgScore}%`} icon={CalendarDays} gradient="emerald" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

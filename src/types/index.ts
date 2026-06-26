@@ -74,6 +74,7 @@ export interface SessionSummary {
 export interface QuestionOption {
   key: "A" | "B" | "C" | "D" | "E";
   text: string;
+  imageUrl?: string;
 }
 
 export interface Question {
@@ -82,6 +83,7 @@ export interface Question {
   topic: string;
   difficulty: Difficulty;
   stem: string;
+  imageUrl?: string;
   options: QuestionOption[];
   correctKey: "A" | "B" | "C" | "D" | "E";
   whyCorrect: string;

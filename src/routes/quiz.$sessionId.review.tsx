@@ -1,8 +1,18 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowLeft, BookOpen, Check, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+  MinusCircle,
+  X,
+} from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { ClinicalBreakdown } from "@/components/quiz/ClinicalBreakdown";
+import { QuestionNavigator } from "@/components/quiz/QuestionNavigator";
 
 export const Route = createFileRoute("/quiz/$sessionId/review")({
   beforeLoad: () => {
@@ -24,6 +34,30 @@ function ReviewPage() {
   const questions = useSessionStore((s) => s.questions);
   const [index, setIndex] = useState(0);
 
+  const total = session?.questionIds.length ?? 0;
+
+  const go = useCallback(
+    (delta: number) => setIndex((i) => Math.min(total - 1, Math.max(0, i + delta))),
+    [total],
+  );
+
+  // Arrow-key navigation in review mode.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        go(1);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        go(-1);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [go]);
+
   if (!session) {
     return (
       <div className="grid min-h-screen place-items-center bg-background p-6 text-center">
@@ -42,79 +76,122 @@ function ReviewPage() {
 
   const qid = session.questionIds[index];
   const q = questions[qid];
-  const total = session.questionIds.length;
   const ans = session.answers[qid];
   const correctKey = q?.correctKey;
+  const isCorrect = !!q && ans === correctKey;
+  const skipped = !ans;
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 border-b border-border bg-surface">
+      <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
         <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-4 sm:px-6">
           <Link
             to="/quiz/$sessionId/results"
             params={{ sessionId }}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground"
           >
-            <ArrowLeft className="h-4 w-4" /> Results
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Results</span>
           </Link>
-          <span className="hidden truncate text-sm font-semibold text-foreground sm:block">
+          <span className="hidden min-w-0 truncate text-sm font-semibold text-foreground sm:block">
             {session.bankName}
           </span>
-          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-accent-light px-3 py-1 text-xs font-bold text-accent">
-            <BookOpen className="h-3.5 w-3.5" /> Review Mode — Answers Locked
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">
+            <Lock className="h-3.5 w-3.5" /> Read-only review
           </span>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1400px]">
-        <aside className="hidden w-64 border-r border-border bg-surface md:block min-h-[calc(100vh-3.5rem)]">
-          <div className="px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            Questions
-          </div>
-          <div className="grid grid-cols-5 gap-1.5 px-3 pb-4">
-            {session.questionIds.map((id, i) => {
-              const a = session.answers[id];
-              const qq = questions[id];
-              const correct = qq && a === qq.correctKey;
-              const cls =
-                i === index
-                  ? "bg-accent text-accent-foreground border-accent"
-                  : correct
-                    ? "bg-success-light text-success border-success/30"
-                    : a
-                      ? "bg-error-light text-error border-error/30"
-                      : "bg-surface text-muted-foreground border-border";
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setIndex(i)}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold ${cls}`}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
-          </div>
-        </aside>
+      {/* Read-only banner */}
+      <div className="border-b border-border bg-surface-alt/60">
+        <div className="mx-auto flex max-w-[1400px] items-center gap-2 px-4 py-2.5 text-xs text-muted-foreground sm:px-6">
+          <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>
+            You're reviewing a completed session. Answers are locked — explore each question and its
+            full clinical breakdown.
+          </span>
+        </div>
+      </div>
 
-        <main className="flex-1 px-4 py-6 sm:px-8 lg:px-12">
+      <div className="mx-auto flex w-full max-w-[1400px] gap-0 lg:gap-6 lg:px-6 lg:py-6">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:px-0 lg:py-0">
           {q ? (
-            <div className="mx-auto max-w-4xl xl:max-w-5xl">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Question {index + 1} of {total}
-              </p>
-              <article className="mt-3 rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
-                <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">{q.stem}</p>
+            <div className="mx-auto max-w-3xl xl:max-w-4xl">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-3 py-1 text-xs font-semibold text-foreground">
+                    Question <span className="text-primary">{index + 1}</span> of {total}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                    {q.topic}
+                  </span>
+                </div>
+                {skipped ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-3 py-1 text-xs font-bold text-warning">
+                    <MinusCircle className="h-3.5 w-3.5" /> Skipped
+                  </span>
+                ) : isCorrect ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1 text-xs font-bold text-success">
+                    <Check className="h-3.5 w-3.5" /> Correct
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-error/15 px-3 py-1 text-xs font-bold text-error">
+                    <X className="h-3.5 w-3.5" /> Incorrect
+                  </span>
+                )}
+              </div>
+
+              <article className="relative mt-3 overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent"
+                />
+                {(q as { imageUrl?: string }).imageUrl && (
+                  <img
+                    src={(q as { imageUrl?: string }).imageUrl}
+                    alt="Clinical image for this question"
+                    className="relative mx-auto mb-4 max-h-72 rounded-xl border border-border object-contain"
+                  />
+                )}
+                <p className="relative whitespace-pre-line text-base font-medium leading-relaxed text-foreground">
+                  {q.stem}
+                </p>
               </article>
 
+              {/* Chosen vs correct, at a glance */}
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-border bg-surface-alt/50 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Your answer
+                  </p>
+                  <p
+                    className={`mt-1 text-sm font-semibold ${
+                      skipped ? "text-warning" : isCorrect ? "text-success" : "text-error"
+                    }`}
+                  >
+                    {ans ? `${ans}. ${q.options.find((o) => o.key === ans)?.text}` : "No answer — skipped"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-success/30 bg-success/5 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-success">
+                    Correct answer
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {q.correctKey}. {q.options.find((o) => o.key === q.correctKey)?.text}
+                  </p>
+                </div>
+              </div>
+
+              {/* Options */}
               <div className="mt-5 space-y-2.5">
                 {q.options.map((opt) => {
-                  const isCorrect = opt.key === correctKey;
+                  const optIsCorrect = opt.key === correctKey;
                   const chosen = ans === opt.key;
                   let cls = "border-border bg-surface text-muted-foreground";
-                  if (isCorrect) cls = "border-success bg-success-light text-success";
-                  else if (chosen) cls = "border-error bg-error-light text-error";
+                  if (optIsCorrect) cls = "border-success bg-success/10 text-foreground";
+                  else if (chosen) cls = "border-error bg-error/10 text-foreground";
+                  const optImage =
+                    (opt as { image?: string; imageUrl?: string }).image ??
+                    (opt as { imageUrl?: string }).imageUrl;
                   return (
                     <div
                       key={opt.key}
@@ -122,148 +199,82 @@ function ReviewPage() {
                     >
                       <span
                         className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                          isCorrect
+                          optIsCorrect
                             ? "bg-success text-white"
                             : chosen
                               ? "bg-error text-white"
-                              : "bg-surface text-foreground border border-border"
+                              : "border border-border bg-surface text-foreground"
                         }`}
                       >
-                        {isCorrect ? <Check className="h-3.5 w-3.5" /> : chosen ? <X className="h-3.5 w-3.5" /> : opt.key}
+                        {optIsCorrect ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : chosen ? (
+                          <X className="h-3.5 w-3.5" />
+                        ) : (
+                          opt.key
+                        )}
                       </span>
-                      <span className="flex-1 text-sm">{opt.text}</span>
+                      <span className="flex-1">
+                        <span className="block text-sm">{opt.text}</span>
+                        {optImage && (
+                          <img
+                            src={optImage}
+                            alt={`Option ${opt.key}`}
+                            className="mt-2 max-h-40 rounded-lg border border-border object-contain"
+                          />
+                        )}
+                      </span>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Always-on explanation */}
-              <section className="mt-6 overflow-hidden rounded-2xl border border-white/5 bg-surface shadow-[0_10px_30px_-10px_rgb(0_0_0_/_0.3)] animate-slide-up">
-                <header
-                  className={`relative flex items-center gap-3 px-6 py-4 overflow-hidden ${
-                    q.correctKey === ans
-                      ? "bg-success/10"
-                      : "bg-error/10"
-                  }`}
-                >
-                  <div className={`absolute inset-0 opacity-20 pointer-events-none ${q.correctKey === ans ? "bg-gradient-to-r from-success to-transparent" : "bg-gradient-to-r from-error to-transparent"}`} />
-                  <h3 className="relative z-10 text-[11px] font-bold uppercase tracking-[0.16em] text-foreground/80">
-                    Clinical Breakdown
-                  </h3>
-                  <span
-                    className={`ml-auto relative z-10 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-white shadow-sm ${
-                      q.correctKey === ans ? "bg-success" : "bg-error"
-                    }`}
-                  >
-                    {q.correctKey === ans ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-                    {q.correctKey === ans ? "Correct" : "Incorrect"}
-                  </span>
-                </header>
-
-                <div className="space-y-6 p-6">
-                  {/* Correct answer banner */}
-                  <div className="flex items-start gap-4 rounded-xl border border-success/20 bg-success/5 p-5 shadow-sm">
-                    <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
-                    <div>
-                      <p className="text-[12px] font-bold uppercase tracking-widest text-success mb-2">
-                        Correct answer · {q.correctKey}. {q.options.find((o) => o.key === q.correctKey)?.text}
-                      </p>
-                      <p className="text-[15px] leading-relaxed text-foreground/90 font-medium">{q.whyCorrect}</p>
-                    </div>
-                  </div>
-
-                  {/* Why selected was wrong */}
-                  {ans !== q.correctKey && ans && (
-                    <div className="rounded-xl border border-error/20 bg-error/5 p-5 shadow-sm">
-                      <p className="text-[12px] font-bold uppercase tracking-widest text-error mb-2">
-                        Why you chose {ans} · Incorrect
-                      </p>
-                      <p className="text-[15px] leading-relaxed text-foreground/90 font-medium">
-                        {q.whyWrong[ans] ?? "This option doesn't fit the clinical picture in this vignette."}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Distractors */}
-                  <div>
-                    <div className="rounded-r-xl border-l-4 border-[#00D4C8] bg-surface-alt/50 px-5 py-4 shadow-sm">
-                      <h4 className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#00D4C8]">
-                        When would each wrong choice be correct?
-                      </h4>
-                      <p className="mt-1.5 text-[13px] text-muted-foreground font-medium">
-                        The highest-yield insight — the exact clinical scenario that flips each distractor into the right answer.
-                      </p>
-                    </div>
-                    <ul className="mt-4 space-y-4">
-                      {q.options
-                        .filter((o) => o.key !== q.correctKey)
-                        .map((o) => {
-                          const wrongReason = q.whyWrong[o.key] ?? "Not the best answer in this scenario.";
-                          let wouldBeCorrect = `the clinical picture pointed instead to ${o.text.toLowerCase()} as the underlying mechanism or required next step.`;
-                          if (/would|when|if|in which|patients with/i.test(wrongReason)) {
-                            const tail = wrongReason.split(/—|\.|;/).filter(Boolean).slice(-1)[0]?.trim();
-                            if (tail && tail.length > 20) wouldBeCorrect = tail.replace(/^(?:would|when)\s*/i, "the patient ");
-                          }
-                          return (
-                            <li
-                              key={o.key}
-                              className="rounded-r-xl border border-white/5 border-l-4 border-l-[#00D4C8] bg-surface/50 p-5 shadow-sm transition-colors hover:bg-surface-alt/30"
-                            >
-                              <div className="flex items-start gap-3">
-                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-error/10 text-sm font-bold text-error shadow-inner">
-                                  {o.key}
-                                </span>
-                                <p className="text-[15px] font-bold text-foreground pt-1">{o.text}</p>
-                              </div>
-                              <div className="mt-4 space-y-3 pl-11">
-                                <p className="text-[14px] leading-relaxed text-foreground/90">
-                                  <span className="font-bold text-error tracking-wide text-[12px] uppercase">Why {o.key} is wrong — </span>
-                                  {wrongReason}
-                                </p>
-                                <p className="text-[14px] leading-relaxed text-muted-foreground/90">
-                                  <span className="font-bold text-[#3B82F6] tracking-wide text-[12px] uppercase">Scenario where {o.key} would be correct — </span>
-                                  {wouldBeCorrect}
-                                </p>
-                              </div>
-                            </li>
-                          );
-                        })}
-                    </ul>
-                  </div>
-
-                  {/* Key learning */}
-                  <div className="rounded-xl bg-gradient-to-br from-[#0E7C7B]/20 to-[#2BC97F]/10 p-5 shadow-sm border border-[#00D4C8]/20">
-                    <p className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.16em] text-[#00D4C8]">
-                      💡 Clinical pearl
-                    </p>
-                    <p className="mt-2 text-[15px] font-semibold leading-relaxed text-foreground">
-                      {q.keyPoint}
-                    </p>
-                  </div>
-                </div>
-              </section>
+              {/* Full clinical breakdown (reused) */}
+              <ClinicalBreakdown question={q} selected={ans} variant="review" />
 
               <div className="mt-8 flex items-center justify-between border-t border-border pt-5">
                 <button
                   type="button"
                   disabled={index === 0}
-                  onClick={() => setIndex((i) => Math.max(0, i - 1))}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-foreground hover:bg-surface-alt disabled:opacity-50"
+                  onClick={() => go(-1)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  ← Previous
+                  <ChevronLeft className="h-4 w-4" /> Previous
                 </button>
-                <button
-                  type="button"
-                  disabled={index === total - 1}
-                  onClick={() => setIndex((i) => Math.min(total - 1, i + 1))}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-foreground hover:bg-surface-alt disabled:opacity-50"
-                >
-                  Next →
-                </button>
+                {index === total - 1 ? (
+                  <Link
+                    to="/quiz/$sessionId/results"
+                    params={{ sessionId }}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-primary to-accent px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                  >
+                    Back to Results <Check className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => go(1)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-alt"
+                  >
+                    Next <ChevronRight className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           ) : null}
         </main>
+
+        {/* Desktop navigator */}
+        <aside className="sticky top-[7rem] hidden h-fit w-72 flex-shrink-0 lg:block">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
+            <QuestionNavigator
+              session={session}
+              questions={questions}
+              currentIndex={index}
+              onJump={setIndex}
+              revealAll
+            />
+          </div>
+        </aside>
       </div>
     </div>
   );

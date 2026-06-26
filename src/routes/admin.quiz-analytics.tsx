@@ -12,8 +12,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity, Clock, GraduationCap, Target, TrendingDown, TrendingUp } from "lucide-react";
+import { Activity, Clock, GraduationCap, Target } from "lucide-react";
 import { questionBanks } from "@/data/banks";
+import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 
 export const Route = createFileRoute("/admin/quiz-analytics")({
   head: () => ({ meta: [{ title: "Admin · Quiz Analytics — Medinovaqbank" }, { name: "robots", content: "noindex" }] }),
@@ -93,10 +94,10 @@ function QuizAnalytics() {
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Metric icon={<Activity className="h-5 w-5" />} tone="teal" label="Total sessions" value="10,604" delta="+8.2%" up />
-        <Metric icon={<GraduationCap className="h-5 w-5" />} tone="emerald" label="Questions answered" value="312,940" delta="+12.4%" up />
-        <Metric icon={<Target className="h-5 w-5" />} tone="blue" label="Platform avg score" value={`${platformAvg}%`} delta="+1.1 pts" up />
-        <Metric icon={<Clock className="h-5 w-5" />} tone="amber" label="Avg time / question" value="48s" delta="-3s" up />
+        <GradientKpiCard icon={Activity} gradient="teal" label="Total sessions" value="10,604" trend={{ value: "+8.2%", up: true }} />
+        <GradientKpiCard icon={GraduationCap} gradient="emerald" label="Questions answered" value="312,940" trend={{ value: "+12.4%", up: true }} />
+        <GradientKpiCard icon={Target} gradient="blue" label="Platform avg score" value={`${platformAvg}%`} trend={{ value: "+1.1 pts", up: true }} />
+        <GradientKpiCard icon={Clock} gradient="amber" label="Avg time / question" value="48s" trend={{ value: "-3s", up: true }} />
       </div>
 
       {/* Score by bank + difficulty */}
@@ -187,28 +188,6 @@ function RangePicker({ value, onChange }: { value: Range; onChange: (r: Range) =
           {labels[r]}
         </button>
       ))}
-    </div>
-  );
-}
-
-const metricTones = {
-  teal: "bg-[#0E7C7B]/10 text-[#0E7C7B]",
-  emerald: "bg-[#2BC97F]/10 text-[#1FA968]",
-  blue: "bg-[#3B82F6]/10 text-[#3B82F6]",
-  amber: "bg-[#E89A1A]/10 text-[#B45309]",
-} as const;
-
-function Metric({ icon, tone, label, value, delta, up }: { icon: React.ReactNode; tone: keyof typeof metricTones; label: string; value: string; delta: string; up?: boolean }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-        <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${metricTones[tone]}`}>{icon}</span>
-      </div>
-      <p className="mt-3 text-2xl font-extrabold tracking-tight text-foreground">{value}</p>
-      <p className={`mt-1 flex items-center gap-1 text-[11px] font-semibold ${up ? "text-success" : "text-error"}`}>
-        {up ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />} {delta}
-      </p>
     </div>
   );
 }
