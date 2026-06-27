@@ -304,6 +304,21 @@ function AdminNotes() {
                     </span>
                   </div>
 
+                  {n.status === "processing" && (
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                        <span>Converting PDF…</span>
+                        <span className="tabular-nums">{n.conversionProgress}%</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-alt">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] transition-all duration-500"
+                          style={{ width: `${Math.max(3, n.conversionProgress)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-5 flex items-center gap-1.5 border-t border-border pt-4">
                     <Link
                       to="/admin/notes/$noteId"

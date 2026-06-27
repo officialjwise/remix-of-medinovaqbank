@@ -63,6 +63,13 @@ function buildUrl(path: string, params?: QueryParams): string {
   return s ? `${base}?${s}` : base;
 }
 
+/**
+ * When the API is reached through an ngrok tunnel (e.g. while testing real
+ * client IPs/geolocation), ngrok shows a browser interstitial for plain
+ * requests. Sending this header bypasses it so API JSON calls work normally.
+ */
+const USES_NGROK = /ngrok(-free)?\.(dev|app|io)/i.test(BASE_URL);
+
 async function buildHeaders(
   body: unknown,
   extra?: Record<string, string>,
@@ -77,6 +84,8 @@ async function buildHeaders(
 
   const fp = await getDeviceFingerprint(); // null on the server
   if (fp) headers["X-Device-Fingerprint"] = fp;
+
+  if (USES_NGROK) headers["ngrok-skip-browser-warning"] = "true";
 
   return headers;
 }
@@ -96,7 +105,10 @@ async function runRefresh(): Promise<boolean> {
       try {
         const res = await fetch(`${BASE_URL}/auth/refresh`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(USES_NGROK ? { "ngrok-skip-browser-warning": "true" } : {}),
+          },
           body: JSON.stringify({ refreshToken }),
         });
         if (!res.ok) return false;

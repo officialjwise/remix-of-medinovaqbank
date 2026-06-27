@@ -2518,7 +2518,16 @@ function SecretInput({
       </button>
       <button
         type="button"
-        onClick={() => setEditing((e) => !e)}
+        onClick={() =>
+          setEditing((e) => {
+            const next = !e;
+            // Entering edit mode: clear the field so the admin types a FRESH
+            // secret. The form shows secrets masked (••••1234); never let that
+            // mask (or a partial edit of it) get saved as the real value.
+            if (next) onChange("");
+            return next;
+          })
+        }
         className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"
       >
         <Pencil className="h-3.5 w-3.5" /> {editing ? "Done" : "Edit"}

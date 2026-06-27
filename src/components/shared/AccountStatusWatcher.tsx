@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useRealtimeStream } from "@/lib/realtime";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -7,6 +8,8 @@ import { useAuthStore } from "@/stores/authStore";
  * suspend/ban) and shows a blocking notice in real-time. The backend has
  * already revoked the user's tokens, so every further API call 401s — this just
  * makes the restriction visible immediately instead of on the next failed call.
+ * Also handles `force_logout` (admin force-terminated this session): the tokens
+ * are already revoked server-side, so we sign out and bounce to /login at once.
  */
 export function AccountStatusWatcher() {
   const isAuthed = useAuthStore((s) => s.isAuthenticated);
@@ -24,6 +27,11 @@ export function AccountStatusWatcher() {
           status: typeof data.status === "string" ? data.status : undefined,
           reason: typeof data.reason === "string" ? data.reason : undefined,
         }),
+      force_logout: () => {
+        toast.error("You have been signed out by an administrator.");
+        logout();
+        window.location.href = "/login";
+      },
     },
     isAuthed,
   );

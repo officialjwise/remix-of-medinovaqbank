@@ -13,12 +13,17 @@ import {
   KeyRound,
   LineChart,
   Lock,
+  Loader2,
   Mail,
   MapPin,
   Monitor,
   Save,
+  ShieldAlert,
   ShieldCheck,
+  Smartphone,
+  Tablet,
   Target,
+  Trash2,
   Trophy,
   User as UserIcon,
 } from "lucide-react";
@@ -38,6 +43,11 @@ import {
   useChangePassword,
 } from "@/api/profile.api";
 import { useSpecialties } from "@/api/specialties.api";
+import {
+  useActiveSessions,
+  useTerminateSession,
+  type DeviceSession,
+} from "@/api/sessions.api";
 import { TwoFactorCard } from "@/components/shared/TwoFactorCard";
 
 export const Route = createFileRoute("/_app/profile")({
@@ -459,6 +469,9 @@ function ProfilePage() {
 
           {/* Two-factor authentication */}
           <TwoFactorCard />
+
+          {/* Active devices (device/login sessions) */}
+          <ActiveDevicesCard />
         </div>
 
         {/* Right column (read-only account) */}
@@ -552,6 +565,99 @@ function ProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function DeviceIcon({ type }: { type: string | null }) {
+  if (type === "mobile") return <Smartphone className="h-4 w-4" />;
+  if (type === "tablet") return <Tablet className="h-4 w-4" />;
+  return <Monitor className="h-4 w-4" />;
+}
+
+function ActiveDevicesCard() {
+  const { data, isLoading } = useActiveSessions();
+  const terminate = useTerminateSession();
+  const sessions = data?.sessions ?? [];
+
+  return (
+    <Card title="Active devices" desc="Devices currently signed in to your account.">
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading devices…
+        </div>
+      ) : sessions.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No active devices found.</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {sessions.map((s) => (
+            <DeviceLine
+              key={s.id}
+              session={s}
+              canSignOut={sessions.length > 1}
+              onSignOut={() => terminate.mutate(s.id)}
+              signingOut={terminate.isPending}
+            />
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function DeviceLine({
+  session,
+  canSignOut,
+  onSignOut,
+  signingOut,
+}: {
+  session: DeviceSession;
+  canSignOut: boolean;
+  onSignOut: () => void;
+  signingOut: boolean;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-alt/40 px-4 py-3">
+      <div className="flex min-w-0 items-start gap-3">
+        <span
+          className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${
+            session.isSuspicious ? "bg-error/10 text-error" : "bg-primary/10 text-primary"
+          }`}
+        >
+          <DeviceIcon type={session.deviceType} />
+        </span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-semibold text-foreground">{session.deviceLabel}</span>
+            {session.isSuspicious && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-error/20 bg-error/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-error">
+                <ShieldAlert className="h-3 w-3" /> Suspicious
+              </span>
+            )}
+          </div>
+          <p className="truncate text-[12px] text-muted-foreground">
+            {[session.location, session.ipAddress].filter(Boolean).join(" · ") ||
+              "Unknown location"}
+          </p>
+          <p className="text-[12px] text-muted-foreground">
+            Last active {new Date(session.lastPingAt).toLocaleString()}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onSignOut}
+        disabled={!canSignOut || signingOut}
+        title={canSignOut ? "Sign out this device" : "Can't sign out your only active device"}
+        className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-[12px] font-semibold text-foreground transition hover:border-error/30 hover:bg-error/10 hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {signingOut ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Trash2 className="h-3.5 w-3.5" />
+        )}
+        Sign out
+      </button>
+    </li>
   );
 }
 

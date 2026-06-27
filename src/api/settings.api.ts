@@ -19,6 +19,7 @@
  * cross-domain collisions, per project convention.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { apiClient } from "@/api/client";
 
 // ── Known setting categories (mirror SettingDefinition['category']). ──
@@ -177,10 +178,17 @@ export function useSettings() {
 /** All settings flattened to a `key -> ResolvedSetting` map. */
 export function useSettingsMap() {
   const query = useSettings();
-  return {
-    ...query,
-    data: query.data ? flattenSettings(query.data) : undefined,
-  };
+  // Memoise on the query's data reference. Without this, flattenSettings would
+  // return a NEW object every render, so each tab's `useEffect(…, [map])` that
+  // seeds local form state from the server would re-run on every render and
+  // revert whatever the admin types (fields appear "frozen"). React Query keeps
+  // `query.data` referentially stable until it actually changes, so this makes
+  // `map` stable and the form editable.
+  const data = useMemo(
+    () => (query.data ? flattenSettings(query.data) : undefined),
+    [query.data],
+  );
+  return { ...query, data };
 }
 
 export function useIntegrationStatus() {

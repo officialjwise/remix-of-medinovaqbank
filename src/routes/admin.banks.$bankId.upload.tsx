@@ -58,17 +58,33 @@ function classifyHeader(
   return null;
 }
 
-/** Parse the packed "A. text\nB. text" options cell into {key,text}[]. */
-function parseOptionsCell(cell: string): { key: string; text: string }[] {
-  return cell
+/**
+ * Split a packed options cell into per-option strings. Accepts BOTH the
+ * canonical one-option-per-line layout AND options packed onto a single line
+ * ("A. … B. … C. … D. …") — the latter is common in exported sets and was
+ * previously rejected as "all four options required" on every row.
+ */
+function splitOptionLines(cell: string): string[] {
+  const byLine = cell
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const m = line.match(/^\(?([A-Ea-e])\)?[)..:-]?\s*(.*)$/);
-      if (m) return { key: m[1].toUpperCase(), text: m[2].trim() };
-      return { key: "", text: line };
-    });
+    .filter(Boolean);
+  if (byLine.length >= 2) return byLine;
+  const single = byLine[0] ?? cell.trim();
+  const inline = single
+    .split(/\s+(?=\(?[A-Ea-e][).:\-]\s)/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return inline.length >= 2 ? inline : byLine;
+}
+
+/** Parse the packed "A. text" options cell (line- or space-separated) into {key,text}[]. */
+function parseOptionsCell(cell: string): { key: string; text: string }[] {
+  return splitOptionLines(cell).map((line) => {
+    const m = line.match(/^\(?([A-Ea-e])\)?[)..:-]?\s*(.*)$/);
+    if (m) return { key: m[1].toUpperCase(), text: m[2].trim() };
+    return { key: "", text: line };
+  });
 }
 
 interface RowError {

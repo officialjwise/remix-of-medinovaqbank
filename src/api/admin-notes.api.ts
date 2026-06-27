@@ -49,6 +49,7 @@ export interface BackendAdminNote {
   accessTier: BackendNoteAccessTier;
   pageCount: number;
   status: BackendNoteStatus;
+  conversionProgress: number;
   processingError: string | null;
   isActive: boolean;
   createdById: string | null;
@@ -90,6 +91,8 @@ export interface AdminNoteListItem {
   tier: NoteTier;
   pageCount: number;
   status: NoteStatus;
+  /** 0–100 background conversion progress (drives the live progress bar). */
+  conversionProgress: number;
   processingError: string | null;
   active: boolean;
   createdAt: string;
@@ -140,6 +143,7 @@ export function mapAdminNote(n: BackendAdminNote): AdminNoteListItem {
     tier: n.accessTier,
     pageCount: n.pageCount,
     status: n.status,
+    conversionProgress: n.conversionProgress ?? (n.status === "ready" ? 100 : 0),
     processingError: n.processingError,
     active: n.isActive,
     createdAt: n.createdAt,
@@ -319,21 +323,28 @@ export const adminNoteKeys = {
 
 // ── Hooks ──
 
-/** Admin note list (paginated, filterable). */
+/** Admin note list (paginated, filterable). Polls fast while a note is still
+ * converting so the progress bar advances live, then settles once all are done. */
 export function useAdminNotes(params: AdminNoteListParams = {}) {
   return useQuery({
     queryKey: adminNoteKeys.list(params),
     queryFn: () => adminNotesApi.list(params),
     staleTime: 30_000,
+    refetchInterval: (query) =>
+      (query.state.data?.notes ?? []).some((n) => n.status === "processing")
+        ? 1500
+        : false,
   });
 }
 
-/** Note detail (note + topics + pages). */
+/** Note detail (note + topics + pages). Polls while the note is still converting. */
 export function useAdminNote(id: string) {
   return useQuery({
     queryKey: adminNoteKeys.detail(id),
     queryFn: () => adminNotesApi.getById(id),
     enabled: !!id,
+    refetchInterval: (query) =>
+      query.state.data?.status === "processing" ? 1500 : false,
   });
 }
 
