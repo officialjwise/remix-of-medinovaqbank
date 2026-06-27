@@ -41,6 +41,9 @@ import { useShallow } from "zustand/react/shallow";
 import { useAuthStore } from "@/stores/authStore";
 import { useCreateSession } from "@/api/quiz.api";
 import { useDashboardSummary } from "@/api/dashboard.api";
+import { useMyPerformance } from "@/api/analytics.api";
+import { useLeaderboard, useMyRank } from "@/api/leaderboard.api";
+import { subjectTheme } from "@/data/subjectColors";
 import { useTrial } from "@/hooks/useTrial";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 import { UserDashboardSkeleton } from "@/components/shared/DashboardSkeletons";
@@ -60,47 +63,11 @@ export const Route = createFileRoute("/_app/dashboard")({
    Module-scope deterministic constants — no Math.random() in render
 ────────────────────────────────────────────────────────────────────────── */
 
-// GAP: leaderboard rank is not yet provided by the backend — placeholder.
-const GLOBAL_RANK = 284;
-// GAP: per-day weekly activity is not in /dashboard/summary — placeholder shape.
-const WEEK_ACTIVITY = [true, true, true, false, true, true, true];
+// Mon-first weekday labels for the weekly-activity strip.
 const WEEK_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
-/** Daily accuracy over the past 7 days — stable, no Math.random() */
-const PERF_TREND = [
-  { day: "Mon", score: 72 },
-  { day: "Tue", score: 68 },
-  { day: "Wed", score: 75 },
-  { day: "Thu", score: 80 },
-  { day: "Fri", score: 74 },
-  { day: "Sat", score: 82 },
-  { day: "Sun", score: 78 },
-];
-
-const SUBJECT_BREAKDOWN = [
-  { subject: "Cardiology", pct: 85, fill: "#0E7C7B" },
-  { subject: "Neurology", pct: 72, fill: "#2BC97F" },
-  { subject: "Surgery", pct: 68, fill: "#2563EB" },
-  { subject: "Internal Medicine", pct: 77, fill: "#7C3AED" },
-  { subject: "Paediatrics", pct: 80, fill: "#D97706" },
-];
-
-const TOPIC_MASTERY = [
-  { topic: "Anatomy", pct: 72 },
-  { topic: "Physiology", pct: 65 },
-  { topic: "Pharmacology", pct: 80 },
-  { topic: "Pathology", pct: 58 },
-  { topic: "Microbiology", pct: 70 },
-];
-
-/** 3 nearby leaderboard rows (deterministic; user is #284) */
-const NEARBY_LEADERS = [
-  { rank: 282, name: "Dr. K. Frimpong", initials: "KF", score: 81 },
-  { rank: 283, name: "Dr. S. Bonsu", initials: "SB", score: 80 },
-  { rank: 284, name: "You", initials: "ME", score: 79, isYou: true },
-  { rank: 285, name: "Dr. L. Ofori", initials: "LO", score: 78 },
-  { rank: 286, name: "Dr. A. Ntim", initials: "AN", score: 77 },
-];
+/** Donut palette — cycled per subject so colors are stable for a given order. */
+const DONUT_PALETTE = ["#0E7C7B", "#2BC97F", "#2563EB", "#7C3AED", "#D97706", "#EC4899", "#06B6D4"];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -116,6 +83,43 @@ function greeting() {
   return "Good evening";
 }
 
+/** Color for a subject: prefer the shared theme, else cycle the donut palette. */
+function subjectColor(subject: string, index: number): string {
+  const theme = subjectTheme(subject);
+  // FALLBACK theme uses the slate hex; cycle the palette for unmapped subjects.
+  return theme.hex === "#64748B" ? DONUT_PALETTE[index % DONUT_PALETTE.length] : theme.hex;
+}
+
+/** Local midnight of the Monday that starts the week containing `ref`. */
+function startOfWeekMonday(ref: Date): Date {
+  const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  const dow = (d.getDay() + 6) % 7; // 0 = Monday … 6 = Sunday
+  d.setDate(d.getDate() - dow);
+  return d;
+}
+
+/**
+ * Derive a Mon→Sun "active day" mask for the current week from completed-session
+ * timestamps. A day is active if at least one session completed on it. Returns
+ * all-false when there is no completed session this week.
+ */
+function weekActivityFromDates(dates: Array<string | null>): boolean[] {
+  const week = [false, false, false, false, false, false, false];
+  const monday = startOfWeekMonday(new Date());
+  const mondayMs = monday.getTime();
+  const weekEndMs = mondayMs + 7 * 24 * 60 * 60 * 1000;
+  for (const iso of dates) {
+    if (!iso) continue;
+    const t = new Date(iso);
+    if (Number.isNaN(t.getTime())) continue;
+    const ms = t.getTime();
+    if (ms < mondayMs || ms >= weekEndMs) continue;
+    const dayIndex = Math.floor((ms - mondayMs) / (24 * 60 * 60 * 1000));
+    if (dayIndex >= 0 && dayIndex < 7) week[dayIndex] = true;
+  }
+  return week;
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
    Main page component
 ────────────────────────────────────────────────────────────────────────── */
@@ -127,6 +131,9 @@ function DashboardPage() {
   );
   const navigate = useNavigate();
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
+  const { data: performance } = useMyPerformance();
+  const { data: myRank } = useMyRank({ period: "all_time" });
+  const { data: leaderboardRows } = useLeaderboard({ period: "all_time", limit: 5 });
   const createSession = useCreateSession();
   const { isTrial, daysLeft, questionsLeft, questionsTotal, expired } = useTrial();
 
@@ -152,6 +159,36 @@ function DashboardPage() {
   const totalAnswered = kpis?.totalQuestionsAnswered ?? 0;
   const avgScore = Math.round(kpis?.averageScore ?? 0);
   const bestScore = completed.reduce((m, s) => Math.max(m, s.scorePct), 0);
+
+  /* Real analytics + leaderboard (empty arrays / null rank for new users) */
+  const subjectBreakdown = (performance?.subjectBreakdown ?? []).map((s, i) => ({
+    subject: s.name,
+    pct: s.pct,
+    fill: subjectColor(s.name, i),
+  }));
+
+  // Oldest → newest so the line chart reads left-to-right; backend sends DESC.
+  const perfTrend = [...(performance?.sessionTimeline ?? [])]
+    .reverse()
+    .map((s) => ({ day: s.date, score: s.pct }));
+
+  // Real per-day activity for the current week, derived from completed sessions.
+  const weekActivity = weekActivityFromDates(
+    (performance?.sessionTimeline ?? []).map((s) => s.completedAt),
+  );
+  const hasWeekActivity = weekActivity.some(Boolean);
+
+  // Leaderboard: a brand-new user has rank === null (no completed sessions).
+  const hasRank = (myRank?.rank ?? null) !== null;
+  const rankNumber = myRank?.rank ?? null;
+  const topPct = myRank ? Math.max(1, Math.round(100 - myRank.percentile)) : null;
+  const nearbyLeaders = (leaderboardRows ?? []).map((row) => ({
+    rank: row.rank,
+    name: row.userId === user?.id ? "You" : row.name,
+    initials: row.initials,
+    score: row.avgScore,
+    isYou: row.userId === user?.id,
+  }));
 
   const firstName = user?.name?.split(" ")[0] ?? "Doctor";
   const initials = user?.name
@@ -199,7 +236,7 @@ function DashboardPage() {
       icon: Crown,
       label: "Top 500",
       sub: "Global rank",
-      earned: GLOBAL_RANK <= 500,
+      earned: rankNumber !== null && rankNumber <= 500,
       tint: "from-[#2563EB] to-[#3B82F6]",
     },
   ];
@@ -309,9 +346,9 @@ function DashboardPage() {
         <GradientKpiCard
           gradient="violet"
           label="Global rank"
-          value={`#${GLOBAL_RANK}`}
+          value={hasRank ? `#${rankNumber}` : "—"}
           icon={Trophy}
-          trend={{ value: "Up 16 places", up: true }}
+          sub={hasRank ? `Top ${topPct}% of ${myRank?.totalRanked ?? 0}` : "Take a quiz to rank"}
         />
       </section>
 
@@ -360,7 +397,7 @@ function DashboardPage() {
               </div>
             </div>
             <div className="mt-5 flex items-end justify-between gap-2">
-              {WEEK_ACTIVITY.map((active, i) => (
+              {weekActivity.map((active, i) => (
                 <div key={i} className="flex flex-1 flex-col items-center gap-2">
                   <span
                     className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold transition-transform hover:scale-105 ${
@@ -380,6 +417,11 @@ function DashboardPage() {
                 </div>
               ))}
             </div>
+            {!hasWeekActivity && (
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                No activity yet this week — complete a quiz to light up your days.
+              </p>
+            )}
           </section>
 
           {/* Performance over time */}
@@ -387,52 +429,60 @@ function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold text-foreground">Performance over time</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">Daily accuracy — last 7 days</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Scores from your recent quizzes
+                </p>
               </div>
               <TrendingUp className="h-5 w-5 text-muted-foreground" />
             </div>
-            <div className="mt-4">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={PERF_TREND} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--color-border)"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="day"
-                    stroke="var(--color-muted-foreground)"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    domain={[50, 100]}
-                    stroke="var(--color-muted-foreground)"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                    formatter={(v: number) => [`${v}%`, "Score"]}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="var(--color-primary)"
-                    strokeWidth={2.5}
-                    dot={{ fill: "var(--color-primary)", r: 4, strokeWidth: 0 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            {perfTrend.length === 0 ? (
+              <p className="mt-8 mb-6 text-center text-sm text-muted-foreground">
+                Complete a quiz to start tracking your performance over time.
+              </p>
+            ) : (
+              <div className="mt-4">
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={perfTrend} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="var(--color-border)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="day"
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--color-surface)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      formatter={(v: number) => [`${v}%`, "Score"]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="var(--color-primary)"
+                      strokeWidth={2.5}
+                      dot={{ fill: "var(--color-primary)", r: 4, strokeWidth: 0 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </section>
 
           {/* Recent sessions */}
@@ -558,49 +608,58 @@ function DashboardPage() {
           <section className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
             <h2 className="text-base font-semibold text-foreground">Subject breakdown</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Performance by discipline</p>
-            <div className="mt-2 flex justify-center">
-              <ResponsiveContainer width={200} height={200}>
-                <PieChart>
-                  <Pie
-                    data={SUBJECT_BREAKDOWN}
-                    dataKey="pct"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={90}
-                    paddingAngle={3}
-                    stroke="none"
-                  >
-                    {SUBJECT_BREAKDOWN.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                    formatter={(v: number) => [`${v}%`, "Score"]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-2 space-y-2">
-              {SUBJECT_BREAKDOWN.map((s) => (
-                <div key={s.subject} className="flex items-center gap-2">
-                  <span
-                    className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
-                    style={{ background: s.fill }}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-xs text-foreground">
-                    {s.subject}
-                  </span>
-                  <span className="text-xs font-semibold text-muted-foreground">{s.pct}%</span>
+            {subjectBreakdown.length === 0 ? (
+              <p className="mt-8 mb-6 text-center text-sm text-muted-foreground">
+                Complete a quiz to see your subject breakdown.
+              </p>
+            ) : (
+              <>
+                <div className="mt-2 flex justify-center">
+                  <ResponsiveContainer width={200} height={200}>
+                    <PieChart>
+                      <Pie
+                        data={subjectBreakdown}
+                        dataKey="pct"
+                        nameKey="subject"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={90}
+                        paddingAngle={3}
+                        stroke="none"
+                      >
+                        {subjectBreakdown.map((entry) => (
+                          <Cell key={entry.subject} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--color-surface)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                        formatter={(v: number) => [`${v}%`, "Accuracy"]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
-            </div>
+                <div className="mt-2 space-y-2">
+                  {subjectBreakdown.map((s) => (
+                    <div key={s.subject} className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                        style={{ background: s.fill }}
+                      />
+                      <span className="min-w-0 flex-1 truncate text-xs text-foreground">
+                        {s.subject}
+                      </span>
+                      <span className="text-xs font-semibold text-muted-foreground">{s.pct}%</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
 
           {/* Topic mastery progress bars */}
@@ -609,26 +668,9 @@ function DashboardPage() {
               <h2 className="text-base font-semibold text-foreground">Topic mastery</h2>
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="mt-4 space-y-3.5">
-              {TOPIC_MASTERY.map((t) => (
-                <div key={t.topic}>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-foreground">{t.topic}</span>
-                    <span className="font-semibold text-muted-foreground">{t.pct}%</span>
-                  </div>
-                  <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-alt">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${t.pct}%`,
-                        background:
-                          "linear-gradient(90deg, var(--color-primary), var(--color-accent))",
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="mt-6 mb-4 text-center text-sm text-muted-foreground">
+              Topic mastery unlocks after you complete quizzes.
+            </p>
           </section>
 
           {/* Leaderboard preview */}
@@ -636,7 +678,9 @@ function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold text-foreground">Leaderboard</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">You are in the top 14%</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {hasRank ? `You are in the top ${topPct}%` : "How you stack up"}
+                </p>
               </div>
               <Link
                 to="/leaderboard"
@@ -646,63 +690,75 @@ function DashboardPage() {
               </Link>
             </div>
 
-            {/* Rank highlight */}
-            <div
-              className="mt-4 flex items-center gap-3 rounded-xl p-3 text-white"
-              style={{
-                background: "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
-              }}
-            >
-              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-lg font-extrabold">
-                {GLOBAL_RANK}
-              </span>
-              <div>
-                <p className="text-xs font-medium text-white/80">Your rank</p>
-                <p className="text-sm font-bold">Top 14% globally</p>
-              </div>
-              <Trophy className="ml-auto h-5 w-5 text-white/60" />
-            </div>
-
-            <div className="mt-3 divide-y divide-border">
-              {NEARBY_LEADERS.map((row) => (
+            {!hasRank ? (
+              <p className="mt-6 mb-4 text-center text-sm text-muted-foreground">
+                Take a quiz to join the leaderboard.
+              </p>
+            ) : (
+              <>
+                {/* Rank highlight */}
                 <div
-                  key={row.rank}
-                  className={`flex items-center gap-3 py-2.5 ${row.isYou ? "rounded-xl px-2" : "px-1"}`}
-                  style={
-                    row.isYou
-                      ? { background: "color-mix(in oklab, var(--color-accent) 8%, transparent)" }
-                      : undefined
-                  }
+                  className="mt-4 flex items-center gap-3 rounded-xl p-3 text-white"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
+                  }}
                 >
-                  <span className="w-7 text-center text-xs font-bold text-muted-foreground">
-                    #{row.rank}
+                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-lg font-extrabold">
+                    {rankNumber}
                   </span>
-                  <span
-                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                    style={{
-                      background: row.isYou
-                        ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))"
-                        : "var(--color-surface-alt)",
-                    }}
-                  >
-                    <span className={row.isYou ? "text-white" : "text-muted-foreground"}>
-                      {row.initials}
-                    </span>
-                  </span>
-                  <span
-                    className={`min-w-0 flex-1 truncate text-xs font-medium ${row.isYou ? "text-foreground" : "text-muted-foreground"}`}
-                  >
-                    {row.name}
-                  </span>
-                  <span
-                    className="text-xs font-bold"
-                    style={{ color: row.isYou ? "var(--color-primary)" : undefined }}
-                  >
-                    {row.score}%
-                  </span>
+                  <div>
+                    <p className="text-xs font-medium text-white/80">Your rank</p>
+                    <p className="text-sm font-bold">Top {topPct}% globally</p>
+                  </div>
+                  <Trophy className="ml-auto h-5 w-5 text-white/60" />
                 </div>
-              ))}
-            </div>
+
+                <div className="mt-3 divide-y divide-border">
+                  {nearbyLeaders.map((row) => (
+                    <div
+                      key={`${row.rank}-${row.name}`}
+                      className={`flex items-center gap-3 py-2.5 ${row.isYou ? "rounded-xl px-2" : "px-1"}`}
+                      style={
+                        row.isYou
+                          ? {
+                              background:
+                                "color-mix(in oklab, var(--color-accent) 8%, transparent)",
+                            }
+                          : undefined
+                      }
+                    >
+                      <span className="w-7 text-center text-xs font-bold text-muted-foreground">
+                        #{row.rank}
+                      </span>
+                      <span
+                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                        style={{
+                          background: row.isYou
+                            ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))"
+                            : "var(--color-surface-alt)",
+                        }}
+                      >
+                        <span className={row.isYou ? "text-white" : "text-muted-foreground"}>
+                          {row.initials}
+                        </span>
+                      </span>
+                      <span
+                        className={`min-w-0 flex-1 truncate text-xs font-medium ${row.isYou ? "text-foreground" : "text-muted-foreground"}`}
+                      >
+                        {row.name}
+                      </span>
+                      <span
+                        className="text-xs font-bold"
+                        style={{ color: row.isYou ? "var(--color-primary)" : undefined }}
+                      >
+                        {row.score}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
 
           {/* Streak + achievements */}

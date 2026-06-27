@@ -10,6 +10,8 @@
  * Endpoints (all under /api/v1):
  *   GET /users/me/analytics    — PerformanceAnalytics  (feature: performance_analytics)
  *   GET /users/me/percentile   — PercentileAnalytics   (feature: gaussian_percentile)
+ *   GET /analytics/me          — PerformanceAnalytics  (ungated; empty arrays for
+ *                                new users) — used for always-on dashboard widgets.
  *
  * Locked shape (returned in the envelope `data` when gated):
  *   { locked: true, feature: string, message: string }
@@ -196,6 +198,16 @@ export const analyticsApi = {
     if (isLocked(raw)) return { locked: true, teaser: raw };
     return { locked: false, data: mapPercentile(raw) };
   },
+
+  /**
+   * Ungated personal performance — always returns real data (empty arrays for a
+   * brand-new user), never a locked teaser. Drives the dashboard widgets that
+   * must stay visible (and honest) regardless of subscription tier.
+   */
+  async getPerformanceMe(): Promise<PerformanceAnalytics> {
+    const raw = await apiClient.get<BackendPerformanceAnalytics>("/analytics/me");
+    return mapPerformance(raw);
+  },
 };
 
 // ── Query keys ──
@@ -203,6 +215,7 @@ export const analyticsKeys = {
   all: ["me-analytics"] as const,
   performance: () => [...analyticsKeys.all, "performance"] as const,
   percentile: () => [...analyticsKeys.all, "percentile"] as const,
+  performanceMe: () => [...analyticsKeys.all, "performance-me"] as const,
 };
 
 // ── Hooks ──
@@ -221,6 +234,18 @@ export function useMyPercentile() {
   return useQuery({
     queryKey: analyticsKeys.percentile(),
     queryFn: analyticsApi.getPercentile,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Ungated personal performance for always-on dashboard widgets. Returns real
+ * data (with empty arrays for a brand-new user) rather than a locked teaser.
+ */
+export function useMyPerformance() {
+  return useQuery({
+    queryKey: analyticsKeys.performanceMe(),
+    queryFn: analyticsApi.getPerformanceMe,
     staleTime: 60_000,
   });
 }
