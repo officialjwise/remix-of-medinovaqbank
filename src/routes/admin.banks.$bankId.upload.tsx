@@ -39,7 +39,8 @@ const COLUMNS = [
 ];
 
 const OPT_LETTERS = ["A", "B", "C", "D", "E"];
-const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"];
+// Must match the backend QuestionDifficulty enum. Compared case-insensitively.
+const DIFFICULTIES = ["easy", "medium", "hard"];
 
 /** Normalise a header cell to one of our known fields. */
 function classifyHeader(
@@ -100,7 +101,7 @@ const downloadCsv = () => {
       "options (A-D)":
         "A. Left anterior descending\nB. Right coronary artery\nC. Left circumflex\nD. Posterior descending",
       "right option": "B",
-      "difficulty (optional)": "Intermediate",
+      "difficulty (optional)": "Medium",
       "topic (optional)": "Cardiology",
     },
   ];
@@ -196,11 +197,11 @@ function parseCsvText(text: string): { rows: PreviewRow[]; fatal?: string } {
         reason: `Letter ${correctRaw} has no matching option`,
       });
     }
-    if (difficulty && !DIFFICULTIES.includes(difficulty)) {
+    if (difficulty && !DIFFICULTIES.includes(difficulty.toLowerCase())) {
       errors.push({
         row: rowNum,
         column: "difficulty",
-        reason: "Must be Beginner, Intermediate, or Advanced",
+        reason: "Must be Easy, Medium, or Hard",
       });
     }
 
