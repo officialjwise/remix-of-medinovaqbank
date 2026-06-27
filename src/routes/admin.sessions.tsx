@@ -19,7 +19,6 @@ import {
   X,
 } from "lucide-react";
 import {
-  activeSessions,
   adminQuizSessions,
   adminUsers,
   loginSessions,
@@ -29,6 +28,12 @@ import {
 import { questionBanks } from "@/data/banks";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useDebounce } from "@/hooks/useDebounce";
+import {
+  useActiveSessions,
+  useSuspiciousSessions,
+  useTerminateSession,
+  type DeviceSession,
+} from "@/api/admin-sessions.api";
 
 export const Route = createFileRoute("/admin/sessions")({
   head: () => ({
@@ -299,7 +304,32 @@ function KpiCard({
 const TABS = ["Active Sessions", "All Sessions", "Quiz Sessions"] as const;
 type Tab = (typeof TABS)[number];
 
-// Drawer payload: a unified view object
+/**
+ * Helpers to adapt the real backend `DeviceSession` (active sessions monitor)
+ * into the display primitives the table/drawer expect. Name/email are NOT on
+ * the DeviceSession DTO (GAP) — we derive a stable initials token from userId
+ * and surface the userId as the display label.
+ */
+function initialsFromId(userId: string): string {
+  return userId.replace(/-/g, "").slice(0, 2).toUpperCase() || "??";
+}
+
+/** Map free-text `currentActivity` to the structured UI activity enum. */
+function deviceActivity(a: string): LoginSession["activity"] {
+  const v = a.toLowerCase();
+  if (v.includes("quiz")) return "in-quiz";
+  if (v.includes("idle")) return "idle";
+  return "browsing";
+}
+
+// Drawer payload: a unified view object.
+// - "device": real backend active session (DeviceSession)
+// - "login":  mock historical login session (All Sessions tab)
+// - "quiz":   mock quiz session (Quiz Sessions tab)
+interface DrawerDevice {
+  kind: "device";
+  data: DeviceSession;
+}
 interface DrawerLogin {
   kind: "login";
   data: LoginSession;
@@ -308,13 +338,23 @@ interface DrawerQuiz {
   kind: "quiz";
   data: AdminQuizSession;
 }
-type DrawerPayload = DrawerLogin | DrawerQuiz;
+type DrawerPayload = DrawerDevice | DrawerLogin | DrawerQuiz;
 
 function AdminSessionsPage() {
   const [tab, setTab] = useState<Tab>("Active Sessions");
   const [drawer, setDrawer] = useState<DrawerPayload | null>(null);
-  const [forceLogout, setForceLogout] = useState<LoginSession | null>(null);
+  const [forceLogout, setForceLogout] = useState<DeviceSession | null>(null);
 
+  // Real backend data for KPIs + active monitor.
+  const activeQuery = useActiveSessions();
+  const suspiciousQuery = useSuspiciousSessions();
+  const terminate = useTerminateSession();
+
+  const activeCount = activeQuery.data?.total ?? activeQuery.data?.sessions.length ?? 0;
+  const suspiciousCount = suspiciousQuery.data?.total ?? suspiciousQuery.data?.sessions.length ?? 0;
+
+  // GAP: backend has no "sessions today" / "quiz in progress" aggregates on the
+  // sessions module — these KPIs remain derived from mock data temporarily.
   const sessionsToday = useMemo(() => {
     const today = new Date().toDateString();
     return loginSessions.filter((s) => new Date(s.loginAt).toDateString() === today).length;
@@ -323,12 +363,15 @@ function AdminSessionsPage() {
     () => adminQuizSessions.filter((s) => s.status === "in-progress").length,
     [],
   );
-  const suspiciousSessions = useMemo(() => loginSessions.filter((s) => s.suspicious), []);
 
   const handleTerminate = () => {
+    if (!forceLogout) return;
+    terminate.mutate(forceLogout.id, {
+      onSuccess: () => toast.success("Session terminated"),
+      onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to terminate session"),
+    });
     setForceLogout(null);
     setDrawer(null);
-    toast.success("Session terminated");
   };
 
   return (
@@ -346,7 +389,7 @@ function AdminSessionsPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
           label="Active Sessions"
-          value={activeSessions.length}
+          value={activeQuery.isLoading ? "…" : activeCount}
           icon={Activity}
           tone="success"
           live
@@ -368,7 +411,7 @@ function AdminSessionsPage() {
         />
         <KpiCard
           label="Suspicious Flags"
-          value={suspiciousSessions.length}
+          value={suspiciousQuery.isLoading ? "…" : suspiciousCount}
           icon={ShieldAlert}
           tone="error"
           accent="needs review"
@@ -376,7 +419,7 @@ function AdminSessionsPage() {
       </div>
 
       {/* Device & trial controls */}
-      <DeviceTrialControls suspiciousCount={suspiciousSessions.length} />
+      <DeviceTrialControls suspiciousCount={suspiciousCount} />
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 border-b border-border">
@@ -399,7 +442,8 @@ function AdminSessionsPage() {
 
       {tab === "Active Sessions" && (
         <ActiveSessionsView
-          onView={(s) => setDrawer({ kind: "login", data: s })}
+          query={activeQuery}
+          onView={(s) => setDrawer({ kind: "device", data: s })}
           onForceLogout={setForceLogout}
         />
       )}
@@ -427,9 +471,12 @@ function AdminSessionsPage() {
         description={
           forceLogout ? (
             <>
-              This will force <strong className="text-foreground">{forceLogout.userName}</strong> to
-              log out from <strong className="text-foreground">{forceLogout.device}</strong>. They
-              can sign in again on their bound device.
+              This will force this session to log out from{" "}
+              <strong className="text-foreground">
+                {forceLogout.browser ?? forceLogout.deviceType ?? "this device"}
+                {forceLogout.os ? ` · ${forceLogout.os}` : ""}
+              </strong>{" "}
+              ({forceLogout.locationLabel}). They can sign in again on their bound device.
             </>
           ) : undefined
         }
@@ -453,29 +500,39 @@ function activityLabel(a: LoginSession["activity"], bankName?: string) {
   return "Idle";
 }
 
+type ActiveSessionsQuery = ReturnType<typeof useActiveSessions>;
+
 function ActiveSessionsView({
+  query,
   onView,
   onForceLogout,
 }: {
-  onView: (s: LoginSession) => void;
-  onForceLogout: (s: LoginSession) => void;
+  query: ActiveSessionsQuery;
+  onView: (s: DeviceSession) => void;
+  onForceLogout: (s: DeviceSession) => void;
 }) {
   const [searchRaw, setSearchRaw] = useState("");
   const [activity, setActivity] = useState("All");
   const search = useDebounce(searchRaw, 250);
 
+  const { data, isLoading, isError, error } = query;
+
+  // Client-side filter over the loaded page (server search is not wired into the
+  // shared hook's query key here; filtering the active page keeps the UI snappy).
   const rows = useMemo(() => {
+    const sessions = data?.sessions ?? [];
     const q = search.trim().toLowerCase();
-    return activeSessions.filter((s) => {
-      if (activity !== "All" && s.activity !== activity) return false;
+    return sessions.filter((s) => {
+      if (activity !== "All" && deviceActivity(s.currentActivity) !== activity) return false;
       if (!q) return true;
       return (
-        s.userName.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q) ||
-        s.city.toLowerCase().includes(q)
+        s.userId.toLowerCase().includes(q) ||
+        (s.city ?? "").toLowerCase().includes(q) ||
+        (s.country ?? "").toLowerCase().includes(q) ||
+        (s.ipAddress ?? "").toLowerCase().includes(q)
       );
     });
-  }, [search, activity]);
+  }, [data, search, activity]);
 
   return (
     <div className="space-y-3">
@@ -483,7 +540,7 @@ function ActiveSessionsView({
         <SearchBox
           value={searchRaw}
           onChange={setSearchRaw}
-          placeholder="Search by name, email, or city…"
+          placeholder="Search by user, city, or IP…"
         />
         <FilterSelect
           value={activity}
@@ -507,98 +564,111 @@ function ActiveSessionsView({
                 <th className={th}>Login / Activity</th>
                 <th className={th}>Current activity</th>
                 <th className={th}>Duration</th>
-                <th className={th}>Plan</th>
+                <th className={th}>Status</th>
                 <th className={`${th} text-right`}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8}>
+                    <EmptyState message="Loading active sessions…" />
+                  </td>
+                </tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan={8}>
+                    <div className="px-6 py-16 text-center text-sm text-error">
+                      {error instanceof Error ? error.message : "Failed to load active sessions."}
+                    </div>
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={8}>
                     <EmptyState message="No active sessions match these filters." />
                   </td>
                 </tr>
               ) : (
-                rows.map((s) => (
-                  <tr
-                    key={s.id}
-                    className={`border-b border-border last:border-0 transition-colors hover:bg-surface-alt/30 ${s.suspicious ? "bg-error/[0.04]" : ""}`}
-                  >
-                    <td className={td}>
-                      <div className="flex items-center gap-3">
-                        <Avatar initials={s.initials} />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate font-semibold text-foreground">
-                              {s.userName}
-                            </span>
-                            {s.suspicious && <Pill tone="error">⚑ Flagged</Pill>}
+                rows.map((s) => {
+                  const activity = deviceActivity(s.currentActivity);
+                  return (
+                    <tr
+                      key={s.id}
+                      className={`border-b border-border last:border-0 transition-colors hover:bg-surface-alt/30 ${s.isSuspicious ? "bg-error/[0.04]" : ""}`}
+                    >
+                      <td className={td}>
+                        <div className="flex items-center gap-3">
+                          <Avatar initials={initialsFromId(s.userId)} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate font-semibold text-foreground">
+                                {s.userId}
+                              </span>
+                              {s.isSuspicious && <Pill tone="error">⚑ Flagged</Pill>}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {s.deviceType ?? "Unknown device"}
+                            </div>
                           </div>
-                          <div className="truncate text-xs text-muted-foreground">{s.email}</div>
                         </div>
-                      </div>
-                    </td>
-                    <td className={td}>
-                      <div className="text-foreground">{s.browser}</div>
-                      <div className="text-xs text-muted-foreground">{s.os}</div>
-                      <Fingerprintish value={s.id} />
-                    </td>
-                    <td className={td}>
-                      <div className="flex items-center gap-1 text-foreground">
-                        <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                        {s.city}, {s.country}
-                      </div>
-                      <div className="font-mono text-xs text-muted-foreground">{s.ip}</div>
-                    </td>
-                    <td className={td}>
-                      <div className="text-foreground">{formatTime(s.loginAt)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        active {timeAgo(s.lastActivityMinAgo)}
-                      </div>
-                    </td>
-                    <td className={`${td} max-w-[220px]`}>
-                      {s.activity === "in-quiz" ? (
-                        <div className="space-y-1.5">
-                          <span className="block truncate text-foreground">
-                            {activityLabel(s.activity, s.bankName)}
-                          </span>
-                          <ProgressBar value={s.progress ?? 0} />
-                          <span className="text-xs text-muted-foreground">
-                            {s.progress ?? 0}% complete
-                          </span>
+                      </td>
+                      <td className={td}>
+                        <div className="text-foreground">{s.browser ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground">{s.os ?? "—"}</div>
+                        <Fingerprintish value={s.deviceFingerprint} />
+                      </td>
+                      <td className={td}>
+                        <div className="flex items-center gap-1 text-foreground">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          {s.locationLabel}
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground">{activityLabel(s.activity)}</span>
-                      )}
-                    </td>
-                    <td className={`${td} tabular-nums text-foreground`}>
-                      {minutesToHm(s.durationMin)}
-                    </td>
-                    <td className={td}>
-                      <TrialBadge trial={s.trial} />
-                    </td>
-                    <td className={`${td} text-right`}>
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => onView(s)}
-                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onForceLogout(s)}
-                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-error transition-colors hover:border-error/30 hover:bg-error/10"
-                        >
-                          <LogOut className="h-3.5 w-3.5" />
-                          Force logout
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        <div className="font-mono text-xs text-muted-foreground">
+                          {s.ipAddress ?? "—"}
+                        </div>
+                      </td>
+                      <td className={td}>
+                        <div className="text-foreground">{formatTime(s.loginAt)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          active {timeAgo(s.lastActivityMinAgo)}
+                        </div>
+                      </td>
+                      <td className={`${td} max-w-[220px]`}>
+                        <span className="text-muted-foreground">{activityLabel(activity)}</span>
+                      </td>
+                      <td className={`${td} tabular-nums text-foreground`}>
+                        {minutesToHm(s.durationMin)}
+                      </td>
+                      <td className={td}>
+                        {s.isActive ? (
+                          <Pill tone="success">Active</Pill>
+                        ) : (
+                          <Pill tone="muted">Ended</Pill>
+                        )}
+                      </td>
+                      <td className={`${td} text-right`}>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onView(s)}
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onForceLogout(s)}
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-error transition-colors hover:border-error/30 hover:bg-error/10"
+                          >
+                            <LogOut className="h-3.5 w-3.5" />
+                            Force logout
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -1038,6 +1108,22 @@ function DrawerRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
+function drawerInitials(payload: DrawerPayload): string {
+  if (payload.kind === "device") return initialsFromId(payload.data.userId);
+  return payload.data.initials;
+}
+
+function drawerTitle(payload: DrawerPayload): string {
+  if (payload.kind === "device") return payload.data.userId;
+  return payload.data.userName;
+}
+
+function drawerSubtitle(payload: DrawerPayload): string {
+  if (payload.kind === "device") return payload.data.locationLabel;
+  if (payload.kind === "login") return payload.data.email;
+  return `Quiz session · ${payload.data.id}`;
+}
+
 function SessionDrawer({
   payload,
   onClose,
@@ -1045,7 +1131,7 @@ function SessionDrawer({
 }: {
   payload: DrawerPayload;
   onClose: () => void;
-  onForceLogout: (s: LoginSession) => void;
+  onForceLogout: (s: DeviceSession) => void;
 }) {
   return (
     <div
@@ -1061,15 +1147,13 @@ function SessionDrawer({
         {/* header */}
         <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
-            <Avatar initials={payload.data.initials} />
+            <Avatar initials={drawerInitials(payload)} />
             <div className="min-w-0">
               <div className="truncate text-base font-bold text-foreground">
-                {payload.data.userName}
+                {drawerTitle(payload)}
               </div>
               <div className="truncate text-xs text-muted-foreground">
-                {payload.kind === "login"
-                  ? payload.data.email
-                  : `Quiz session · ${payload.data.id}`}
+                {drawerSubtitle(payload)}
               </div>
             </div>
           </div>
@@ -1085,7 +1169,9 @@ function SessionDrawer({
 
         {/* body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {payload.kind === "login" ? (
+          {payload.kind === "device" ? (
+            <DeviceDrawerBody s={payload.data} />
+          ) : payload.kind === "login" ? (
             <LoginDrawerBody s={payload.data} />
           ) : (
             <QuizDrawerBody s={payload.data} />
@@ -1101,7 +1187,7 @@ function SessionDrawer({
           >
             View full user
           </button>
-          {payload.kind === "login" && payload.data.status === "active" && (
+          {payload.kind === "device" && payload.data.isActive && (
             <button
               type="button"
               onClick={() => onForceLogout(payload.data)}
@@ -1122,6 +1208,57 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     <h4 className="mb-1 mt-5 text-xs font-bold uppercase tracking-widest text-muted-foreground first:mt-0">
       {children}
     </h4>
+  );
+}
+
+function DeviceDrawerBody({ s }: { s: DeviceSession }) {
+  const activity = deviceActivity(s.currentActivity);
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        {s.isActive ? <Pill tone="success">Active</Pill> : <Pill tone="muted">Ended</Pill>}
+        {s.isSuspicious && <Pill tone="error">⚑ Flagged</Pill>}
+      </div>
+
+      {s.isSuspicious && s.suspiciousReasons.length > 0 && (
+        <>
+          <SectionTitle>Why flagged</SectionTitle>
+          <ul className="space-y-1 text-sm text-foreground">
+            {s.suspiciousReasons.map((reason, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-warning" />
+                {reason}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <SectionTitle>Device</SectionTitle>
+      <DrawerRow label="Type">{s.deviceType ?? "—"}</DrawerRow>
+      <DrawerRow label="Browser">{s.browser ?? "—"}</DrawerRow>
+      <DrawerRow label="OS">{s.os ?? "—"}</DrawerRow>
+      <DrawerRow label="Fingerprint">
+        <span className="font-mono text-xs">{s.deviceFingerprint}</span>
+      </DrawerRow>
+
+      <SectionTitle>Location</SectionTitle>
+      <DrawerRow label="City">{s.city ?? "—"}</DrawerRow>
+      <DrawerRow label="Region">{s.region ?? "—"}</DrawerRow>
+      <DrawerRow label="Country">{s.country ?? "—"}</DrawerRow>
+      <DrawerRow label="IP address">
+        <span className="font-mono text-xs">{s.ipAddress ?? "—"}</span>
+      </DrawerRow>
+
+      <SectionTitle>Session</SectionTitle>
+      <DrawerRow label="User ID">
+        <span className="font-mono text-xs">{s.userId}</span>
+      </DrawerRow>
+      <DrawerRow label="Logged in">{formatDateTime(s.loginAt)}</DrawerRow>
+      <DrawerRow label="Last activity">{timeAgo(s.lastActivityMinAgo)}</DrawerRow>
+      <DrawerRow label="Duration">{minutesToHm(s.durationMin)}</DrawerRow>
+      <DrawerRow label="Activity">{activityLabel(activity)}</DrawerRow>
+    </div>
   );
 }
 

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   Activity,
@@ -11,21 +11,17 @@ import {
   MapPin,
   Calendar,
   Pencil,
-  ToggleLeft,
   Mail,
   Smartphone,
   Flag,
   Ban,
   UserCheck,
   Trash2,
-  X,
   ShieldAlert,
   ShieldCheck,
-  Lock,
-  Unlock,
+  Shield,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useProtectionStore, EVENT_LABELS } from "@/stores/protectionStore";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   EditUserModal,
@@ -33,22 +29,30 @@ import {
   FlagAccountModal,
 } from "@/components/admin/UserActionModals";
 import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
-  getUserById,
-  quizSessionsByUser,
-  loginSessionsByUser,
-  type AdminUser,
-  type AdminQuizSession,
-  type LoginSession,
-} from "@/data/adminData";
+  useAdminUserDetail,
+  useAdminUserSessions,
+  useAdminUserSubscriptions,
+  useAdminUserActivity,
+  useUpdateAdminUser,
+  useUpdateAdminUserRole,
+  useDeleteAdminUser,
+  useSuspendUser,
+  useReactivateUser,
+  useBanUser,
+  useFlagUser,
+  toBackendRole,
+  type AdminUserVM,
+  type AdminUserDetailVM,
+  type AdminUserStatus,
+  type DisplayRole,
+  type BackendAdminSession,
+  type BackendSubscriptionSummary,
+  type BackendActivityLog,
+  type BackendSubscriptionPlan,
+  type BackendSessionMode,
+  type BackendSessionStatus,
+  type BackendSubscriptionStatus,
+} from "@/api/admin-users.api";
 
 export const Route = createFileRoute("/admin/users/$userId")({
   head: () => ({
@@ -64,26 +68,8 @@ export const Route = createFileRoute("/admin/users/$userId")({
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-const TOOLTIP_STYLE = {
-  backgroundColor: "var(--color-surface)",
-  border: "1px solid var(--color-border)",
-  borderRadius: "10px",
-  color: "var(--color-foreground)",
-} as const;
-
-function seeded(seed: number) {
-  let s = seed % 2147483647;
-  if (s <= 0) s += 2147483646;
-  return () => (s = (s * 16807) % 2147483647) / 2147483647;
-}
-
-function hash(str: string) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function fmtDate(iso: string) {
+function fmtDate(iso: string | null) {
+  if (!iso) return "—";
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
@@ -91,7 +77,8 @@ function fmtDate(iso: string) {
   });
 }
 
-function fmtDateTime(iso: string) {
+function fmtDateTime(iso: string | null) {
+  if (!iso) return "—";
   return new Date(iso).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
@@ -104,35 +91,39 @@ function scoreColor(pct: number) {
   return pct >= 80 ? "text-success" : pct >= 60 ? "text-warning" : "text-error";
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const PLAN_PRICE: Record<string, number> = {
-  Trial: 0,
-  Monthly: 99,
-  "3-Month": 249,
-  "6-Month": 449,
-  "12-Month": 799,
-  "—": 0,
+const PLAN_LABEL: Record<BackendSubscriptionPlan, string> = {
+  monthly: "Monthly",
+  three_months: "3-Month",
+  six_months: "6-Month",
+  twelve_months: "12-Month",
+  free_trial: "Trial",
 };
 
-function StatusPill({ status }: { status: AdminUser["status"] }) {
-  const tone =
-    status === "active"
-      ? "bg-success/10 text-success border border-success/20"
-      : status === "trial"
-        ? "bg-warning/10 text-warning border border-warning/20"
-        : status === "expired" || status === "suspended"
-          ? "bg-error/10 text-error border border-error/20"
-          : "bg-surface-alt text-muted-foreground border border-border";
+const SUB_STATUS_TONE: Record<BackendSubscriptionStatus, string> = {
+  active: "bg-success/10 text-success",
+  trial: "bg-warning/10 text-warning",
+  expired: "bg-surface-alt text-muted-foreground",
+  cancelled: "bg-error/10 text-error",
+};
+
+const STATUS_TONE: Record<AdminUserStatus, string> = {
+  active: "bg-success/10 text-success border border-success/20",
+  suspended: "bg-error/10 text-error border border-error/20",
+  banned: "bg-error/10 text-error border border-error/20",
+  flagged: "bg-warning/10 text-warning border border-warning/20",
+};
+
+function StatusPill({ status }: { status: AdminUserStatus }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_TONE[status]}`}
     >
       {status}
     </span>
   );
 }
 
-function RolePill({ role }: { role: AdminUser["role"] }) {
+function RolePill({ role }: { role: DisplayRole }) {
   const tone =
     role === "SUPER_ADMIN"
       ? "bg-primary/10 text-primary border border-primary/20"
@@ -149,9 +140,7 @@ function RolePill({ role }: { role: AdminUser["role"] }) {
 const TABS = [
   { id: "overview", label: "Overview", icon: Activity },
   { id: "sessions", label: "Quiz Sessions", icon: PlayCircle },
-  { id: "performance", label: "Performance", icon: BarChart3 },
   { id: "billing", label: "Subscription", icon: CreditCard },
-  { id: "devices", label: "Devices", icon: Monitor },
   { id: "activity", label: "Activity Log", icon: Clock },
 ] as const;
 
@@ -164,46 +153,40 @@ type TabId = (typeof TABS)[number]["id"];
 function UserDetail() {
   const { userId } = Route.useParams();
   const navigate = useNavigate();
-  const user = getUserById(userId);
+
+  const { data: detail, isLoading, isError, error } = useAdminUserDetail(userId);
+
+  const updateUser = useUpdateAdminUser();
+  const updateRole = useUpdateAdminUserRole();
+  const deleteUser = useDeleteAdminUser();
+  const suspendUser = useSuspendUser();
+  const reactivateUser = useReactivateUser();
+  const banUser = useBanUser();
+  const flagUser = useFlagUser();
 
   const [tab, setTab] = useState<TabId>("overview");
-  const [showOverride, setShowOverride] = useState(false);
   const [confirmSuspend, setConfirmSuspend] = useState(false);
+  const [confirmBan, setConfirmBan] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [actionModal, setActionModal] = useState<null | "edit" | "email" | "flag" | "clearLock">(
-    null,
-  );
-  const [flagged, setFlagged] = useState(false);
-  const [showRestrict, setShowRestrict] = useState(false);
+  const [actionModal, setActionModal] = useState<null | "edit" | "email" | "flag">(null);
 
-  const quizSessions = useMemo(() => (user ? quizSessionsByUser(user.id) : []), [user]);
-  const loginSessions = useMemo(() => (user ? loginSessionsByUser(user.id) : []), [user]);
-
-  const protectionEvents = useProtectionStore((s) => s.events);
-  const restrictions = useProtectionStore((s) => s.restrictions);
-  const liftRestriction = useProtectionStore((s) => s.liftRestriction);
-  const manualRestrict = useProtectionStore((s) => s.manualRestrict);
-  const myEvents = useMemo(
-    () => (user ? protectionEvents.filter((e) => e.userId === user.id) : []),
-    [protectionEvents, user],
-  );
-  const activeRestriction = useMemo(
-    () =>
-      user
-        ? (restrictions.find((r) => r.userId === user.id && r.status === "active") ?? null)
-        : null,
-    [restrictions, user],
-  );
-
-  if (!user) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
-        <Link
-          to="/admin/users"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> All users
-        </Link>
+        <BackLink />
+        <div className="rounded-2xl border border-border bg-surface p-12 text-center shadow-[var(--shadow-card)]">
+          <p className="text-sm text-muted-foreground">Loading user…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isNotFound = isError && error instanceof Error && /404|not found/i.test(error.message);
+
+  if (isNotFound || (!isLoading && !isError && !detail)) {
+    return (
+      <div className="space-y-6">
+        <BackLink />
         <div className="rounded-2xl border border-border bg-surface p-12 text-center shadow-[var(--shadow-card)]">
           <p className="text-base font-bold text-foreground">User not found</p>
           <p className="mt-1 text-sm text-muted-foreground">No account exists for id “{userId}”.</p>
@@ -218,20 +201,59 @@ function UserDetail() {
     );
   }
 
+  if (isError || !detail) {
+    return (
+      <div className="space-y-6">
+        <BackLink />
+        <div className="rounded-2xl border border-border bg-surface p-12 text-center shadow-[var(--shadow-card)]">
+          <p className="text-base font-bold text-error">Failed to load user</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "Please try again."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const user = detail.user;
   const suspended = user.status === "suspended";
+  const banned = user.status === "banned";
   const daysMember = Math.max(
     1,
-    Math.floor((Date.now() - new Date(user.registeredAt).getTime()) / 86_400_000),
+    Math.floor((Date.now() - new Date(user.createdAt).getTime()) / 86_400_000),
   );
+
+  function handleEditSave(patch: { name: string; specialty: string; institution: string }) {
+    updateUser.mutate(
+      {
+        id: userId,
+        input: {
+          name: patch.name,
+          specialty: patch.specialty,
+          institution: patch.institution,
+        },
+      },
+      {
+        onSuccess: () => toast.success("User updated"),
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+      },
+    );
+  }
+
+  function handleRoleChange(role: DisplayRole) {
+    if (role === user.role) return;
+    updateRole.mutate(
+      { id: userId, role: toBackendRole(role) },
+      {
+        onSuccess: () => toast.success(`Role changed to ${role.replace("_", " ")}`),
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Role change failed"),
+      },
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <Link
-        to="/admin/users"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> All users
-      </Link>
+      <BackLink />
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         {/* Side panel */}
@@ -244,45 +266,52 @@ function UserDetail() {
             <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
             <p
               className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-0.5 font-mono text-[11px] font-semibold text-muted-foreground"
-              title="Public account ID"
+              title="Account ID"
             >
-              {user.publicId}
+              {user.id}
             </p>
 
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <RolePill role={user.role} />
-              <StatusPill status={user.status} />
+              <StatusPill status={user.displayStatus} />
+              {user.isEmailVerified ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success">
+                  <ShieldCheck className="h-3 w-3" /> Verified
+                </span>
+              ) : (
+                <span className="inline-flex rounded-full border border-border bg-surface-alt px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Unverified
+                </span>
+              )}
             </div>
 
             <div className="mt-4">
-              {user.status === "trial" ? (
-                <span className="inline-flex rounded-full border border-warning/20 bg-warning/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-warning">
-                  Trial · {user.trialDaysLeft ?? 0}d left
+              {detail.activeSubscription ? (
+                <span className="inline-flex rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">
+                  {PLAN_LABEL[detail.activeSubscription.plan]} plan
                 </span>
               ) : (
-                <span className="inline-flex rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">
-                  {user.plan === "—" ? "No plan" : `${user.plan} plan`}
+                <span className="inline-flex rounded-full border border-border bg-surface-alt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  No active plan
                 </span>
               )}
             </div>
 
             <dl className="mt-6 space-y-3 border-t border-border pt-5 text-left text-sm">
-              <InfoRow icon={Monitor} label="Bound device">
-                <span className="block truncate text-sm font-medium text-foreground">
-                  {user.device}
-                </span>
-                <span className="block truncate font-mono text-[11px] text-muted-foreground">
-                  {user.deviceFingerprint}
-                </span>
+              <InfoRow icon={MapPin} label="Country">
+                <span className="text-sm font-medium text-foreground">{user.country || "—"}</span>
               </InfoRow>
-              <InfoRow icon={MapPin} label="Location">
+              <InfoRow icon={ShieldCheck} label="Specialty">
+                <span className="text-sm font-medium text-foreground">{user.specialty || "—"}</span>
+              </InfoRow>
+              <InfoRow icon={ShieldCheck} label="Institution">
                 <span className="text-sm font-medium text-foreground">
-                  {user.city}, {user.region}, {user.country}
+                  {user.institution || "—"}
                 </span>
               </InfoRow>
               <InfoRow icon={Calendar} label="Member since">
                 <span className="text-sm font-medium text-foreground">
-                  {fmtDate(user.registeredAt)}
+                  {fmtDate(user.createdAt)}
                 </span>
               </InfoRow>
               <InfoRow icon={Clock} label="Last active">
@@ -298,84 +327,89 @@ function UserDetail() {
             <ActionBtn icon={Pencil} onClick={() => setActionModal("edit")}>
               Edit profile
             </ActionBtn>
-            <ActionBtn icon={ToggleLeft} onClick={() => setShowOverride(true)}>
-              Override subscription
-            </ActionBtn>
             <ActionBtn icon={Mail} onClick={() => setActionModal("email")}>
               Send email
             </ActionBtn>
-            <ActionBtn icon={Smartphone} onClick={() => setActionModal("clearLock")}>
-              Clear device lock
+            <ActionBtn
+              icon={Shield}
+              onClick={() => handleRoleChange(user.role === "SUPER_ADMIN" ? "USER" : "SUPER_ADMIN")}
+            >
+              {user.role === "SUPER_ADMIN" ? "Demote to user" : "Promote to admin"}
             </ActionBtn>
-            <ActionBtn icon={Flag} onClick={() => setActionModal("flag")}>
-              {flagged ? "Flagged ✓" : "Flag account"}
+            <ActionBtn
+              icon={Flag}
+              tone={user.isFlagged ? "warning" : "default"}
+              onClick={() => setActionModal("flag")}
+            >
+              {user.isFlagged ? "Flagged ✓" : "Flag account"}
             </ActionBtn>
             <ActionBtn
               icon={suspended ? UserCheck : Ban}
               tone="warning"
-              onClick={() => setConfirmSuspend(true)}
+              onClick={() => {
+                if (suspended || banned) {
+                  reactivateUser.mutate(userId, {
+                    onSuccess: () => toast.success("Account reactivated"),
+                    onError: (e) =>
+                      toast.error(e instanceof Error ? e.message : "Reactivation failed"),
+                  });
+                } else {
+                  setConfirmSuspend(true);
+                }
+              }}
             >
-              {suspended ? "Reactivate account" : "Suspend account"}
+              {suspended || banned ? "Reactivate account" : "Suspend account"}
             </ActionBtn>
+            {!banned && (
+              <ActionBtn icon={ShieldAlert} tone="error" onClick={() => setConfirmBan(true)}>
+                Ban account
+              </ActionBtn>
+            )}
             <ActionBtn icon={Trash2} tone="error" onClick={() => setConfirmDelete(true)}>
               Delete account
             </ActionBtn>
           </div>
 
-          {/* Content protection */}
+          {/* Account standing */}
           <div className="rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
             <div className="flex items-center justify-between">
               <h3 className="inline-flex items-center gap-2 text-sm font-bold text-foreground">
-                <ShieldAlert className="h-4 w-4 text-warning" /> Content protection
+                <ShieldAlert className="h-4 w-4 text-warning" /> Account standing
               </h3>
               <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${myEvents.length > 0 ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${detail.suspiciousLoginCount > 0 ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}
               >
-                {myEvents.length} violation{myEvents.length === 1 ? "" : "s"}
+                {detail.suspiciousLoginCount} suspicious
               </span>
             </div>
 
-            {activeRestriction ? (
-              <div className="mt-3 rounded-lg border border-error/30 bg-error/5 p-3">
-                <p className="inline-flex items-center gap-1.5 text-xs font-bold text-error">
-                  <Lock className="h-3.5 w-3.5" /> Restricted
+            {user.isFlagged && (
+              <div className="mt-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                <p className="inline-flex items-center gap-1.5 text-xs font-bold text-warning">
+                  <Flag className="h-3.5 w-3.5" /> Flagged for review
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">{activeRestriction.reason}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Unlocks {new Date(activeRestriction.unlockAt).toLocaleString()}
-                </p>
-                <button
-                  onClick={() => {
-                    liftRestriction(activeRestriction.id);
-                    toast.success("Restriction lifted");
-                  }}
-                  className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-xs font-semibold hover:bg-surface-alt"
-                >
-                  <Unlock className="h-3.5 w-3.5" /> Lift restriction
-                </button>
+                {user.flagReason && (
+                  <p className="mt-1 text-xs text-muted-foreground">{user.flagReason}</p>
+                )}
+                {user.flaggedAt && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Since {fmtDateTime(user.flaggedAt)}
+                  </p>
+                )}
               </div>
-            ) : (
-              <button
-                onClick={() => setShowRestrict(true)}
-                className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-warning/30 bg-warning/10 text-xs font-semibold text-warning hover:bg-warning/20"
-              >
-                <Lock className="h-3.5 w-3.5" /> Restrict access
-              </button>
             )}
 
-            {myEvents.length > 0 && (
-              <ul className="mt-3 space-y-1.5 border-t border-border pt-3">
-                {myEvents.slice(0, 4).map((e) => (
-                  <li key={e.id} className="flex items-center justify-between gap-2 text-[11px]">
-                    <span className="truncate font-medium text-foreground">
-                      {EVENT_LABELS[e.type]}
-                    </span>
-                    <span className="flex-shrink-0 text-muted-foreground">
-                      {new Date(e.createdAt).toLocaleDateString()}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+            {(suspended || banned) && user.statusReason && (
+              <div className="mt-3 rounded-lg border border-error/30 bg-error/5 p-3">
+                <p className="inline-flex items-center gap-1.5 text-xs font-bold text-error">
+                  <Ban className="h-3.5 w-3.5" /> {banned ? "Banned" : "Suspended"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{user.statusReason}</p>
+              </div>
+            )}
+
+            {!user.isFlagged && !suspended && !banned && (
+              <p className="mt-3 text-xs text-muted-foreground">Account in good standing.</p>
             )}
           </div>
         </aside>
@@ -400,87 +434,100 @@ function UserDetail() {
           </div>
 
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both">
-            {tab === "overview" && (
-              <OverviewTab user={user} quizSessions={quizSessions} daysMember={daysMember} />
-            )}
-            {tab === "sessions" && <SessionsTab sessions={quizSessions} />}
-            {tab === "performance" && <PerformanceTab user={user} />}
-            {tab === "billing" && <BillingTab user={user} />}
-            {tab === "devices" && <DevicesTab user={user} sessions={loginSessions} />}
-            {tab === "activity" && <ActivityTab user={user} quizSessions={quizSessions} />}
+            {tab === "overview" && <OverviewTab detail={detail} daysMember={daysMember} />}
+            {tab === "sessions" && <SessionsTab userId={userId} />}
+            {tab === "billing" && <BillingTab detail={detail} userId={userId} />}
+            {tab === "activity" && <ActivityTab userId={userId} />}
           </div>
         </div>
       </div>
 
-      {/* Override modal */}
-      {showOverride && <OverrideModal user={user} onClose={() => setShowOverride(false)} />}
-
-      {/* Restrict access modal */}
-      {showRestrict && (
-        <RestrictModal
-          userName={user.name}
-          onClose={() => setShowRestrict(false)}
-          onConfirm={(reason, hours) => {
-            manualRestrict({
-              userId: user.id,
-              userName: user.name,
-              userEmail: user.email,
-              reason,
-              hours,
-            });
-            setShowRestrict(false);
-            toast.success(`${user.name} restricted for ${hours}h`);
-          }}
-        />
-      )}
-
       {/* Quick-action modals */}
       {actionModal === "edit" && (
-        <EditUserModal user={user} onClose={() => setActionModal(null)} onSave={() => {}} />
+        <EditUserModal
+          user={{
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            specialty: user.specialty,
+            institution: user.institution,
+            role: user.role,
+            status: user.status,
+          }}
+          onClose={() => setActionModal(null)}
+          onSave={(patch) =>
+            handleEditSave({
+              name: patch.name ?? user.name,
+              specialty: patch.specialty ?? user.specialty,
+              institution: patch.institution ?? user.institution,
+            })
+          }
+        />
       )}
       {actionModal === "email" && (
-        <ComposeEmailModal user={user} onClose={() => setActionModal(null)} />
+        <ComposeEmailModal
+          user={{ id: user.id, name: user.name, email: user.email }}
+          onClose={() => setActionModal(null)}
+        />
       )}
       {actionModal === "flag" && (
         <FlagAccountModal
-          user={user}
+          user={{ id: user.id, name: user.name, email: user.email }}
           onClose={() => setActionModal(null)}
-          onFlag={() => setFlagged(true)}
+          onFlag={(reason) =>
+            flagUser.mutate(
+              { id: userId, reason },
+              {
+                onError: (e) => toast.error(e instanceof Error ? e.message : "Flagging failed"),
+              },
+            )
+          }
         />
       )}
+
       <ConfirmDialog
-        open={actionModal === "clearLock"}
-        title="Clear device lock?"
-        description={
-          <span>
-            This lets <strong>{user.name}</strong> sign in from a new device. Their bound device (
-            {user.device}) will be released.
-          </span>
-        }
-        confirmLabel="Clear device lock"
-        onCancel={() => setActionModal(null)}
+        open={confirmSuspend}
+        title="Suspend this user?"
+        description="They will be signed out and unable to start new quiz sessions until reactivated."
+        variant="destructive"
+        confirmLabel="Suspend"
+        onCancel={() => setConfirmSuspend(false)}
         onConfirm={() => {
-          setActionModal(null);
-          toast.success("Device lock cleared — user can re-bind on next login");
+          setConfirmSuspend(false);
+          suspendUser.mutate(
+            { id: userId },
+            {
+              onSuccess: () => toast.success("Account suspended"),
+              onError: (e) => toast.error(e instanceof Error ? e.message : "Suspend failed"),
+            },
+          );
         }}
       />
 
       <ConfirmDialog
-        open={confirmSuspend}
-        title={suspended ? "Reactivate this user?" : "Suspend this user?"}
+        open={confirmBan}
+        title="Ban this user?"
         description={
-          suspended
-            ? "They will be able to sign in again immediately."
-            : "They will be signed out and unable to start new quiz sessions until reactivated."
+          <span>
+            This permanently bars <strong>{user.name}</strong> from the platform. They can be
+            reactivated later if needed.
+          </span>
         }
-        variant={suspended ? "default" : "destructive"}
-        confirmLabel={suspended ? "Reactivate" : "Suspend"}
-        onCancel={() => setConfirmSuspend(false)}
+        variant="destructive"
+        confirmLabel="Ban account"
+        onCancel={() => setConfirmBan(false)}
         onConfirm={() => {
-          setConfirmSuspend(false);
-          toast.success("Account status updated");
+          setConfirmBan(false);
+          banUser.mutate(
+            { id: userId },
+            {
+              onSuccess: () => toast.success("Account banned"),
+              onError: (e) => toast.error(e instanceof Error ? e.message : "Ban failed"),
+            },
+          );
         }}
       />
+
       <ConfirmDialog
         open={confirmDelete}
         title="Permanently delete this user?"
@@ -496,8 +543,13 @@ function UserDetail() {
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {
           setConfirmDelete(false);
-          toast.success("User deleted");
-          navigate({ to: "/admin/users" });
+          deleteUser.mutate(userId, {
+            onSuccess: () => {
+              toast.success("User deleted");
+              navigate({ to: "/admin/users" });
+            },
+            onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
+          });
         }}
       />
     </div>
@@ -508,148 +560,49 @@ function UserDetail() {
 /* Overview                                                            */
 /* ------------------------------------------------------------------ */
 
-function OverviewTab({
-  user,
-  quizSessions,
-  daysMember,
-}: {
-  user: AdminUser;
-  quizSessions: AdminQuizSession[];
-  daysMember: number;
-}) {
-  const timeline = useMemo(() => {
-    const items: {
-      text: string;
-      when: string;
-      tone: "primary" | "accent" | "success" | "warning";
-    }[] = [];
-    const recent = [...quizSessions]
-      .sort((a, b) => +new Date(b.date) - +new Date(a.date))
-      .slice(0, 4);
-    recent.forEach((s) => {
-      items.push({
-        text:
-          s.status === "completed"
-            ? `Completed ${s.bankName} — ${s.scorePct}%`
-            : s.status === "in-progress"
-              ? `Started ${s.bankName} (${s.mode})`
-              : `Abandoned ${s.bankName}`,
-        when: fmtDateTime(s.date),
-        tone: s.status === "completed" ? "success" : "primary",
-      });
-    });
-    items.push({
-      text:
-        user.status === "trial"
-          ? "Started free trial"
-          : `Subscribed to ${user.plan === "—" ? "platform" : user.plan} plan`,
-      when: fmtDate(user.registeredAt),
-      tone: "accent",
-    });
-    items.push({ text: "Account created", when: fmtDate(user.registeredAt), tone: "warning" });
-    return items.slice(0, 6);
-  }, [quizSessions, user]);
-
-  const trialQTotal = (user.trialQuestionsLeft ?? 0) + Math.min(user.lifetimeQuestions, 30);
-
+function OverviewTab({ detail, daysMember }: { detail: AdminUserDetailVM; daysMember: number }) {
+  const user = detail.user;
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Sessions" value={user.sessionsCount.toLocaleString()} />
-        <StatCard label="Avg score" value={`${user.avgScore}%`} accent />
-        <StatCard label="Questions answered" value={user.lifetimeQuestions.toLocaleString()} />
+        <StatCard label="Quiz sessions" value={detail.sessionCount.toLocaleString()} />
+        <StatCard label="Subscriptions" value={detail.subscriptionCount.toLocaleString()} accent />
+        <StatCard label="Transactions" value={detail.transactionCount.toLocaleString()} />
         <StatCard label="Days as member" value={daysMember.toLocaleString()} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Subscription / trial status */}
+        {/* Subscription status */}
         <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-          <h3 className="text-base font-bold text-foreground">
-            {user.status === "trial" ? "Trial status" : "Subscription"}
-          </h3>
-          {user.status === "trial" ? (
-            <div className="mt-4 space-y-4">
-              <Meter
-                label="Trial days remaining"
-                value={user.trialDaysLeft ?? 0}
-                max={7}
-                suffix="days"
-              />
-              <Meter
-                label="Trial questions remaining"
-                value={user.trialQuestionsLeft ?? 0}
-                max={Math.max(trialQTotal, 1)}
-                suffix="left"
-              />
-            </div>
-          ) : (
+          <h3 className="text-base font-bold text-foreground">Subscription</h3>
+          {detail.activeSubscription ? (
             <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Plan</span>
-                <span className="text-sm font-bold text-foreground">
-                  {user.plan === "—" ? "None" : user.plan}
-                </span>
-              </div>
+              <Row label="Plan" value={PLAN_LABEL[detail.activeSubscription.plan]} bold />
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Status</span>
-                <StatusPill status={user.status} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  {user.status === "expired" ? "Expired" : "Renews"}
-                </span>
-                <span className="text-sm font-semibold text-foreground">
-                  {user.planEndsAt ? fmtDate(user.planEndsAt) : "—"}
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SUB_STATUS_TONE[detail.activeSubscription.status]}`}
+                >
+                  {detail.activeSubscription.status}
                 </span>
               </div>
+              <Row label="Started" value={fmtDate(detail.activeSubscription.startDate)} />
+              <Row label="Ends" value={fmtDate(detail.activeSubscription.endDate)} />
             </div>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">No active subscription.</p>
           )}
         </div>
 
-        {/* Bound device & location */}
+        {/* Account info */}
         <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-          <h3 className="text-base font-bold text-foreground">Bound device & location</h3>
+          <h3 className="text-base font-bold text-foreground">Account</h3>
           <div className="mt-4 space-y-3 text-sm">
-            <div className="flex items-start gap-3">
-              <Monitor className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
-              <div className="min-w-0">
-                <p className="font-medium text-foreground">{user.device}</p>
-                <p className="truncate font-mono text-[11px] text-muted-foreground">
-                  {user.deviceFingerprint}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
-              <p className="font-medium text-foreground">
-                {user.city}, {user.region}, {user.country}
-              </p>
-            </div>
+            <Row label="Sign-in provider" value={user.provider} />
+            <Row label="Email verified" value={user.isEmailVerified ? "Yes" : "No"} />
+            <Row label="Trial questions used" value={user.trialQuestionsUsed.toLocaleString()} />
+            <Row label="Suspicious logins" value={detail.suspiciousLoginCount.toLocaleString()} />
           </div>
-        </div>
-      </div>
-
-      {/* Timeline */}
-      <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-        <h3 className="mb-4 text-base font-bold text-foreground">Recent activity</h3>
-        <div className="relative space-y-6 border-l-2 border-border pl-4">
-          {timeline.map((row, i) => (
-            <div key={i} className="relative">
-              <span
-                className={`absolute -left-[23px] top-1 h-3 w-3 rounded-full ring-4 ring-surface ${
-                  row.tone === "success"
-                    ? "bg-success"
-                    : row.tone === "accent"
-                      ? "bg-accent"
-                      : row.tone === "warning"
-                        ? "bg-warning"
-                        : "bg-primary"
-                }`}
-              />
-              <p className="text-sm font-medium text-foreground">{row.text}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{row.when}</p>
-            </div>
-          ))}
         </div>
       </div>
     </div>
@@ -660,45 +613,55 @@ function OverviewTab({
 /* Quiz sessions                                                       */
 /* ------------------------------------------------------------------ */
 
-function SessionsTab({ sessions }: { sessions: AdminQuizSession[] }) {
-  if (sessions.length === 0)
+const SESSION_MODE_TONE: Record<BackendSessionMode, string> = {
+  tutor: "bg-primary/10 text-primary",
+  quiz: "bg-warning/10 text-warning",
+};
+
+const SESSION_STATUS_TONE: Record<BackendSessionStatus, string> = {
+  completed: "bg-success/10 text-success",
+  in_progress: "bg-warning/10 text-warning",
+  abandoned: "bg-error/10 text-error",
+};
+
+function SessionsTab({ userId }: { userId: string }) {
+  const { data, isLoading, isError, error } = useAdminUserSessions(userId);
+  const rows = data?.rows ?? [];
+
+  if (isLoading) return <Loading label="Loading quiz sessions…" />;
+  if (isError) return <ErrorState error={error} />;
+  if (rows.length === 0)
     return <EmptyState label="No quiz sessions yet" hint="This user hasn't started any quizzes." />;
-  const sorted = [...sessions].sort((a, b) => +new Date(b.date) - +new Date(a.date));
+
+  const sorted = [...rows].sort((a, b) => +new Date(b.startedAt) - +new Date(a.startedAt));
   return (
-    <TableCard head={["Bank", "Mode", "Score", "Questions", "Status", "Duration", "Date"]}>
-      {sorted.map((s) => (
+    <TableCard head={["Mode", "Score", "Questions", "Correct", "Status", "Started"]}>
+      {sorted.map((s: BackendAdminSession) => (
         <tr key={s.id} className="hover:bg-surface-alt/40">
-          <td className="px-5 py-4 font-semibold text-foreground">{s.bankName}</td>
           <td className="px-5 py-4">
             <span
-              className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${s.mode === "TUTOR" ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"}`}
+              className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SESSION_MODE_TONE[s.mode]}`}
             >
               {s.mode}
             </span>
           </td>
           <td
-            className={`px-5 py-4 font-mono text-sm font-bold tabular-nums ${s.status === "completed" ? scoreColor(s.scorePct) : "text-muted-foreground"}`}
+            className={`px-5 py-4 font-mono text-sm font-bold tabular-nums ${s.scorePercentage != null ? scoreColor(s.scorePercentage) : "text-muted-foreground"}`}
           >
-            {s.status === "completed" ? `${s.scorePct}%` : "—"}
+            {s.scorePercentage != null ? `${Math.round(s.scorePercentage)}%` : "—"}
           </td>
           <td className="px-5 py-4 text-sm tabular-nums text-muted-foreground">
-            {s.questionsAnswered}/{s.totalQuestions}
+            {s.answeredCount}/{s.totalQuestions}
           </td>
+          <td className="px-5 py-4 text-sm tabular-nums text-muted-foreground">{s.correctCount}</td>
           <td className="px-5 py-4">
             <span
-              className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                s.status === "completed"
-                  ? "bg-success/10 text-success"
-                  : s.status === "in-progress"
-                    ? "bg-warning/10 text-warning"
-                    : "bg-error/10 text-error"
-              }`}
+              className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SESSION_STATUS_TONE[s.status]}`}
             >
-              {s.status}
+              {s.status.replace("_", " ")}
             </span>
           </td>
-          <td className="px-5 py-4 text-sm text-muted-foreground">{s.durationMin} min</td>
-          <td className="px-5 py-4 text-sm text-muted-foreground">{fmtDate(s.date)}</td>
+          <td className="px-5 py-4 text-sm text-muted-foreground">{fmtDateTime(s.startedAt)}</td>
         </tr>
       ))}
     </TableCard>
@@ -706,179 +669,13 @@ function SessionsTab({ sessions }: { sessions: AdminQuizSession[] }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Performance                                                         */
+/* Billing / Subscriptions                                            */
 /* ------------------------------------------------------------------ */
 
-function PerformanceTab({ user }: { user: AdminUser }) {
-  const rnd = useMemo(() => seeded(hash(user.id) + 7), [user.id]);
-
-  const progression = useMemo(() => {
-    const target = user.avgScore;
-    return Array.from({ length: 6 }, (_, i) => {
-      const m = (new Date().getMonth() - 5 + i + 12) % 12;
-      const trend = target - 14 + (i / 5) * 14;
-      const jitter = (rnd() - 0.5) * 6;
-      return { month: MONTHS[m], score: Math.max(35, Math.min(99, Math.round(trend + jitter))) };
-    });
-  }, [user.avgScore, rnd]);
-
-  const subjects = useMemo(() => {
-    const names = ["Cardiology", "Pharmacology", "Neurology", "Anatomy", "Pathology"];
-    return names.map((n) => ({
-      name: n,
-      acc: Math.max(40, Math.min(98, Math.round(user.avgScore - 10 + rnd() * 24))),
-    }));
-  }, [user.avgScore, rnd]);
-
-  const banks = useMemo(() => {
-    const names = ["MRCP Part 1", "PLAB 1", "USMLE Step 1", "Ghana Licensing"];
-    return names.map((n) => ({ name: n, pct: Math.round(40 + rnd() * 58) }));
-  }, [rnd]);
-
-  return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-        <h3 className="mb-6 text-base font-bold text-foreground">Score progression</h3>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={progression}>
-              <defs>
-                <linearGradient id="uScore" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0E7C7B" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#0E7C7B" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis
-                dataKey="month"
-                stroke="var(--color-muted-foreground)"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                stroke="var(--color-muted-foreground)"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                domain={[0, 100]}
-              />
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                itemStyle={{ color: "#0E7C7B", fontWeight: "bold" }}
-              />
-              <Area
-                type="monotone"
-                dataKey="score"
-                stroke="#0E7C7B"
-                strokeWidth={3}
-                fill="url(#uScore)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-          <h3 className="mb-4 text-base font-bold text-foreground">Subject accuracy</h3>
-          <div className="space-y-3">
-            {subjects.map((s) => (
-              <div key={s.name}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="text-foreground">{s.name}</span>
-                  <span className={`font-bold tabular-nums ${scoreColor(s.acc)}`}>{s.acc}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-surface-alt">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
-                    style={{ width: `${s.acc}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-          <h3 className="mb-4 text-base font-bold text-foreground">Percentile per bank</h3>
-          <div className="space-y-3">
-            {banks.map((b) => (
-              <div key={b.name}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="text-foreground">{b.name}</span>
-                  <span className="font-bold tabular-nums text-accent">{b.pct}th</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-surface-alt">
-                  <div className="h-full rounded-full bg-accent" style={{ width: `${b.pct}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Billing                                                             */
-/* ------------------------------------------------------------------ */
-
-function BillingTab({ user }: { user: AdminUser }) {
-  const rnd = useMemo(() => seeded(hash(user.id) + 31), [user.id]);
-
-  const history = useMemo(() => {
-    const rows = [
-      {
-        id: "sh-1",
-        plan: user.plan === "—" ? "Trial" : user.plan,
-        start: fmtDate(user.registeredAt),
-        end: user.planEndsAt ? fmtDate(user.planEndsAt) : "—",
-        status:
-          user.status === "expired"
-            ? "Expired"
-            : user.status === "active"
-              ? "Active"
-              : user.status === "trial"
-                ? "Trial"
-                : "Inactive",
-      },
-    ];
-    if (user.status === "active" || user.status === "expired") {
-      rows.push({
-        id: "sh-2",
-        plan: "Trial",
-        start: fmtDate(user.registeredAt),
-        end: fmtDate(user.registeredAt),
-        status: "Expired",
-      });
-    }
-    return rows;
-  }, [user]);
-
-  const transactions = useMemo(() => {
-    const count =
-      user.plan === "—" || user.status === "trial"
-        ? 0
-        : Math.min(history.length, user.status === "active" ? 2 : 1);
-    const statuses = ["Paid", "Paid", "Refunded", "Failed"];
-    return Array.from({ length: count }, (_, i) => {
-      const plan =
-        i === count - 1 && count > 1 ? "Monthly" : user.plan === "—" ? "Monthly" : user.plan;
-      return {
-        ref: `txn_${Math.floor(rnd() * 0xffffffff)
-          .toString(16)
-          .padStart(8, "0")}`,
-        plan,
-        amount: PLAN_PRICE[plan] ?? 99,
-        status: i === 0 ? "Paid" : statuses[Math.floor(rnd() * statuses.length)],
-        date: fmtDate(
-          new Date(new Date(user.registeredAt).getTime() + i * 31 * 86_400_000).toISOString(),
-        ),
-      };
-    });
-  }, [user, history.length, rnd]);
+function BillingTab({ detail, userId }: { detail: AdminUserDetailVM; userId: string }) {
+  const { data, isLoading, isError, error } = useAdminUserSubscriptions(userId);
+  const rows = data?.rows ?? [];
+  const active = detail.activeSubscription;
 
   return (
     <div className="space-y-6">
@@ -888,81 +685,57 @@ function BillingTab({ user }: { user: AdminUser }) {
             Current plan
           </p>
           <p className="mt-2 text-2xl font-bold text-foreground">
-            {user.plan === "—" ? "None" : user.plan}
+            {active ? PLAN_LABEL[active.plan] : "None"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {user.planEndsAt
-              ? `Ends ${fmtDate(user.planEndsAt)}`
-              : user.status === "trial"
-                ? `${user.trialDaysLeft ?? 0} trial days left`
-                : "No active subscription"}
+            {active ? `Ends ${fmtDate(active.endDate)}` : "No active subscription"}
           </p>
         </div>
-        <div className="flex items-center justify-between rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              Status
-            </p>
-            <div className="mt-2">
-              <StatusPill status={user.status} />
-            </div>
-          </div>
-          <button
-            onClick={() => toast.success("Subscription extended")}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-4 text-sm font-semibold text-white shadow-md hover:opacity-90"
-          >
-            Override / Extend
-          </button>
+        <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Total subscriptions
+          </p>
+          <p className="mt-2 text-2xl font-bold text-foreground">
+            {detail.subscriptionCount.toLocaleString()}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {detail.transactionCount.toLocaleString()} payment transaction
+            {detail.transactionCount === 1 ? "" : "s"}
+          </p>
         </div>
       </div>
 
       <div>
         <h3 className="mb-3 text-sm font-bold text-foreground">Subscription history</h3>
-        <TableCard head={["Plan", "Start", "End", "Status"]}>
-          {history.map((h) => (
-            <tr key={h.id} className="hover:bg-surface-alt/40">
-              <td className="px-5 py-4 font-semibold text-foreground">{h.plan}</td>
-              <td className="px-5 py-4 text-sm text-muted-foreground">{h.start}</td>
-              <td className="px-5 py-4 text-sm text-muted-foreground">{h.end}</td>
-              <td className="px-5 py-4">
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${h.status === "Active" ? "bg-success/10 text-success" : h.status === "Trial" ? "bg-warning/10 text-warning" : "bg-surface-alt text-muted-foreground"}`}
-                >
-                  {h.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </TableCard>
-      </div>
-
-      <div>
-        <h3 className="mb-3 text-sm font-bold text-foreground">Payment transactions</h3>
-        {transactions.length === 0 ? (
-          <EmptyState label="No transactions" hint="This user has not made any payments." />
+        {isLoading ? (
+          <Loading label="Loading subscriptions…" />
+        ) : isError ? (
+          <ErrorState error={error} />
+        ) : rows.length === 0 ? (
+          <EmptyState label="No subscriptions" hint="This user has never subscribed." />
         ) : (
-          <TableCard head={["Reference", "Plan", "Amount", "Status", "Date"]}>
-            {transactions.map((t) => (
-              <tr key={t.ref} className="hover:bg-surface-alt/40">
-                <td className="px-5 py-4 font-mono text-xs text-muted-foreground">{t.ref}</td>
-                <td className="px-5 py-4 font-semibold text-foreground">{t.plan}</td>
-                <td className="px-5 py-4 text-sm tabular-nums text-foreground">GHS {t.amount}</td>
-                <td className="px-5 py-4">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      t.status === "Paid"
-                        ? "bg-success/10 text-success"
-                        : t.status === "Refunded"
-                          ? "bg-warning/10 text-warning"
-                          : "bg-error/10 text-error"
-                    }`}
-                  >
-                    {t.status}
-                  </span>
-                </td>
-                <td className="px-5 py-4 text-sm text-muted-foreground">{t.date}</td>
-              </tr>
-            ))}
+          <TableCard head={["Plan", "Amount", "Start", "End", "Status"]}>
+            {[...rows]
+              .sort((a, b) => +new Date(b.startDate) - +new Date(a.startDate))
+              .map((s: BackendSubscriptionSummary) => (
+                <tr key={s.id} className="hover:bg-surface-alt/40">
+                  <td className="px-5 py-4 font-semibold text-foreground">{PLAN_LABEL[s.plan]}</td>
+                  <td className="px-5 py-4 text-sm tabular-nums text-foreground">
+                    {s.currency} {Number(s.amountPaid).toLocaleString()}
+                  </td>
+                  <td className="px-5 py-4 text-sm text-muted-foreground">
+                    {fmtDate(s.startDate)}
+                  </td>
+                  <td className="px-5 py-4 text-sm text-muted-foreground">{fmtDate(s.endDate)}</td>
+                  <td className="px-5 py-4">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${SUB_STATUS_TONE[s.status]}`}
+                    >
+                      {s.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
           </TableCard>
         )}
       </div>
@@ -971,143 +744,34 @@ function BillingTab({ user }: { user: AdminUser }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Devices                                                             */
-/* ------------------------------------------------------------------ */
-
-function DevicesTab({ user, sessions }: { user: AdminUser; sessions: LoginSession[] }) {
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-        <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Monitor className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="font-bold text-foreground">{user.device}</p>
-            <p className="font-mono text-[11px] text-muted-foreground">{user.deviceFingerprint}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Bound device — used to prevent account sharing.
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => toast.success("Device lock cleared")}
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 text-sm font-semibold text-warning hover:bg-warning/20"
-        >
-          <Smartphone className="h-4 w-4" /> Clear lock
-        </button>
-      </div>
-
-      {sessions.length === 0 ? (
-        <EmptyState label="No login sessions" hint="This user has no recorded login sessions." />
-      ) : (
-        <TableCard head={["Device", "Location", "Login", "Duration", "Status"]}>
-          {[...sessions]
-            .sort((a, b) => +new Date(b.loginAt) - +new Date(a.loginAt))
-            .map((s) => (
-              <tr key={s.id} className="hover:bg-surface-alt/40">
-                <td className="px-5 py-4">
-                  <p className="font-semibold text-foreground">{s.device}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {s.browser} · {s.os}
-                  </p>
-                </td>
-                <td className="px-5 py-4 text-sm text-muted-foreground">
-                  {s.city}, {s.country}
-                  <span className="block font-mono text-[11px]">{s.ip}</span>
-                </td>
-                <td className="px-5 py-4 text-sm text-muted-foreground">
-                  {fmtDateTime(s.loginAt)}
-                </td>
-                <td className="px-5 py-4 text-sm text-muted-foreground">{s.durationMin} min</td>
-                <td className="px-5 py-4">
-                  {s.status === "active" ? (
-                    <button
-                      onClick={() => toast.success("Session terminated")}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-error/30 bg-error/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-error hover:bg-error/20"
-                    >
-                      Force logout
-                    </button>
-                  ) : (
-                    <span className="inline-flex rounded-full bg-surface-alt px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Ended
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-        </TableCard>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Activity log                                                        */
 /* ------------------------------------------------------------------ */
 
-function ActivityTab({
-  user,
-  quizSessions,
-}: {
-  user: AdminUser;
-  quizSessions: AdminQuizSession[];
-}) {
-  const entries = useMemo(() => {
-    const rnd = seeded(hash(user.id) + 91);
-    const ip = () =>
-      `${10 + Math.floor(rnd() * 240)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}`;
-    const loc = `${user.city}, ${user.country}`;
-    const out: { text: string; when: string; meta: string }[] = [];
+function ActivityTab({ userId }: { userId: string }) {
+  const { data, isLoading, isError, error } = useAdminUserActivity(userId);
+  const rows = data?.rows ?? [];
 
-    [...quizSessions]
-      .sort((a, b) => +new Date(b.date) - +new Date(a.date))
-      .slice(0, 4)
-      .forEach((s) => {
-        out.push({
-          text:
-            s.status === "completed"
-              ? `Completed quiz “${s.bankName}” (${s.scorePct}%)`
-              : `Started quiz “${s.bankName}”`,
-          when: fmtDateTime(s.date),
-          meta: `${ip()} · ${loc}`,
-        });
-      });
+  if (isLoading) return <Loading label="Loading activity…" />;
+  if (isError) return <ErrorState error={error} />;
+  if (rows.length === 0)
+    return <EmptyState label="No activity" hint="No audit-trail entries recorded." />;
 
-    const base = Date.now();
-    const synth = [
-      { text: "Signed in", off: 0 },
-      { text: "Updated profile (specialty)", off: 2 },
-      {
-        text:
-          user.status === "trial"
-            ? "Trial started"
-            : `Subscription ${user.status === "expired" ? "expired" : "renewed"}`,
-        off: 5,
-      },
-      { text: "Password changed", off: 9 },
-    ];
-    synth.forEach((e) => {
-      out.push({
-        text: e.text,
-        when: fmtDateTime(new Date(base - e.off * 86_400_000).toISOString()),
-        meta: `${ip()} · ${loc}`,
-      });
-    });
-
-    return out.slice(0, 8);
-  }, [user, quizSessions]);
-
+  const sorted = [...rows].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
   return (
     <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
       <h3 className="mb-4 text-base font-bold text-foreground">Activity log</h3>
       <div className="relative space-y-5 border-l-2 border-border pl-4">
-        {entries.map((e, i) => (
-          <div key={i} className="relative">
+        {sorted.map((e: BackendActivityLog) => (
+          <div key={e.id} className="relative">
             <span className="absolute -left-[23px] top-1 h-3 w-3 rounded-full bg-primary ring-4 ring-surface" />
-            <p className="text-sm font-medium text-foreground">{e.text}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{e.when}</p>
-            <p className="font-mono text-[11px] text-muted-foreground">{e.meta}</p>
+            <p className="text-sm font-medium text-foreground">
+              {e.action}
+              {e.entityType ? ` · ${e.entityType}` : ""}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{fmtDateTime(e.createdAt)}</p>
+            <p className="font-mono text-[11px] text-muted-foreground">
+              {[e.actorName, e.ipAddress].filter(Boolean).join(" · ") || "system"}
+            </p>
           </div>
         ))}
       </div>
@@ -1116,170 +780,32 @@ function ActivityTab({
 }
 
 /* ------------------------------------------------------------------ */
-/* Override modal                                                      */
-/* ------------------------------------------------------------------ */
-
-function OverrideModal({ user, onClose }: { user: AdminUser; onClose: () => void }) {
-  const [plan, setPlan] = useState<string>(user.plan === "—" ? "Monthly" : user.plan);
-  const [endDate, setEndDate] = useState(user.planEndsAt ? user.planEndsAt.slice(0, 10) : "");
-  const [reason, setReason] = useState("");
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-2xl bg-surface shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-          <h3 className="text-base font-bold text-foreground">Override subscription</h3>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-        <div className="space-y-4 px-5 py-4">
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold text-foreground">Plan</span>
-            <select
-              value={plan}
-              onChange={(e) => setPlan(e.target.value)}
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-            >
-              {["Monthly", "3-Month", "6-Month", "12-Month", "Trial"].map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold text-foreground">End date</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold text-foreground">Reason</span>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={3}
-              placeholder="Why are you overriding this subscription?"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-            />
-          </label>
-        </div>
-        <footer className="flex justify-end gap-2 border-t border-border px-5 py-3">
-          <button
-            onClick={onClose}
-            className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              toast.success(`Subscription overridden to ${plan} for ${user.name}`);
-              onClose();
-            }}
-            className="inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
-          >
-            Apply override
-          </button>
-        </footer>
-      </div>
-    </div>
-  );
-}
-
-function RestrictModal({
-  userName,
-  onClose,
-  onConfirm,
-}: {
-  userName: string;
-  onClose: () => void;
-  onConfirm: (reason: string, hours: number) => void;
-}) {
-  const [reason, setReason] = useState("");
-  const [hours, setHours] = useState(24);
-  return (
-    <div
-      className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 pt-20 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-2xl border border-border bg-surface shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-center gap-2 border-b border-border px-5 py-4">
-          <ShieldAlert className="h-4 w-4 text-warning" />
-          <h3 className="text-base font-bold text-foreground">Restrict {userName}</h3>
-        </header>
-        <div className="space-y-4 p-5">
-          <p className="text-sm text-muted-foreground">
-            Manually block this user from protected content (notes &amp; quiz) for a set time.
-          </p>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              Reason
-            </span>
-            <textarea
-              rows={3}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Confirmed screen-recording of question banks"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              Duration (hours)
-            </span>
-            <input
-              type="number"
-              min={1}
-              value={hours}
-              onChange={(e) => setHours(Number(e.target.value))}
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 font-mono text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-            />
-          </label>
-        </div>
-        <footer className="flex justify-end gap-2 border-t border-border px-5 py-3">
-          <button
-            onClick={onClose}
-            className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              if (!reason.trim()) return toast.error("Add a reason");
-              onConfirm(reason.trim(), Math.max(1, hours));
-            }}
-            className="h-10 rounded-lg bg-warning px-4 text-sm font-bold text-white hover:opacity-90"
-          >
-            Restrict access
-          </button>
-        </footer>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Small UI bits                                                       */
 /* ------------------------------------------------------------------ */
+
+function BackLink() {
+  return (
+    <Link
+      to="/admin/users"
+      className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+    >
+      <ArrowLeft className="h-4 w-4" /> All users
+    </Link>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span
+        className={`text-sm capitalize text-foreground ${bold ? "font-bold" : "font-semibold"}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
 function InfoRow({
   icon: Icon,
@@ -1345,36 +871,6 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
   );
 }
 
-function Meter({
-  label,
-  value,
-  max,
-  suffix,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  suffix: string;
-}) {
-  const pct = Math.max(0, Math.min(100, (value / max) * 100));
-  return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-bold tabular-nums text-foreground">
-          {value} {suffix}
-        </span>
-      </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-surface-alt">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-warning to-accent"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 function TableCard({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
@@ -1390,6 +886,24 @@ function TableCard({ head, children }: { head: string[]; children: React.ReactNo
         </thead>
         <tbody className="divide-y divide-border">{children}</tbody>
       </table>
+    </div>
+  );
+}
+
+function Loading({ label }: { label: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-12 text-center shadow-[var(--shadow-card)]">
+      <p className="text-sm text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function ErrorState({ error }: { error: unknown }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-12 text-center shadow-[var(--shadow-card)]">
+      <p className="text-sm font-semibold text-error">
+        {error instanceof Error ? error.message : "Failed to load."}
+      </p>
     </div>
   );
 }

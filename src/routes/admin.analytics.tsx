@@ -30,8 +30,26 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { questionBanks } from "@/data/banks";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
+import { subjectTheme } from "@/data/subjectColors";
+import {
+  CHART_PALETTE,
+  dayLabel,
+  difficultyLabel,
+  monthLabel,
+  planLabel,
+  statusLabel,
+  useAnalyticsDashboard,
+  useChurnAnalytics,
+  useCompletionRateAnalytics,
+  useContentAnalytics,
+  useEngagementAnalytics,
+  useNewUsersAnalytics,
+  usePlanDistributionAnalytics,
+  useQuizPerformanceAnalytics,
+  useStatusCountsAnalytics,
+  type BackendQuestionPerformance,
+} from "@/api/admin-analytics.api";
 
 export const Route = createFileRoute("/admin/analytics")({
   head: () => ({
@@ -67,290 +85,6 @@ const palette = {
 const cardClass = "rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]";
 
 const GHS = (n: number) => `GHS ${n.toLocaleString("en-GH", { maximumFractionDigits: 0 })}`;
-
-/* ------------------------------------------------------------------ */
-/* Deterministic mock data (module-level)                              */
-/* ------------------------------------------------------------------ */
-
-// pseudo-random but deterministic generator
-function seeded(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
-}
-
-const MONTHS = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-
-const newUsersDaily = (() => {
-  const rnd = seeded(7);
-  return Array.from({ length: 30 }, (_, i) => ({
-    day: `${i + 1}`,
-    users: 18 + Math.round(Math.sin(i / 3) * 10 + rnd() * 14 + i * 0.5),
-  }));
-})();
-
-const completionRate = (() => {
-  const rnd = seeded(13);
-  return Array.from({ length: 30 }, (_, i) => ({
-    day: `${i + 1}`,
-    rate: Math.min(96, 62 + Math.round(Math.sin(i / 4) * 8 + rnd() * 6 + i * 0.4)),
-  }));
-})();
-
-const revenueCompare = [
-  { name: "Week 1", last: 4200, current: 5100 },
-  { name: "Week 2", last: 5300, current: 6400 },
-  { name: "Week 3", last: 4900, current: 7100 },
-  { name: "Week 4", last: 6100, current: 7600 },
-];
-
-// Engagement
-const sparkDau = Array.from({ length: 12 }, (_, i) => ({
-  v: 380 + Math.round(Math.sin(i / 2) * 40 + i * 6),
-}));
-const sparkWau = Array.from({ length: 12 }, (_, i) => ({
-  v: 1240 + Math.round(Math.cos(i / 2) * 90 + i * 10),
-}));
-const sparkMau = Array.from({ length: 12 }, (_, i) => ({
-  v: 3850 + Math.round(Math.sin(i / 3) * 120 + i * 24),
-}));
-
-const sessionDuration = (() => {
-  const rnd = seeded(21);
-  return Array.from({ length: 30 }, (_, i) => ({
-    day: `${i + 1}`,
-    minutes: Math.round((22 + Math.sin(i / 5) * 5 + rnd() * 4) * 10) / 10,
-  }));
-})();
-
-const dropout = (() => {
-  const rnd = seeded(29);
-  return Array.from({ length: 14 }, (_, i) => {
-    const completed = 120 + Math.round(rnd() * 60 + i * 3);
-    const abandoned = 24 + Math.round(rnd() * 22);
-    return { day: `D${i + 1}`, completed, abandoned };
-  });
-})();
-
-const newVsReturning = MONTHS.map((m, i) => {
-  const rnd = seeded(100 + i);
-  return { month: m, new: 140 + Math.round(rnd() * 120), returning: 220 + Math.round(rnd() * 160) };
-});
-
-const topActiveUsers = [
-  { name: "Ama Owusu", email: "ama.o@example.com", sessions: 142, questions: 4120, avg: 84 },
-  { name: "Kwame Mensah", email: "kwame.m@example.com", sessions: 131, questions: 3870, avg: 79 },
-  { name: "Efua Asante", email: "efua.a@example.com", sessions: 128, questions: 3640, avg: 88 },
-  { name: "Yaw Boateng", email: "yaw.b@example.com", sessions: 119, questions: 3410, avg: 76 },
-  { name: "Akosua Darko", email: "akosua.d@example.com", sessions: 111, questions: 3120, avg: 91 },
-  { name: "Kojo Adjei", email: "kojo.a@example.com", sessions: 104, questions: 2980, avg: 73 },
-  { name: "Abena Frimpong", email: "abena.f@example.com", sessions: 98, questions: 2740, avg: 82 },
-  { name: "Kofi Nyarko", email: "kofi.n@example.com", sessions: 91, questions: 2560, avg: 80 },
-  { name: "Adwoa Sarpong", email: "adwoa.s@example.com", sessions: 87, questions: 2390, avg: 86 },
-  { name: "Kwesi Appiah", email: "kwesi.a@example.com", sessions: 82, questions: 2210, avg: 77 },
-];
-
-const cumulativeGrowth = (() => {
-  const rnd = seeded(41);
-  let total = 1200;
-  return Array.from({ length: 90 }, (_, i) => {
-    total += 6 + Math.round(rnd() * 10 + Math.sin(i / 8) * 4);
-    return { day: `${i + 1}`, total };
-  });
-})();
-
-// Revenue
-const revenuePerMonth = MONTHS.map((m, i) => {
-  const rnd = seeded(200 + i);
-  return { month: m, revenue: 14000 + Math.round(rnd() * 9000 + i * 700) };
-});
-
-const revenueByPlan = MONTHS.map((m, i) => {
-  const rnd = seeded(300 + i);
-  return {
-    month: m,
-    monthly: 4000 + Math.round(rnd() * 2200),
-    threeMo: 3200 + Math.round(rnd() * 1800),
-    sixMo: 2600 + Math.round(rnd() * 1600),
-    twelveMo: 2200 + Math.round(rnd() * 1500),
-  };
-});
-
-const planDistribution = [
-  { name: "Monthly", value: 1840, fill: palette.teal },
-  { name: "3-Month", value: 1120, fill: palette.emerald },
-  { name: "6-Month", value: 760, fill: palette.amber },
-  { name: "12-Month", value: 520, fill: palette.violet },
-];
-
-const churn = (() => {
-  const rnd = seeded(51);
-  return MONTHS.map((m, i) => ({
-    month: m,
-    rate: Math.round((3.2 + Math.sin(i / 3) * 1.1 + rnd() * 0.8) * 10) / 10,
-  }));
-})();
-
-const recentTransactions = [
-  {
-    id: "txn_9f21",
-    user: "Ama Owusu",
-    plan: "12-Month",
-    amount: 480,
-    status: "Paid",
-    date: "2026-06-24",
-  },
-  {
-    id: "txn_9e8c",
-    user: "Kwame Mensah",
-    plan: "Monthly",
-    amount: 60,
-    status: "Paid",
-    date: "2026-06-24",
-  },
-  {
-    id: "txn_9d04",
-    user: "Efua Asante",
-    plan: "6-Month",
-    amount: 280,
-    status: "Paid",
-    date: "2026-06-23",
-  },
-  {
-    id: "txn_9c77",
-    user: "Yaw Boateng",
-    plan: "3-Month",
-    amount: 150,
-    status: "Refunded",
-    date: "2026-06-23",
-  },
-  {
-    id: "txn_9bb1",
-    user: "Akosua Darko",
-    plan: "Monthly",
-    amount: 60,
-    status: "Paid",
-    date: "2026-06-22",
-  },
-  {
-    id: "txn_9a3e",
-    user: "Kojo Adjei",
-    plan: "12-Month",
-    amount: 480,
-    status: "Paid",
-    date: "2026-06-22",
-  },
-  {
-    id: "txn_98f0",
-    user: "Abena Frimpong",
-    plan: "6-Month",
-    amount: 280,
-    status: "Failed",
-    date: "2026-06-21",
-  },
-  {
-    id: "txn_9712",
-    user: "Kofi Nyarko",
-    plan: "Monthly",
-    amount: 60,
-    status: "Paid",
-    date: "2026-06-21",
-  },
-];
-
-// Quiz performance derived from banks
-const bankPerformance = questionBanks.map((b, i) => {
-  const rnd = seeded(400 + i);
-  return {
-    id: b.id,
-    name: b.name,
-    subject: b.subject,
-    fill: b.accentHex,
-    avgScore: 58 + Math.round(rnd() * 32),
-    sessions: b.sessionsCount,
-    questions: b.questionCount,
-  };
-});
-
-const scoreByDifficulty = [
-  { label: "Beginner", value: 82, color: palette.success },
-  { label: "Intermediate", value: 71, color: palette.amber },
-  { label: "Advanced", value: 58, color: palette.rose },
-];
-
-const hardestQuestions = (() => {
-  const rnd = seeded(61);
-  return questionBanks.slice(0, 8).map((b, i) => ({
-    id: `Q-${1200 + i * 37}`,
-    topic: b.topics[i % b.topics.length],
-    bank: b.subject,
-    correctPct: 18 + Math.round(rnd() * 22),
-    attempts: 400 + Math.round(rnd() * 900),
-  }));
-})();
-
-const easiestQuestions = (() => {
-  const rnd = seeded(67);
-  return questionBanks.slice(0, 8).map((b, i) => ({
-    id: `Q-${5400 + i * 29}`,
-    topic: b.topics[(i + 1) % b.topics.length],
-    bank: b.subject,
-    correctPct: 86 + Math.round(rnd() * 12),
-    attempts: 500 + Math.round(rnd() * 1100),
-  }));
-})();
-
-const modeSplit = [
-  { name: "Tutor Mode", value: 6420, fill: palette.teal },
-  { name: "Quiz Mode", value: 9180, fill: palette.blue },
-];
-
-// Subject & content
-const subjectPerformance = questionBanks
-  .map((b, i) => {
-    const rnd = seeded(500 + i);
-    return { subject: b.subject, fill: b.accentHex, avgScore: 56 + Math.round(rnd() * 34) };
-  })
-  .sort((a, b) => b.avgScore - a.avgScore);
-
-const topAttemptedTopics = (() => {
-  const rnd = seeded(71);
-  const topics = questionBanks.flatMap((b) => b.topics);
-  return topics
-    .slice(0, 10)
-    .map((t, i) => ({ topic: t, attempts: 2200 - i * 90 + Math.round(rnd() * 400) }))
-    .sort((a, b) => b.attempts - a.attempts);
-})();
-
-const lowestScoreTopics = (() => {
-  const rnd = seeded(73);
-  const topics = questionBanks.flatMap((b) =>
-    b.topics.map((t) => ({ topic: t, subject: b.subject })),
-  );
-  return topics
-    .slice(0, 8)
-    .map((t) => ({
-      ...t,
-      avgScore: 38 + Math.round(rnd() * 18),
-      attempts: 300 + Math.round(rnd() * 700),
-    }))
-    .sort((a, b) => a.avgScore - b.avgScore)
-    .slice(0, 6);
-})();
-
-const contentGrowth = MONTHS.map((m, i) => {
-  const rnd = seeded(600 + i);
-  return { month: m, questions: 2400 + i * 280 + Math.round(rnd() * 120) };
-});
-
-const totalBankQuestions = questionBanks.reduce((acc, b) => acc + b.questionCount, 0);
-const totalBankSessions = questionBanks.reduce((acc, b) => acc + b.sessionsCount, 0);
-const totalCategories = new Set(questionBanks.flatMap((b) => b.topics)).size;
-const platformAvgScore = Math.round(
-  bankPerformance.reduce((acc, b) => acc + b.avgScore, 0) / bankPerformance.length,
-);
 
 /* ------------------------------------------------------------------ */
 /* CSV export helper                                                   */
@@ -402,7 +136,7 @@ function Panel({
           <h3 className="text-sm font-bold tracking-tight text-foreground">{title}</h3>
           {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
         </div>
-        {exportData && (
+        {exportData && exportData.length > 0 && (
           <button
             type="button"
             onClick={() => exportCsv(`${exportName ?? "export"}.csv`, exportData)}
@@ -418,39 +152,12 @@ function Panel({
   );
 }
 
-function Metric({
-  label,
-  value,
-  hint,
-  spark,
-  sparkColor,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  spark?: { v: number }[];
-  sparkColor?: string;
-}) {
+function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className={cardClass}>
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{value}</p>
       {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
-      {spark && (
-        <div className="mt-3 h-10 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={spark}>
-              <Line
-                type="monotone"
-                dataKey="v"
-                stroke={sparkColor ?? palette.teal}
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
     </div>
   );
 }
@@ -493,6 +200,32 @@ function Ring({ label, value, color }: { label: string; value: number; color: st
   );
 }
 
+function ChartState({
+  loading,
+  error,
+  empty,
+  emptyLabel,
+}: {
+  loading: boolean;
+  error: boolean;
+  empty: boolean;
+  emptyLabel?: string;
+}) {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <p className={`text-sm ${error ? "text-error" : "text-muted-foreground"}`}>
+        {error
+          ? "Failed to load."
+          : loading
+            ? "Loading…"
+            : empty
+              ? (emptyLabel ?? "No data yet.")
+              : ""}
+      </p>
+    </div>
+  );
+}
+
 const TABS = [
   "Overview",
   "User Engagement",
@@ -508,7 +241,6 @@ type Tab = (typeof TABS)[number];
 
 function AdminAnalytics() {
   const [tab, setTab] = useState<Tab>("Overview");
-  const [range, setRange] = useState<"7d" | "30d" | "90d">("30d");
 
   return (
     <div className="space-y-6">
@@ -518,22 +250,6 @@ function AdminAnalytics() {
           <p className="mt-1 text-sm text-muted-foreground">
             Engagement, retention, revenue, and content performance across the cohort.
           </p>
-        </div>
-        <div className="inline-flex items-center gap-1 self-start rounded-xl border border-border bg-surface-alt p-1">
-          {(["7d", "30d", "90d"] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRange(r)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                range === r
-                  ? "bg-surface text-foreground shadow-[var(--shadow-card)]"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {r}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -570,48 +286,65 @@ function AdminAnalytics() {
 /* ------------------------------------------------------------------ */
 
 function OverviewTab() {
+  const dashboard = useAnalyticsDashboard();
+  const statusCounts = useStatusCountsAnalytics();
+  const newUsers = useNewUsersAnalytics();
+  const completion = useCompletionRateAnalytics();
+
+  const d = dashboard.data;
+
+  const newUsersDaily = useMemo(
+    () => (newUsers.data?.series ?? []).map((p) => ({ day: dayLabel(p.day), users: p.count })),
+    [newUsers.data],
+  );
+
+  const completionRate = useMemo(
+    () =>
+      (completion.data?.series ?? []).map((p) => ({
+        day: dayLabel(p.day),
+        rate: Math.round(p.rate),
+      })),
+    [completion.data],
+  );
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
         <GradientKpiCard
           label="Total Users"
-          value="6,184"
-          trend={{ value: "+8.2% MoM", up: true }}
+          value={dashboard.isLoading ? "—" : (d?.totalUsers ?? 0).toLocaleString()}
           icon={Users}
           gradient="teal"
         />
         <GradientKpiCard
           label="Active Subscriptions"
-          value="4,240"
-          trend={{ value: "+5.1% MoM", up: true }}
+          value={dashboard.isLoading ? "—" : (d?.activeSubscriptions ?? 0).toLocaleString()}
           icon={CreditCard}
           gradient="emerald"
         />
         <GradientKpiCard
           label="Trial Users"
-          value="912"
-          trend={{ value: "-2.4% MoM", up: false }}
+          value={
+            statusCounts.isLoading ? "—" : (statusCounts.data?.trialUsers ?? 0).toLocaleString()
+          }
           icon={Activity}
           gradient="amber"
         />
         <GradientKpiCard
-          label="Monthly Revenue"
-          value={GHS(186400)}
-          trend={{ value: "+11.7% MoM", up: true }}
+          label="Total Revenue"
+          value={dashboard.isLoading ? "—" : GHS(d?.totalRevenue ?? 0)}
           icon={Wallet}
           gradient="blue"
         />
         <GradientKpiCard
-          label="Questions Today"
-          value="38,920"
-          trend={{ value: "+3.9% DoD", up: true }}
+          label="Total Questions"
+          value={dashboard.isLoading ? "—" : (d?.totalQuestions ?? 0).toLocaleString()}
           icon={BookOpen}
           gradient="violet"
         />
         <GradientKpiCard
-          label="Active Sessions"
-          value="147"
-          trend={{ value: "live now", up: true }}
+          label="Active Users"
+          value={dashboard.isLoading ? "—" : (d?.activeUsers ?? 0).toLocaleString()}
           icon={GraduationCap}
           gradient="rose"
         />
@@ -625,34 +358,42 @@ function OverviewTab() {
           exportName="new-users-daily"
         >
           <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={newUsersDaily}>
-                <defs>
-                  <linearGradient id="gNewUsers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={palette.teal} stopOpacity={0.4} />
-                    <stop offset="100%" stopColor={palette.teal} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={4}
-                />
-                <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: gridStroke }} />
-                <Area
-                  type="monotone"
-                  dataKey="users"
-                  stroke={palette.teal}
-                  strokeWidth={2.5}
-                  fill="url(#gNewUsers)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {newUsers.isLoading || newUsers.isError || newUsersDaily.length === 0 ? (
+              <ChartState
+                loading={newUsers.isLoading}
+                error={newUsers.isError}
+                empty={newUsersDaily.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={newUsersDaily}>
+                  <defs>
+                    <linearGradient id="gNewUsers" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={palette.teal} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={palette.teal} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    interval={4}
+                  />
+                  <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: gridStroke }} />
+                  <Area
+                    type="monotone"
+                    dataKey="users"
+                    stroke={palette.teal}
+                    strokeWidth={2.5}
+                    fill="url(#gNewUsers)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
@@ -663,90 +404,50 @@ function OverviewTab() {
           exportName="completion-rate"
         >
           <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={completionRate}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={4}
-                />
-                <YAxis
-                  domain={[40, 100]}
-                  tickFormatter={(v) => `${v}%`}
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  formatter={(v: number) => `${v}%`}
-                  contentStyle={tooltipStyle}
-                  cursor={{ stroke: gridStroke }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="rate"
-                  stroke={palette.emerald}
-                  strokeWidth={2.5}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {completion.isLoading || completion.isError || completionRate.length === 0 ? (
+              <ChartState
+                loading={completion.isLoading}
+                error={completion.isError}
+                empty={completionRate.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={completionRate}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    interval={4}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(v: number) => `${v}%`}
+                    contentStyle={tooltipStyle}
+                    cursor={{ stroke: gridStroke }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="rate"
+                    stroke={palette.emerald}
+                    strokeWidth={2.5}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
       </div>
-
-      <Panel
-        title="Revenue: This Month vs Last Month"
-        subtitle="Weekly breakdown (GHS)"
-        exportData={revenueCompare}
-        exportName="revenue-compare"
-      >
-        <div className="mt-4 h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={revenueCompare}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis
-                dataKey="name"
-                stroke={axisStroke}
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                stroke={axisStroke}
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v) => `${v / 1000}k`}
-              />
-              <Tooltip
-                formatter={(v: number) => GHS(v)}
-                contentStyle={tooltipStyle}
-                cursor={{ fill: "var(--color-surface-alt)" }}
-              />
-              <Bar
-                dataKey="last"
-                name="Last Month"
-                fill="var(--color-border-strong)"
-                radius={[4, 4, 0, 0]}
-                barSize={26}
-              />
-              <Bar
-                dataKey="current"
-                name="This Month"
-                fill={palette.teal}
-                radius={[4, 4, 0, 0]}
-                barSize={26}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Panel>
     </div>
   );
 }
@@ -756,72 +457,92 @@ function OverviewTab() {
 /* ------------------------------------------------------------------ */
 
 function EngagementTab() {
+  const engagement = useEngagementAnalytics();
+  const completion = useCompletionRateAnalytics();
+  const e = engagement.data;
+
+  const dailyActive = useMemo(
+    () => (e?.dailyActiveSeries ?? []).map((p) => ({ day: dayLabel(p.day), active: p.count })),
+    [e],
+  );
+
+  const cumulativeGrowth = useMemo(() => {
+    let total = 0;
+    return (e?.dailyActiveSeries ?? []).map((p) => {
+      total += p.count;
+      return { day: dayLabel(p.day), total };
+    });
+  }, [e]);
+
+  const newVsReturning = useMemo(
+    () => (e ? [{ segment: "Current period", new: e.newUsers, returning: e.returningUsers }] : []),
+    [e],
+  );
+
+  const dropout = useMemo(() => {
+    const c = completion.data;
+    if (!c) return [];
+    return [{ segment: "All sessions", completed: c.totalCompleted, abandoned: c.totalAbandoned }];
+  }, [completion.data]);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Metric
           label="Daily Active Users (DAU)"
-          value="442"
-          hint="+6.1% vs yesterday"
-          spark={sparkDau}
-          sparkColor={palette.teal}
+          value={engagement.isLoading ? "—" : (e?.dau ?? 0).toLocaleString()}
+          hint={e ? `Stickiness ${Math.round(e.stickiness)}%` : undefined}
         />
         <Metric
           label="Weekly Active Users (WAU)"
-          value="1,318"
-          hint="+3.4% vs last week"
-          spark={sparkWau}
-          sparkColor={palette.blue}
+          value={engagement.isLoading ? "—" : (e?.wau ?? 0).toLocaleString()}
+          hint={e ? `${e.returningUsers.toLocaleString()} returning` : undefined}
         />
         <Metric
           label="Monthly Active Users (MAU)"
-          value="4,072"
-          hint="+9.0% vs last month"
-          spark={sparkMau}
-          sparkColor={palette.violet}
+          value={engagement.isLoading ? "—" : (e?.mau ?? 0).toLocaleString()}
+          hint={e ? `${e.newUsers.toLocaleString()} new this period` : undefined}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel
-          title="Avg Session Duration"
-          subtitle="Minutes per session, last 30 days"
-          exportData={sessionDuration}
-          exportName="session-duration"
+          title="Daily Active Users"
+          subtitle="Active users per day"
+          exportData={dailyActive}
+          exportName="daily-active"
         >
           <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={sessionDuration}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={4}
-                />
-                <YAxis
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${v}m`}
-                />
-                <Tooltip
-                  formatter={(v: number) => `${v} min`}
-                  contentStyle={tooltipStyle}
-                  cursor={{ stroke: gridStroke }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="minutes"
-                  stroke={palette.amber}
-                  strokeWidth={2.5}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {engagement.isLoading || engagement.isError || dailyActive.length === 0 ? (
+              <ChartState
+                loading={engagement.isLoading}
+                error={engagement.isError}
+                empty={dailyActive.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyActive}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    interval={4}
+                  />
+                  <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: gridStroke }} />
+                  <Line
+                    type="monotone"
+                    dataKey="active"
+                    stroke={palette.amber}
+                    strokeWidth={2.5}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
@@ -832,46 +553,45 @@ function EngagementTab() {
           exportName="dropout"
         >
           <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dropout}>
-                <defs>
-                  <linearGradient id="gCompleted" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={palette.success} stopOpacity={0.5} />
-                    <stop offset="100%" stopColor={palette.success} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gAbandoned" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={palette.rose} stopOpacity={0.5} />
-                    <stop offset="100%" stopColor={palette.rose} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: gridStroke }} />
-                <Area
-                  type="monotone"
-                  dataKey="completed"
-                  stackId="1"
-                  stroke={palette.success}
-                  strokeWidth={2}
-                  fill="url(#gCompleted)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="abandoned"
-                  stackId="1"
-                  stroke={palette.rose}
-                  strokeWidth={2}
-                  fill="url(#gAbandoned)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {completion.isLoading || completion.isError || dropout.length === 0 ? (
+              <ChartState
+                loading={completion.isLoading}
+                error={completion.isError}
+                empty={dropout.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dropout}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                  <XAxis
+                    dataKey="segment"
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "var(--color-surface-alt)" }}
+                  />
+                  <Bar
+                    dataKey="completed"
+                    name="Completed"
+                    fill={palette.success}
+                    radius={[4, 4, 0, 0]}
+                    barSize={60}
+                  />
+                  <Bar
+                    dataKey="abandoned"
+                    name="Abandoned"
+                    fill={palette.rose}
+                    radius={[4, 4, 0, 0]}
+                    barSize={60}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
       </div>
@@ -879,127 +599,99 @@ function EngagementTab() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel
           title="New vs Returning Users"
-          subtitle="Monthly"
+          subtitle="Current period"
           exportData={newVsReturning}
           exportName="new-vs-returning"
         >
           <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={newVsReturning}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  cursor={{ fill: "var(--color-surface-alt)" }}
-                />
-                <Bar
-                  dataKey="new"
-                  name="New"
-                  fill={palette.blue}
-                  radius={[3, 3, 0, 0]}
-                  barSize={12}
-                />
-                <Bar
-                  dataKey="returning"
-                  name="Returning"
-                  fill={palette.teal}
-                  radius={[3, 3, 0, 0]}
-                  barSize={12}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {engagement.isLoading || engagement.isError || newVsReturning.length === 0 ? (
+              <ChartState
+                loading={engagement.isLoading}
+                error={engagement.isError}
+                empty={newVsReturning.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={newVsReturning}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                  <XAxis
+                    dataKey="segment"
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "var(--color-surface-alt)" }}
+                  />
+                  <Bar
+                    dataKey="new"
+                    name="New"
+                    fill={palette.blue}
+                    radius={[3, 3, 0, 0]}
+                    barSize={60}
+                  />
+                  <Bar
+                    dataKey="returning"
+                    name="Returning"
+                    fill={palette.teal}
+                    radius={[3, 3, 0, 0]}
+                    barSize={60}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
         <Panel
-          title="Cumulative User Growth"
-          subtitle="Last 90 days"
+          title="Cumulative Active Users"
+          subtitle="Running sum of daily active counts"
           exportData={cumulativeGrowth}
           exportName="cumulative-growth"
         >
           <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={cumulativeGrowth}>
-                <defs>
-                  <linearGradient id="gCumulative" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={palette.violet} stopOpacity={0.4} />
-                    <stop offset="100%" stopColor={palette.violet} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={14}
-                />
-                <YAxis
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`}
-                />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: gridStroke }} />
-                <Area
-                  type="monotone"
-                  dataKey="total"
-                  stroke={palette.violet}
-                  strokeWidth={2.5}
-                  fill="url(#gCumulative)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {engagement.isLoading || engagement.isError || cumulativeGrowth.length === 0 ? (
+              <ChartState
+                loading={engagement.isLoading}
+                error={engagement.isError}
+                empty={cumulativeGrowth.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={cumulativeGrowth}>
+                  <defs>
+                    <linearGradient id="gCumulative" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={palette.violet} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={palette.violet} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    interval={4}
+                  />
+                  <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: gridStroke }} />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke={palette.violet}
+                    strokeWidth={2.5}
+                    fill="url(#gCumulative)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
       </div>
-
-      <Panel title="Top 10 Active Users" exportData={topActiveUsers} exportName="top-active-users">
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                <th className="pb-2 pr-4 font-medium">#</th>
-                <th className="pb-2 pr-4 font-medium">User</th>
-                <th className="pb-2 pr-4 text-right font-medium">Sessions</th>
-                <th className="pb-2 pr-4 text-right font-medium">Questions</th>
-                <th className="pb-2 text-right font-medium">Avg Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topActiveUsers.map((u, i) => (
-                <tr key={u.email} className="border-b border-border/60 last:border-0">
-                  <td className="py-2.5 pr-4 text-muted-foreground tabular-nums">{i + 1}</td>
-                  <td className="py-2.5 pr-4">
-                    <div className="font-medium text-foreground">{u.name}</div>
-                    <div className="text-xs text-muted-foreground">{u.email}</div>
-                  </td>
-                  <td className="py-2.5 pr-4 text-right tabular-nums text-foreground">
-                    {u.sessions}
-                  </td>
-                  <td className="py-2.5 pr-4 text-right tabular-nums text-foreground">
-                    {u.questions.toLocaleString()}
-                  </td>
-                  <td className="py-2.5 text-right">
-                    <span className="inline-flex rounded-md bg-surface-alt px-2 py-0.5 text-xs font-semibold tabular-nums text-foreground">
-                      {u.avg}%
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
     </div>
   );
 }
@@ -1008,282 +700,182 @@ function EngagementTab() {
 /* Revenue                                                             */
 /* ------------------------------------------------------------------ */
 
-const statusTone: Record<string, string> = {
-  Paid: "bg-[#1FA968]/12 text-[#1FA968]",
-  Refunded: "bg-[#E89A1A]/12 text-[#E89A1A]",
-  Failed: "bg-[#E11D48]/12 text-[#E11D48]",
-};
-
 function RevenueTab() {
-  const totalRevenue = revenuePerMonth.reduce((acc, r) => acc + r.revenue, 0);
+  const dashboard = useAnalyticsDashboard();
+  const planDist = usePlanDistributionAnalytics();
+  const churn = useChurnAnalytics();
+
+  const d = dashboard.data;
+  const totalRevenue = d?.totalRevenue ?? 0;
+  const activeSubs = d?.activeSubscriptions ?? 0;
+  const arpu = activeSubs > 0 ? Math.round(totalRevenue / activeSubs) : 0;
+
+  const planDistribution = useMemo(
+    () =>
+      (planDist.data?.activeByPlan ?? []).map((p, i) => ({
+        name: planLabel(p.key),
+        value: p.count,
+        fill: CHART_PALETTE[i % CHART_PALETTE.length],
+      })),
+    [planDist.data],
+  );
+
+  const churnSeries = useMemo(
+    () =>
+      (churn.data?.monthlyChurn ?? []).map((p) => ({
+        month: monthLabel(p.month),
+        cancelled: p.count,
+      })),
+    [churn.data],
+  );
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <GradientKpiCard
-          label="Total Revenue (12 mo)"
-          value={GHS(totalRevenue)}
+          label="Total Revenue"
+          value={dashboard.isLoading ? "—" : GHS(totalRevenue)}
           sub="across all plans"
           icon={Wallet}
           gradient="teal"
         />
         <GradientKpiCard
-          label="Monthly Recurring Revenue"
-          value={GHS(186400)}
-          sub="+11.7% MoM"
+          label="Active Subscriptions"
+          value={dashboard.isLoading ? "—" : activeSubs.toLocaleString()}
+          sub="currently paying"
           icon={CreditCard}
           gradient="emerald"
-          trend={{ value: "+11.7% MoM", up: true }}
         />
         <GradientKpiCard
           label="ARPU"
-          value={GHS(44)}
-          sub="avg revenue per user / mo"
+          value={dashboard.isLoading ? "—" : GHS(arpu)}
+          sub="revenue / active subscription"
           icon={Users}
           gradient="indigo"
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel
-          title="Revenue per Month"
-          subtitle="Last 12 months (GHS)"
-          exportData={revenuePerMonth}
-          exportName="revenue-per-month"
-        >
-          <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revenuePerMonth}>
-                <defs>
-                  <linearGradient id="gRevBar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={palette.teal} stopOpacity={1} />
-                    <stop offset="100%" stopColor={palette.teal} stopOpacity={0.35} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${v / 1000}k`}
-                />
-                <Tooltip
-                  formatter={(v: number) => GHS(v)}
-                  contentStyle={tooltipStyle}
-                  cursor={{ fill: "var(--color-surface-alt)" }}
-                />
-                <Bar dataKey="revenue" fill="url(#gRevBar)" radius={[4, 4, 0, 0]} barSize={22} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Panel>
-
-        <Panel
-          title="Revenue by Plan"
-          subtitle="Stacked, monthly (GHS)"
-          exportData={revenueByPlan}
-          exportName="revenue-by-plan"
-        >
-          <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revenueByPlan}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${v / 1000}k`}
-                />
-                <Tooltip
-                  formatter={(v: number) => GHS(v)}
-                  contentStyle={tooltipStyle}
-                  cursor={{ fill: "var(--color-surface-alt)" }}
-                />
-                <Bar
-                  dataKey="monthly"
-                  name="Monthly"
-                  stackId="p"
-                  fill={palette.teal}
-                  barSize={18}
-                />
-                <Bar
-                  dataKey="threeMo"
-                  name="3-Month"
-                  stackId="p"
-                  fill={palette.emerald}
-                  barSize={18}
-                />
-                <Bar dataKey="sixMo" name="6-Month" stackId="p" fill={palette.amber} barSize={18} />
-                <Bar
-                  dataKey="twelveMo"
-                  name="12-Month"
-                  stackId="p"
-                  fill={palette.violet}
-                  radius={[4, 4, 0, 0]}
-                  barSize={18}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Panel>
-      </div>
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Panel title="Plan Distribution" subtitle="Active subscriptions by plan">
           <div className="mt-4 h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={planDistribution}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={55}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  stroke="var(--color-surface)"
-                  strokeWidth={2}
-                >
-                  {planDistribution.map((p) => (
-                    <Cell key={p.name} fill={p.fill} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
+            {planDist.isLoading || planDist.isError || planDistribution.length === 0 ? (
+              <ChartState
+                loading={planDist.isLoading}
+                error={planDist.isError}
+                empty={planDistribution.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={planDistribution}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={55}
+                    outerRadius={90}
+                    paddingAngle={3}
+                    stroke="var(--color-surface)"
+                    strokeWidth={2}
+                  >
+                    {planDistribution.map((p) => (
+                      <Cell key={p.name} fill={p.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {planDistribution.map((p) => (
-              <div key={p.name} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.fill }} />
-                {p.name}
-                <span className="ml-auto font-semibold tabular-nums text-foreground">
-                  {p.value.toLocaleString()}
-                </span>
-              </div>
-            ))}
-          </div>
+          {!planDist.isLoading && planDistribution.length > 0 && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {planDistribution.map((p) => (
+                <div key={p.name} className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.fill }} />
+                  {p.name}
+                  <span className="ml-auto font-semibold tabular-nums text-foreground">
+                    {p.value.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </Panel>
 
         <div className="grid grid-cols-1 gap-6">
           <div className={cardClass}>
             <span className="text-xs font-medium text-muted-foreground">
-              Trial → Paid Conversion
+              Subscriptions by Status
             </span>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">24.6%</p>
-            <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-[#1FA968]">
-              <TrendingUp className="h-3.5 w-3.5" /> +2.1 pts vs last month
-            </p>
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-alt">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F]"
-                style={{ width: "24.6%" }}
-              />
+            <div className="mt-3 space-y-2">
+              {(planDist.data?.byStatus ?? []).map((s) => (
+                <div
+                  key={s.key}
+                  className="flex items-center justify-between text-sm text-muted-foreground"
+                >
+                  <span>{statusLabel(s.key)}</span>
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {s.count.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+              {!planDist.isLoading && (planDist.data?.byStatus ?? []).length === 0 && (
+                <p className="text-xs text-muted-foreground">No subscription data yet.</p>
+              )}
             </div>
           </div>
           <div className={cardClass}>
-            <span className="text-xs font-medium text-muted-foreground">
-              Revenue Forecast (next month)
-            </span>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">{GHS(204800)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Projected +9.9% based on trailing 3-mo trend
+            <span className="text-xs font-medium text-muted-foreground">Churn Rate (30d)</span>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">
+              {churn.isLoading ? "—" : `${Math.round((churn.data?.churnRate ?? 0) * 10) / 10}%`}
+            </p>
+            <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              <TrendingUp className="h-3.5 w-3.5" />
+              {churn.data
+                ? `${churn.data.cancelledLast30Days} cancelled · ${churn.data.expiredLast30Days} expired`
+                : ""}
             </p>
           </div>
         </div>
 
-        <Panel title="Churn Rate" subtitle="Monthly %" exportData={churn} exportName="churn">
+        <Panel
+          title="Monthly Churn"
+          subtitle="Cancellations per month"
+          exportData={churnSeries}
+          exportName="churn"
+        >
           <div className="mt-4 h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={churn}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  stroke={axisStroke}
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={1}
-                />
-                <YAxis
-                  stroke={axisStroke}
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${v}%`}
-                />
-                <Tooltip
-                  formatter={(v: number) => `${v}%`}
-                  contentStyle={tooltipStyle}
-                  cursor={{ stroke: gridStroke }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="rate"
-                  stroke={palette.rose}
-                  strokeWidth={2.5}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {churn.isLoading || churn.isError || churnSeries.length === 0 ? (
+              <ChartState
+                loading={churn.isLoading}
+                error={churn.isError}
+                empty={churnSeries.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={churnSeries}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    stroke={axisStroke}
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis stroke={axisStroke} fontSize={11} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: gridStroke }} />
+                  <Line
+                    type="monotone"
+                    dataKey="cancelled"
+                    stroke={palette.rose}
+                    strokeWidth={2.5}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
       </div>
-
-      <Panel
-        title="Recent Transactions"
-        exportData={recentTransactions}
-        exportName="recent-transactions"
-      >
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                <th className="pb-2 pr-4 font-medium">Transaction</th>
-                <th className="pb-2 pr-4 font-medium">User</th>
-                <th className="pb-2 pr-4 font-medium">Plan</th>
-                <th className="pb-2 pr-4 text-right font-medium">Amount</th>
-                <th className="pb-2 pr-4 font-medium">Status</th>
-                <th className="pb-2 text-right font-medium">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentTransactions.map((t) => (
-                <tr key={t.id} className="border-b border-border/60 last:border-0">
-                  <td className="py-2.5 pr-4 font-mono text-xs text-muted-foreground">{t.id}</td>
-                  <td className="py-2.5 pr-4 font-medium text-foreground">{t.user}</td>
-                  <td className="py-2.5 pr-4 text-muted-foreground">{t.plan}</td>
-                  <td className="py-2.5 pr-4 text-right tabular-nums text-foreground">
-                    {GHS(t.amount)}
-                  </td>
-                  <td className="py-2.5 pr-4">
-                    <span
-                      className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${statusTone[t.status] ?? "bg-surface-alt text-foreground"}`}
-                    >
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="py-2.5 text-right text-muted-foreground tabular-nums">{t.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
     </div>
   );
 }
@@ -1293,93 +885,150 @@ function RevenueTab() {
 /* ------------------------------------------------------------------ */
 
 function QuizTab() {
-  const sortedBanks = useMemo(
-    () => [...bankPerformance].sort((a, b) => b.avgScore - a.avgScore),
-    [],
+  const dashboard = useAnalyticsDashboard();
+  const content = useContentAnalytics();
+  const quiz = useQuizPerformanceAnalytics();
+
+  const sortedBanks = useMemo(() => {
+    const rows = content.data?.subjectPerformance ?? [];
+    return rows
+      .map((s) => ({
+        subject: s.subject,
+        avgScore: Math.round(s.accuracy),
+        fill: subjectTheme(s.subject).hex,
+      }))
+      .sort((a, b) => b.avgScore - a.avgScore);
+  }, [content.data]);
+
+  const scoreByDifficulty = useMemo(
+    () =>
+      (quiz.data?.avgTimeByDifficulty ?? []).map((dd, i) => ({
+        label: difficultyLabel(dd.key),
+        // GAP: no per-difficulty accuracy; show relative time-spent as a proxy %.
+        value: Math.min(100, Math.round((dd.avgTimeSeconds / 120) * 100)),
+        color: CHART_PALETTE[i % CHART_PALETTE.length],
+      })),
+    [quiz.data],
   );
+
+  const modeSplit = useMemo(
+    () =>
+      (quiz.data?.modeSplit ?? []).map((m, i) => ({
+        name: statusLabel(m.key),
+        value: m.count,
+        fill: CHART_PALETTE[i % CHART_PALETTE.length],
+      })),
+    [quiz.data],
+  );
+
+  const totalSessions = dashboard.data?.totalSessions ?? 0;
+  const questionsAnswered = useMemo(
+    () => (quiz.data?.modeSplit ?? []).reduce((s, m) => s + m.count, 0),
+    [quiz.data],
+  );
+  const platformAvgScore = Math.round(dashboard.data?.avgScore ?? 0);
+  const avgTime = Math.round(quiz.data?.avgAnswerTimeSeconds ?? 0);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <GradientKpiCard
           label="Total Sessions"
-          value={totalBankSessions.toLocaleString()}
+          value={dashboard.isLoading ? "—" : totalSessions.toLocaleString()}
           sub="all banks"
           icon={Activity}
           gradient="teal"
         />
         <GradientKpiCard
           label="Questions Answered"
-          value="1.84M"
+          value={quiz.isLoading ? "—" : questionsAnswered.toLocaleString()}
           sub="lifetime"
           icon={BookOpen}
           gradient="blue"
         />
         <GradientKpiCard
           label="Platform Avg Score"
-          value={`${platformAvgScore}%`}
-          sub="across all banks"
+          value={dashboard.isLoading ? "—" : `${platformAvgScore}%`}
+          sub="across completed sessions"
           icon={Target}
           gradient="emerald"
         />
         <GradientKpiCard
           label="Avg Time / Question"
-          value="48s"
-          sub="-3s vs last month"
+          value={quiz.isLoading ? "—" : `${avgTime}s`}
+          sub="all sessions"
           icon={Clock}
           gradient="amber"
-          trend={{ value: "-3s vs last month", up: true }}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel
-          title="Avg Score by Bank"
-          subtitle="Color-coded per bank"
+          title="Avg Score by Subject"
+          subtitle="Correct-answer rate per subject"
           exportData={sortedBanks}
-          exportName="score-by-bank"
+          exportName="score-by-subject"
         >
           <div className="mt-4 h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={sortedBanks} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={gridStroke} />
-                <XAxis
-                  type="number"
-                  domain={[0, 100]}
-                  tickFormatter={(v) => `${v}%`}
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="subject"
-                  stroke={axisStroke}
-                  fontSize={11}
-                  width={120}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  formatter={(v: number) => `${v}%`}
-                  contentStyle={tooltipStyle}
-                  cursor={{ fill: "var(--color-surface-alt)" }}
-                />
-                <Bar dataKey="avgScore" radius={[0, 4, 4, 0]} barSize={18}>
-                  {sortedBanks.map((b) => (
-                    <Cell key={b.id} fill={b.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {content.isLoading || content.isError || sortedBanks.length === 0 ? (
+              <ChartState
+                loading={content.isLoading}
+                error={content.isError}
+                empty={sortedBanks.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sortedBanks} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={gridStroke} />
+                  <XAxis
+                    type="number"
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="subject"
+                    stroke={axisStroke}
+                    fontSize={11}
+                    width={120}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(v: number) => `${v}%`}
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "var(--color-surface-alt)" }}
+                  />
+                  <Bar dataKey="avgScore" radius={[0, 4, 4, 0]} barSize={18}>
+                    {sortedBanks.map((b) => (
+                      <Cell key={b.subject} fill={b.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
-        <Panel title="Avg Score by Difficulty" subtitle="Beginner · Intermediate · Advanced">
+        <Panel title="Avg Time by Difficulty" subtitle="Relative time spent per question">
           <div className="mt-4 grid grid-cols-3 gap-3">
-            {scoreByDifficulty.map((d) => (
-              <Ring key={d.label} label={d.label} value={d.value} color={d.color} />
-            ))}
+            {quiz.isLoading || scoreByDifficulty.length === 0 ? (
+              <div className="col-span-3">
+                <ChartState
+                  loading={quiz.isLoading}
+                  error={quiz.isError}
+                  empty={scoreByDifficulty.length === 0}
+                />
+              </div>
+            ) : (
+              scoreByDifficulty.map((dd) => (
+                <Ring key={dd.label} label={dd.label} value={dd.value} color={dd.color} />
+              ))
+            )}
           </div>
         </Panel>
       </div>
@@ -1387,116 +1036,126 @@ function QuizTab() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Panel title="Tutor vs Quiz" subtitle="Sessions by mode" className="lg:col-span-1">
           <div className="mt-4 h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={modeSplit}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={55}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  stroke="var(--color-surface)"
-                  strokeWidth={2}
-                >
-                  {modeSplit.map((m) => (
-                    <Cell key={m.name} fill={m.fill} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
+            {quiz.isLoading || quiz.isError || modeSplit.length === 0 ? (
+              <ChartState
+                loading={quiz.isLoading}
+                error={quiz.isError}
+                empty={modeSplit.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={modeSplit}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={55}
+                    outerRadius={90}
+                    paddingAngle={3}
+                    stroke="var(--color-surface)"
+                    strokeWidth={2}
+                  >
+                    {modeSplit.map((m) => (
+                      <Cell key={m.name} fill={m.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
-          <div className="mt-2 space-y-1.5">
-            {modeSplit.map((m) => (
-              <div key={m.name} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.fill }} />
-                {m.name}
-                <span className="ml-auto font-semibold tabular-nums text-foreground">
-                  {m.value.toLocaleString()}
-                </span>
-              </div>
-            ))}
-          </div>
+          {!quiz.isLoading && modeSplit.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {modeSplit.map((m) => (
+                <div key={m.name} className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.fill }} />
+                  {m.name}
+                  <span className="ml-auto font-semibold tabular-nums text-foreground">
+                    {m.value.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </Panel>
 
         <Panel
           title="Most Difficult Questions"
           subtitle="Lowest correct rate"
-          exportData={hardestQuestions}
-          exportName="hardest-questions"
           className="lg:col-span-2"
         >
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                  <th className="pb-2 pr-4 font-medium">Question</th>
-                  <th className="pb-2 pr-4 font-medium">Topic</th>
-                  <th className="pb-2 pr-4 font-medium">Bank</th>
-                  <th className="pb-2 pr-4 text-right font-medium">Attempts</th>
-                  <th className="pb-2 text-right font-medium">Correct %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hardestQuestions.map((q) => (
-                  <tr key={q.id} className="border-b border-border/60 last:border-0">
-                    <td className="py-2.5 pr-4 font-mono text-xs text-muted-foreground">{q.id}</td>
-                    <td className="py-2.5 pr-4 font-medium text-foreground">{q.topic}</td>
-                    <td className="py-2.5 pr-4 text-muted-foreground">{q.bank}</td>
-                    <td className="py-2.5 pr-4 text-right tabular-nums text-foreground">
-                      {q.attempts.toLocaleString()}
-                    </td>
-                    <td className="py-2.5 text-right">
-                      <span className="inline-flex rounded-md bg-[#E11D48]/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-[#E11D48]">
-                        {q.correctPct}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {quiz.isLoading || quiz.isError || (quiz.data?.hardestQuestions ?? []).length === 0 ? (
+            <div className="mt-4 h-40">
+              <ChartState
+                loading={quiz.isLoading}
+                error={quiz.isError}
+                empty={(quiz.data?.hardestQuestions ?? []).length === 0}
+              />
+            </div>
+          ) : (
+            <QuestionTable rows={quiz.data?.hardestQuestions ?? []} tone="error" />
+          )}
         </Panel>
       </div>
 
-      <Panel
-        title="Easiest Questions"
-        subtitle="Highest correct rate"
-        exportData={easiestQuestions}
-        exportName="easiest-questions"
-      >
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                <th className="pb-2 pr-4 font-medium">Question</th>
-                <th className="pb-2 pr-4 font-medium">Topic</th>
-                <th className="pb-2 pr-4 font-medium">Bank</th>
-                <th className="pb-2 pr-4 text-right font-medium">Attempts</th>
-                <th className="pb-2 text-right font-medium">Correct %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {easiestQuestions.map((q) => (
-                <tr key={q.id} className="border-b border-border/60 last:border-0">
-                  <td className="py-2.5 pr-4 font-mono text-xs text-muted-foreground">{q.id}</td>
-                  <td className="py-2.5 pr-4 font-medium text-foreground">{q.topic}</td>
-                  <td className="py-2.5 pr-4 text-muted-foreground">{q.bank}</td>
-                  <td className="py-2.5 pr-4 text-right tabular-nums text-foreground">
-                    {q.attempts.toLocaleString()}
-                  </td>
-                  <td className="py-2.5 text-right">
-                    <span className="inline-flex rounded-md bg-[#1FA968]/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-[#1FA968]">
-                      {q.correctPct}%
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <Panel title="Easiest Questions" subtitle="Highest correct rate">
+        {quiz.isLoading || quiz.isError || (quiz.data?.easiestQuestions ?? []).length === 0 ? (
+          <div className="mt-4 h-40">
+            <ChartState
+              loading={quiz.isLoading}
+              error={quiz.isError}
+              empty={(quiz.data?.easiestQuestions ?? []).length === 0}
+            />
+          </div>
+        ) : (
+          <QuestionTable rows={quiz.data?.easiestQuestions ?? []} tone="success" />
+        )}
       </Panel>
+    </div>
+  );
+}
+
+function QuestionTable({
+  rows,
+  tone,
+}: {
+  rows: BackendQuestionPerformance[];
+  tone: "error" | "success";
+}) {
+  const chip =
+    tone === "error" ? "bg-[#E11D48]/12 text-[#E11D48]" : "bg-[#1FA968]/12 text-[#1FA968]";
+  return (
+    <div className="mt-4 overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
+            <th className="pb-2 pr-4 font-medium">Subject</th>
+            <th className="pb-2 pr-4 font-medium">Topic</th>
+            <th className="pb-2 pr-4 font-medium">Difficulty</th>
+            <th className="pb-2 pr-4 text-right font-medium">Attempts</th>
+            <th className="pb-2 text-right font-medium">Correct %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((q) => (
+            <tr key={q.id} className="border-b border-border/60 last:border-0">
+              <td className="py-2.5 pr-4 font-medium text-foreground">{q.subject}</td>
+              <td className="py-2.5 pr-4 text-muted-foreground">{q.topic ?? "—"}</td>
+              <td className="py-2.5 pr-4 text-muted-foreground">{difficultyLabel(q.difficulty)}</td>
+              <td className="py-2.5 pr-4 text-right tabular-nums text-foreground">
+                {q.timesAnswered.toLocaleString()}
+              </td>
+              <td className="py-2.5 text-right">
+                <span
+                  className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${chip}`}
+                >
+                  {Math.round(q.accuracy)}%
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1506,30 +1165,65 @@ function QuizTab() {
 /* ------------------------------------------------------------------ */
 
 function ContentTab() {
+  const dashboard = useAnalyticsDashboard();
+  const content = useContentAnalytics();
+
+  const subjectPerformance = useMemo(() => {
+    const rows = content.data?.subjectPerformance ?? [];
+    return rows
+      .map((s) => ({
+        subject: s.subject,
+        avgScore: Math.round(s.accuracy),
+        fill: subjectTheme(s.subject).hex,
+      }))
+      .sort((a, b) => b.avgScore - a.avgScore);
+  }, [content.data]);
+
+  const topAttemptedTopics = useMemo(
+    () =>
+      (content.data?.topTopics ?? []).map((t) => ({
+        topic: t.topic,
+        subject: t.subject,
+        attempts: t.answered,
+      })),
+    [content.data],
+  );
+
+  const lowestScoreTopics = content.data?.lowestTopics ?? [];
+
+  const totalQuestions = dashboard.data?.totalQuestions ?? 0;
+  const subjectCount = subjectPerformance.length;
+  const platformAvgScore =
+    subjectPerformance.length > 0
+      ? Math.round(
+          subjectPerformance.reduce((acc, s) => acc + s.avgScore, 0) / subjectPerformance.length,
+        )
+      : 0;
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <GradientKpiCard
-          label="Question Banks"
-          value={String(questionBanks.length)}
+          label="Subjects"
+          value={content.isLoading ? "—" : String(subjectCount)}
           icon={Layers}
           gradient="teal"
         />
         <GradientKpiCard
           label="Total Questions"
-          value={totalBankQuestions.toLocaleString()}
+          value={dashboard.isLoading ? "—" : totalQuestions.toLocaleString()}
           icon={BookOpen}
           gradient="blue"
         />
         <GradientKpiCard
-          label="Topics / Categories"
-          value={String(totalCategories)}
+          label="Tracked Topics"
+          value={content.isLoading ? "—" : String(topAttemptedTopics.length)}
           icon={GraduationCap}
           gradient="violet"
         />
         <GradientKpiCard
           label="Avg Score"
-          value={`${platformAvgScore}%`}
+          value={content.isLoading ? "—" : `${platformAvgScore}%`}
           icon={CalendarDays}
           gradient="emerald"
         />
@@ -1543,95 +1237,119 @@ function ContentTab() {
           exportName="subject-performance"
         >
           <div className="mt-4 h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={subjectPerformance} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={gridStroke} />
-                <XAxis
-                  type="number"
-                  domain={[0, 100]}
-                  tickFormatter={(v) => `${v}%`}
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="subject"
-                  stroke={axisStroke}
-                  fontSize={11}
-                  width={120}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  formatter={(v: number) => `${v}%`}
-                  contentStyle={tooltipStyle}
-                  cursor={{ fill: "var(--color-surface-alt)" }}
-                />
-                <Bar dataKey="avgScore" radius={[0, 4, 4, 0]} barSize={18}>
-                  {subjectPerformance.map((s) => (
-                    <Cell key={s.subject} fill={s.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {content.isLoading || content.isError || subjectPerformance.length === 0 ? (
+              <ChartState
+                loading={content.isLoading}
+                error={content.isError}
+                empty={subjectPerformance.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={subjectPerformance} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={gridStroke} />
+                  <XAxis
+                    type="number"
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="subject"
+                    stroke={axisStroke}
+                    fontSize={11}
+                    width={120}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(v: number) => `${v}%`}
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "var(--color-surface-alt)" }}
+                  />
+                  <Bar dataKey="avgScore" radius={[0, 4, 4, 0]} barSize={18}>
+                    {subjectPerformance.map((s) => (
+                      <Cell key={s.subject} fill={s.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
         <Panel
           title="Most Attempted Topics"
-          subtitle="By total attempts"
+          subtitle="By total answers"
           exportData={topAttemptedTopics}
           exportName="top-topics"
         >
           <div className="mt-4 h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topAttemptedTopics} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={gridStroke} />
-                <XAxis
-                  type="number"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="topic"
-                  stroke={axisStroke}
-                  fontSize={11}
-                  width={110}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  formatter={(v: number) => v.toLocaleString()}
-                  contentStyle={tooltipStyle}
-                  cursor={{ fill: "var(--color-surface-alt)" }}
-                />
-                <Bar dataKey="attempts" fill={palette.blue} radius={[0, 4, 4, 0]} barSize={16} />
-              </BarChart>
-            </ResponsiveContainer>
+            {content.isLoading || content.isError || topAttemptedTopics.length === 0 ? (
+              <ChartState
+                loading={content.isLoading}
+                error={content.isError}
+                empty={topAttemptedTopics.length === 0}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topAttemptedTopics} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={gridStroke} />
+                  <XAxis
+                    type="number"
+                    stroke={axisStroke}
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="topic"
+                    stroke={axisStroke}
+                    fontSize={11}
+                    width={110}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(v: number) => v.toLocaleString()}
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "var(--color-surface-alt)" }}
+                  />
+                  <Bar dataKey="attempts" fill={palette.blue} radius={[0, 4, 4, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Panel
-          title="Topics with Lowest Scores"
-          subtitle="Need attention"
-          exportData={lowestScoreTopics}
-          exportName="lowest-score-topics"
-        >
-          <div className="mt-4 overflow-x-auto">
+      <Panel
+        title="Topics with Lowest Scores"
+        subtitle="Need attention"
+        exportData={lowestScoreTopics as unknown as Record<string, unknown>[]}
+        exportName="lowest-score-topics"
+      >
+        <div className="mt-4 overflow-x-auto">
+          {content.isLoading || content.isError || lowestScoreTopics.length === 0 ? (
+            <div className="h-40">
+              <ChartState
+                loading={content.isLoading}
+                error={content.isError}
+                empty={lowestScoreTopics.length === 0}
+              />
+            </div>
+          ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
                   <th className="pb-2 pr-4 font-medium">Topic</th>
                   <th className="pb-2 pr-4 font-medium">Subject</th>
-                  <th className="pb-2 pr-4 text-right font-medium">Attempts</th>
-                  <th className="pb-2 text-right font-medium">Avg Score</th>
+                  <th className="pb-2 pr-4 text-right font-medium">Answered</th>
+                  <th className="pb-2 text-right font-medium">Accuracy</th>
                 </tr>
               </thead>
               <tbody>
@@ -1643,61 +1361,20 @@ function ContentTab() {
                     <td className="py-2.5 pr-4 font-medium text-foreground">{t.topic}</td>
                     <td className="py-2.5 pr-4 text-muted-foreground">{t.subject}</td>
                     <td className="py-2.5 pr-4 text-right tabular-nums text-foreground">
-                      {t.attempts.toLocaleString()}
+                      {t.answered.toLocaleString()}
                     </td>
                     <td className="py-2.5 text-right">
                       <span className="inline-flex rounded-md bg-[#E11D48]/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-[#E11D48]">
-                        {t.avgScore}%
+                        {Math.round(t.accuracy)}%
                       </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </Panel>
-
-        <Panel
-          title="Content Growth"
-          subtitle="Total questions over time"
-          exportData={contentGrowth}
-          exportName="content-growth"
-        >
-          <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={contentGrowth}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`}
-                />
-                <Tooltip
-                  formatter={(v: number) => v.toLocaleString()}
-                  contentStyle={tooltipStyle}
-                  cursor={{ stroke: gridStroke }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="questions"
-                  stroke={palette.emerald}
-                  strokeWidth={2.5}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Panel>
-      </div>
+          )}
+        </div>
+      </Panel>
     </div>
   );
 }

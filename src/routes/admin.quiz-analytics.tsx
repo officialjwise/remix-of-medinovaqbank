@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   Bar,
   BarChart,
@@ -13,8 +13,17 @@ import {
   YAxis,
 } from "recharts";
 import { Activity, Clock, GraduationCap, Target } from "lucide-react";
-import { questionBanks } from "@/data/banks";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
+import { subjectTheme } from "@/data/subjectColors";
+import {
+  CHART_PALETTE,
+  difficultyLabel,
+  statusLabel,
+  useAnalyticsDashboard,
+  useContentAnalytics,
+  useQuizPerformanceAnalytics,
+  type BackendQuestionPerformance,
+} from "@/api/admin-analytics.api";
 
 export const Route = createFileRoute("/admin/quiz-analytics")({
   head: () => ({
@@ -25,9 +34,6 @@ export const Route = createFileRoute("/admin/quiz-analytics")({
   }),
   component: QuizAnalytics,
 });
-
-const RANGES = ["7d", "30d", "90d"] as const;
-type Range = (typeof RANGES)[number];
 
 // Chart tokens — resolve correctly in light + dark
 const axisStroke = "var(--color-muted-foreground)";
@@ -40,97 +46,58 @@ const tooltipStyle = {
   boxShadow: "var(--shadow-card-hover)",
 };
 
-// Deterministic mock score per bank (stable across renders)
-function scoreFor(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 1000;
-  return 58 + (h % 36); // 58–93
-}
-
-const difficultyScores = [
-  { label: "Beginner", value: 81, color: "#1FA968" },
-  { label: "Intermediate", value: 72, color: "#0E7C7B" },
-  { label: "Advanced", value: 61, color: "#E89A1A" },
-];
-
-const modeSplit = [
-  { name: "Tutor mode", value: 6420, fill: "#0E7C7B" },
-  { name: "Quiz mode", value: 4180, fill: "#2BC97F" },
-];
-
-const hardest = [
-  {
-    id: "q-rca-stemi",
-    stem: "Which artery is occluded given inferior ST elevation (II, III, aVF)?",
-    bank: "Internal Medicine Shelf",
-    rate: 31,
-  },
-  {
-    id: "q-absence",
-    stem: "Drug of choice for absence seizures in a school-age child…",
-    bank: "Paediatrics",
-    rate: 34,
-  },
-  {
-    id: "q-anticoag",
-    stem: "Preferred anticoagulant in a patient with mechanical valve…",
-    bank: "Internal Medicine Shelf",
-    rate: 38,
-  },
-  {
-    id: "q-deltoid",
-    stem: "Which nerve innervates the deltoid muscle?",
-    bank: "Surgery Core",
-    rate: 41,
-  },
-  {
-    id: "q-meningitis",
-    stem: "Most appropriate first investigation in suspected meningitis…",
-    bank: "Internal Medicine Shelf",
-    rate: 44,
-  },
-];
-
-const easiest = [
-  {
-    id: "q-asthma",
-    stem: "First-line immediate therapy in acute severe asthma…",
-    bank: "Internal Medicine Shelf",
-    rate: 94,
-  },
-  {
-    id: "q-dm-dx",
-    stem: "Which result meets the diagnostic threshold for diabetes?",
-    bank: "Internal Medicine Shelf",
-    rate: 92,
-  },
-  { id: "q-apgar", stem: "Component NOT part of the APGAR score…", bank: "Paediatrics", rate: 90 },
-  {
-    id: "q-preeclampsia",
-    stem: "Defining feature of pre-eclampsia after 20 weeks…",
-    bank: "Obstetrics & Gynaecology",
-    rate: 89,
-  },
-  { id: "q-gcs", stem: "Best motor response scoring on the GCS…", bank: "Surgery Core", rate: 88 },
-];
-
 function QuizAnalytics() {
-  const [range, setRange] = useState<Range>("30d");
+  const dashboard = useAnalyticsDashboard();
+  const content = useContentAnalytics();
+  const quiz = useQuizPerformanceAnalytics();
 
-  const byBank = useMemo(
-    () =>
-      questionBanks
-        .map((b) => ({
-          name: b.name,
-          short: b.subject,
-          score: scoreFor(b.id + range),
-          fill: b.accentHex,
-        }))
-        .sort((a, b) => b.score - a.score),
-    [range],
+  const isLoading = dashboard.isLoading || content.isLoading || quiz.isLoading;
+  const isError = dashboard.isError || content.isError || quiz.isError;
+  const error = dashboard.error ?? content.error ?? quiz.error;
+
+  // Avg score per subject (accuracy), color-coded, descending.
+  const byBank = useMemo(() => {
+    const rows = content.data?.subjectPerformance ?? [];
+    return rows
+      .map((s) => ({
+        name: s.subject,
+        short: s.subject,
+        score: Math.round(s.accuracy),
+        answered: s.answered,
+        fill: subjectTheme(s.subject).hex,
+      }))
+      .sort((a, b) => b.score - a.score);
+  }, [content.data]);
+
+  const modeSplit = useMemo(() => {
+    const rows = quiz.data?.modeSplit ?? [];
+    return rows.map((m, i) => ({
+      name: statusLabel(m.key),
+      value: m.count,
+      fill: CHART_PALETTE[i % CHART_PALETTE.length],
+    }));
+  }, [quiz.data]);
+
+  const hardest = quiz.data?.hardestQuestions ?? [];
+  const easiest = quiz.data?.easiestQuestions ?? [];
+
+  const totalSessions = dashboard.data?.totalSessions ?? 0;
+  const questionsAnswered = useMemo(
+    () => (quiz.data?.modeSplit ?? []).reduce((s, m) => s + m.count, 0),
+    [quiz.data],
   );
+  const platformAvg = Math.round(dashboard.data?.avgScore ?? 0);
+  const avgTime = Math.round(quiz.data?.avgAnswerTimeSeconds ?? 0);
 
-  const platformAvg = Math.round(byBank.reduce((s, b) => s + b.score, 0) / byBank.length);
+  if (isError) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface p-12 text-center">
+        <p className="text-sm text-error">
+          {error instanceof Error ? error.message : "Failed to load quiz analytics."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -141,7 +108,6 @@ function QuizAnalytics() {
             Performance, difficulty, and content insights across all sessions.
           </p>
         </div>
-        <RangePicker value={range} onChange={setRange} />
       </div>
 
       {/* Metric cards */}
@@ -150,87 +116,100 @@ function QuizAnalytics() {
           icon={Activity}
           gradient="teal"
           label="Total sessions"
-          value="10,604"
-          trend={{ value: "+8.2%", up: true }}
+          value={isLoading ? "—" : totalSessions.toLocaleString()}
         />
         <GradientKpiCard
           icon={GraduationCap}
           gradient="emerald"
           label="Questions answered"
-          value="312,940"
-          trend={{ value: "+12.4%", up: true }}
+          value={isLoading ? "—" : questionsAnswered.toLocaleString()}
         />
         <GradientKpiCard
           icon={Target}
           gradient="blue"
           label="Platform avg score"
-          value={`${platformAvg}%`}
-          trend={{ value: "+1.1 pts", up: true }}
+          value={isLoading ? "—" : `${platformAvg}%`}
         />
         <GradientKpiCard
           icon={Clock}
           gradient="amber"
           label="Avg time / question"
-          value="48s"
-          trend={{ value: "-3s", up: true }}
+          value={isLoading ? "—" : `${avgTime}s`}
         />
       </div>
 
-      {/* Score by bank + difficulty */}
+      {/* Score by subject + avg time by difficulty */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel
-          title="Average score by bank"
-          subtitle="Higher is easier for learners"
+          title="Average score by subject"
+          subtitle="Correct-answer rate per subject"
           className="lg:col-span-2"
         >
           <div className="h-80">
-            <ResponsiveContainer>
-              <BarChart data={byBank} layout="vertical" margin={{ left: 8, right: 16 }}>
-                <CartesianGrid horizontal={false} stroke={gridStroke} />
-                <XAxis
-                  type="number"
-                  domain={[0, 100]}
-                  tickFormatter={(v) => `${v}%`}
-                  stroke={axisStroke}
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="short"
-                  stroke={axisStroke}
-                  fontSize={11}
-                  width={96}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  formatter={(v: number) => [`${v}%`, "Avg score"]}
-                  contentStyle={tooltipStyle}
-                  cursor={{ fill: "var(--color-surface-alt)" }}
-                />
-                <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={20}>
-                  {byBank.map((b) => (
-                    <Cell key={b.name} fill={b.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {isLoading ? (
+              <Loading />
+            ) : byBank.length === 0 ? (
+              <Empty label="No subject performance recorded yet." />
+            ) : (
+              <ResponsiveContainer>
+                <BarChart data={byBank} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid horizontal={false} stroke={gridStroke} />
+                  <XAxis
+                    type="number"
+                    domain={[0, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                    stroke={axisStroke}
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="short"
+                    stroke={axisStroke}
+                    fontSize={11}
+                    width={96}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(v: number) => [`${v}%`, "Avg score"]}
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: "var(--color-surface-alt)" }}
+                  />
+                  <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={20}>
+                    {byBank.map((b) => (
+                      <Cell key={b.name} fill={b.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
-        <Panel title="Score by difficulty" subtitle="Across all banks">
+        <Panel title="Avg time by difficulty" subtitle="Seconds per question">
           <div className="flex h-80 flex-col justify-center gap-6">
-            {difficultyScores.map((d) => (
-              <div key={d.label} className="flex items-center gap-4">
-                <Ring value={d.value} color={d.color} />
-                <div>
-                  <p className="text-sm font-bold text-foreground">{d.label}</p>
-                  <p className="text-xs text-muted-foreground">avg correct rate</p>
+            {isLoading ? (
+              <Loading />
+            ) : (quiz.data?.avgTimeByDifficulty ?? []).length === 0 ? (
+              <Empty label="No timing data yet." />
+            ) : (
+              (quiz.data?.avgTimeByDifficulty ?? []).map((d, i) => (
+                <div key={d.key} className="flex items-center gap-4">
+                  <TimeRing
+                    seconds={Math.round(d.avgTimeSeconds)}
+                    color={CHART_PALETTE[i % CHART_PALETTE.length]}
+                  />
+                  <div>
+                    <p className="text-sm font-bold text-foreground">{difficultyLabel(d.key)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {d.answered.toLocaleString()} answered
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </Panel>
       </div>
@@ -239,38 +218,46 @@ function QuizAnalytics() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="Tutor vs Quiz usage" subtitle="Answered questions by mode">
           <div className="h-64">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie
-                  data={modeSplit}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={52}
-                  outerRadius={88}
-                  paddingAngle={3}
-                  stroke="var(--color-surface)"
-                  strokeWidth={2}
-                >
-                  {modeSplit.map((m) => (
-                    <Cell key={m.name} fill={m.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(v: number) => v.toLocaleString()}
-                  contentStyle={tooltipStyle}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {isLoading ? (
+              <Loading />
+            ) : modeSplit.length === 0 ? (
+              <Empty label="No session data yet." />
+            ) : (
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={modeSplit}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={52}
+                    outerRadius={88}
+                    paddingAngle={3}
+                    stroke="var(--color-surface)"
+                    strokeWidth={2}
+                  >
+                    {modeSplit.map((m) => (
+                      <Cell key={m.name} fill={m.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(v: number) => v.toLocaleString()}
+                    contentStyle={tooltipStyle}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
-          <ul className="mt-1 space-y-1.5 text-xs">
-            {modeSplit.map((m) => (
-              <li key={m.name} className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: m.fill }} />
-                <span className="flex-1 text-muted-foreground">{m.name}</span>
-                <span className="font-bold text-foreground">{m.value.toLocaleString()}</span>
-              </li>
-            ))}
-          </ul>
+          {!isLoading && modeSplit.length > 0 && (
+            <ul className="mt-1 space-y-1.5 text-xs">
+              {modeSplit.map((m) => (
+                <li key={m.name} className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-sm" style={{ background: m.fill }} />
+                  <span className="flex-1 text-muted-foreground">{m.name}</span>
+                  <span className="font-bold text-foreground">{m.value.toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
 
         <Panel
@@ -278,7 +265,13 @@ function QuizAnalytics() {
           subtitle="Lowest correct rate"
           className="lg:col-span-2"
         >
-          <QuestionRateTable rows={hardest} tone="error" />
+          {isLoading ? (
+            <Loading />
+          ) : hardest.length === 0 ? (
+            <Empty label="No question data yet." />
+          ) : (
+            <QuestionRateTable rows={hardest} tone="error" />
+          )}
         </Panel>
       </div>
 
@@ -286,37 +279,40 @@ function QuizAnalytics() {
         title="Easiest questions"
         subtitle="Highest correct rate — candidates for difficulty re-tagging"
       >
-        <QuestionRateTable rows={easiest} tone="success" />
+        {isLoading ? (
+          <Loading />
+        ) : easiest.length === 0 ? (
+          <Empty label="No question data yet." />
+        ) : (
+          <QuestionRateTable rows={easiest} tone="success" />
+        )}
       </Panel>
     </div>
   );
 }
 
-function RangePicker({ value, onChange }: { value: Range; onChange: (r: Range) => void }) {
-  const labels: Record<Range, string> = { "7d": "7 days", "30d": "30 days", "90d": "90 days" };
+function Loading() {
   return (
-    <div className="inline-flex rounded-lg border border-border bg-surface p-0.5 shadow-[var(--shadow-card)]">
-      {RANGES.map((r) => (
-        <button
-          key={r}
-          onClick={() => onChange(r)}
-          className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-            value === r
-              ? "bg-primary/10 text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {labels[r]}
-        </button>
-      ))}
+    <div className="flex h-full items-center justify-center">
+      <p className="text-sm text-muted-foreground">Loading…</p>
     </div>
   );
 }
 
-function Ring({ value, color }: { value: number; color: string }) {
+function Empty({ label }: { label: string }) {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <p className="text-sm text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function TimeRing({ seconds, color }: { seconds: number; color: string }) {
+  // Normalise against a 120s ceiling purely for the ring fill proportion.
+  const pct = Math.min(100, Math.round((seconds / 120) * 100));
   const r = 26;
   const c = 2 * Math.PI * r;
-  const offset = c - (value / 100) * c;
+  const offset = c - (pct / 100) * c;
   return (
     <div className="relative h-16 w-16 flex-shrink-0">
       <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90">
@@ -333,8 +329,8 @@ function Ring({ value, color }: { value: number; color: string }) {
           strokeDashoffset={offset}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-foreground">
-        {value}%
+      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
+        {seconds}s
       </span>
     </div>
   );
@@ -344,7 +340,7 @@ function QuestionRateTable({
   rows,
   tone,
 }: {
-  rows: { id: string; stem: string; bank: string; rate: number }[];
+  rows: BackendQuestionPerformance[];
   tone: "error" | "success";
 }) {
   return (
@@ -352,26 +348,25 @@ function QuestionRateTable({
       <table className="w-full min-w-[520px] text-left text-sm">
         <thead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
           <tr className="border-b border-border">
-            <th className="py-2 pr-3">Question</th>
-            <th className="px-3 py-2">Bank</th>
+            <th className="py-2 pr-3">Subject / Topic</th>
+            <th className="px-3 py-2">Attempts</th>
             <th className="py-2 pl-3 text-right">Correct rate</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {rows.map((q) => (
             <tr key={q.id} className="hover:bg-surface-alt/40">
-              <td
-                className="max-w-[360px] truncate py-2.5 pr-3 font-medium text-foreground"
-                title={q.stem}
-              >
-                {q.stem}
+              <td className="max-w-[360px] truncate py-2.5 pr-3 font-medium text-foreground">
+                {q.topic ? `${q.subject} · ${q.topic}` : q.subject}
               </td>
-              <td className="px-3 py-2.5 text-xs text-muted-foreground">{q.bank}</td>
+              <td className="px-3 py-2.5 text-xs text-muted-foreground tabular-nums">
+                {q.timesAnswered.toLocaleString()}
+              </td>
               <td className="py-2.5 pl-3 text-right">
                 <span
                   className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${tone === "error" ? "bg-error/10 text-error" : "bg-success/10 text-success"}`}
                 >
-                  {q.rate}%
+                  {Math.round(q.accuracy)}%
                 </span>
               </td>
             </tr>
