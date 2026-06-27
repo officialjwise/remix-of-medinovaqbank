@@ -506,7 +506,7 @@ export const quizApi = {
 
   async list(): Promise<SessionListItem[]> {
     const { data } = await apiClient.getPaginated<BackendSession>("/quiz-sessions", {
-      params: { limit: 100, sortBy: "createdAt", order: "DESC" },
+      params: { limit: 100, sortBy: "createdAt", sortOrder: "desc" },
     });
     return data.map(mapListItem);
   },
