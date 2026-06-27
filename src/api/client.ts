@@ -114,9 +114,37 @@ async function runRefresh(): Promise<boolean> {
   return refreshing;
 }
 
+/** Public routes that must never be force-redirected to /login on a 401. */
+const PUBLIC_PATHS = new Set([
+  "/",
+  "/about",
+  "/contact",
+  "/faq",
+  "/help",
+  "/pricing",
+  "/privacy",
+  "/terms",
+  "/refund",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+]);
+const PUBLIC_PREFIXES = ["/auth", "/payment"];
+
+function isPublicPath(pathname: string): boolean {
+  return (
+    PUBLIC_PATHS.has(pathname) ||
+    PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  );
+}
+
 function handleAuthFailure(): void {
   useAuthStore.getState().logout();
-  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+  // Only bounce to /login from a protected page. A 401 from a public page (e.g.
+  // an anonymous visitor on the marketing homepage) must NOT redirect — the page
+  // is meant to render for everyone.
+  if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
     window.location.href = "/login";
   }
 }
