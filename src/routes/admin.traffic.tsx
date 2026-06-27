@@ -26,9 +26,12 @@ import {
   useTrafficTimeline,
   useTrafficHeatmap,
   type TrafficRange,
+  trafficKeys,
   type TrafficGeoPoint,
   type TrafficSplitRow,
 } from "@/api/admin-traffic.api";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRealtimeStream } from "@/lib/realtime";
 
 // Lazy-load the WebGL globe so cobe never blocks initial paint (client-only).
 const TrafficGlobe = lazy(() =>
@@ -258,6 +261,13 @@ function TrafficPage() {
   const timelineQ = useTrafficTimeline(window);
   const heatmapQ = useTrafficHeatmap(window);
   const liveQ = useTrafficLive();
+
+  // Live updates: the backend pushes on the admin:traffic channel the instant a
+  // user comes online, so the active-now count + feed refresh immediately.
+  const qc = useQueryClient();
+  useRealtimeStream("admin/traffic", {
+    update: () => void qc.invalidateQueries({ queryKey: trafficKeys.all }),
+  });
 
   // Track dark mode so the globe's palette matches the theme.
   useEffect(() => {

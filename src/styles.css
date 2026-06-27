@@ -192,6 +192,16 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Branding heading font (falls back to the body font when unset). */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading, var(--font-sans));
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);

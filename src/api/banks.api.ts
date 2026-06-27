@@ -227,6 +227,12 @@ export const banksApi = {
     return mapBank(data);
   },
 
+  /** Admin — single bank detail (admin scope: includes inactive/private banks). */
+  async getByIdAdmin(id: string): Promise<Bank> {
+    const data = await apiClient.get<BackendBank>(`/admin/question-banks/${id}`);
+    return mapBank(data);
+  },
+
   /** Admin — all banks (active + inactive), paginated. */
   async listAdmin(params: BankListParams = {}): Promise<BankListResult> {
     const { data, meta } = await apiClient.getPaginated<BackendBank>("/admin/question-banks", {
@@ -282,6 +288,15 @@ export function useBank(id: string) {
   return useQuery({
     queryKey: bankKeys.detail(id),
     queryFn: () => banksApi.getById(id),
+    enabled: !!id,
+  });
+}
+
+/** Admin single-bank detail (admin scope: includes inactive/private banks). */
+export function useAdminBank(id: string) {
+  return useQuery({
+    queryKey: [...bankKeys.detail(id), "admin"] as const,
+    queryFn: () => banksApi.getByIdAdmin(id),
     enabled: !!id,
   });
 }

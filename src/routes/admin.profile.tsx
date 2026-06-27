@@ -10,14 +10,13 @@ import {
   Save,
   Settings2,
   Shield,
-  ShieldCheck,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import { deviceLabel } from "@/lib/trial";
 import { AvatarUploader } from "@/components/shared/AvatarUploader";
-import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { TwoFactorCard } from "@/components/shared/TwoFactorCard";
 import { ApiError } from "@/api/client";
 import {
   useProfile,
@@ -84,7 +83,6 @@ function AdminProfilePage() {
     if (profile?.name) setName(profile.name);
   }, [profile?.name]);
 
-  const [twoFA, setTwoFA] = useState(true);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -376,27 +374,11 @@ function AdminProfilePage() {
                   </p>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-4">
-                <div className="min-w-0">
-                  <p className="inline-flex items-center gap-1.5 text-sm font-bold text-foreground">
-                    <ShieldCheck className="h-4 w-4 text-success" /> Two-factor authentication
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Required for all admin accounts.
-                  </p>
-                </div>
-                <ToggleSwitch
-                  checked={twoFA}
-                  ariaLabel="Two-factor authentication"
-                  onChange={(nextVal) => {
-                    setTwoFA(nextVal);
-                    toast.success(nextVal ? "Two-factor enabled" : "Two-factor disabled");
-                  }}
-                />
-              </div>
             </div>
           </Card>
+
+          {/* Two-factor authentication (real TOTP, with QR) */}
+          <TwoFactorCard />
         </div>
       </div>
     </div>

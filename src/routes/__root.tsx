@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { AccountStatusWatcher } from "@/components/shared/AccountStatusWatcher";
+import { BrandingProvider } from "@/components/shared/BrandingProvider";
 
 function NotFoundComponent() {
   return (
@@ -130,6 +131,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <BrandingProvider />
       <Outlet />
       <AccountStatusWatcher />
       <Toaster richColors closeButton position="top-right" />

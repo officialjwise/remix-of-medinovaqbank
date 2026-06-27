@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useExamTypes } from "@/api/exam-types.api";
 import { useCategories } from "@/api/categories.api";
 import {
-  useBank,
+  useAdminBank,
   useUpdateBank,
   useDeleteBank,
   toBackendDifficulty,
@@ -36,7 +36,7 @@ interface EditForm {
 function EditBankPage() {
   const { bankId } = useParams({ from: "/admin/banks/$bankId/edit" });
   const navigate = useNavigate();
-  const { data: bank, isLoading, isError } = useBank(bankId);
+  const { data: bank, isLoading, isError } = useAdminBank(bankId);
   const { data: examTypes = [] } = useExamTypes();
   const { data: categories = [] } = useCategories();
   const updateBank = useUpdateBank();

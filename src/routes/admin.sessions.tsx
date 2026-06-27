@@ -23,8 +23,11 @@ import {
   useActiveSessions,
   useSuspiciousSessions,
   useTerminateSession,
+  sessionKeys,
   type DeviceSession,
 } from "@/api/admin-sessions.api";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRealtimeStream } from "@/lib/realtime";
 
 /**
  * Local view-model types for the historical "All Sessions" and "Quiz Sessions"
@@ -390,6 +393,12 @@ function AdminSessionsPage() {
   const [tab, setTab] = useState<Tab>("Active Sessions");
   const [drawer, setDrawer] = useState<DrawerPayload | null>(null);
   const [forceLogout, setForceLogout] = useState<DeviceSession | null>(null);
+
+  // Live updates: refresh the moment a user logs in / a session changes.
+  const qc = useQueryClient();
+  useRealtimeStream("admin/sessions", {
+    update: () => void qc.invalidateQueries({ queryKey: sessionKeys.all }),
+  });
 
   // Real backend data for KPIs + active monitor.
   const activeQuery = useActiveSessions();
@@ -949,7 +958,9 @@ function DeviceDrawerBody({ s }: { s: DeviceSession }) {
 
       <SectionTitle>Session</SectionTitle>
       <DrawerRow label="User ID">
-        <span className="font-mono text-xs">{s.userId}</span>
+        <span className="font-mono text-xs" title="Last 4 of the account ID">
+          ••••{s.userId.replace(/-/g, "").slice(-4)}
+        </span>
       </DrawerRow>
       <DrawerRow label="Logged in">{formatDateTime(s.loginAt)}</DrawerRow>
       <DrawerRow label="Last activity">{timeAgo(s.lastActivityMinAgo)}</DrawerRow>

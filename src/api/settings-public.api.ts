@@ -48,6 +48,9 @@ export function usePublicSettings() {
   return useQuery({
     queryKey: publicSettingsKeys.all,
     queryFn: publicSettingsApi.get,
-    staleTime: 60_000,
+    // Short stale + poll so maintenance-mode (and branding) toggles take effect
+    // for everyone within ~20s instead of lingering on a stale 60s cache.
+    staleTime: 15_000,
+    refetchInterval: 20_000,
   });
 }

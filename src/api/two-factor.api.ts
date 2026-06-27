@@ -14,6 +14,8 @@ export interface TwoFactorEnrollment {
   secret: string;
   otpauthUri: string;
   qrCodeString: string;
+  /** PNG data URL of the otpauth QR — render directly in an <img>. */
+  qrCodeDataUrl: string;
   enabled: boolean;
 }
 
