@@ -44,8 +44,8 @@ import { useClickOutside } from "@/hooks/useClickOutside";
 import { NotificationsBell } from "@/components/layout/header/NotificationsBell";
 import { HeaderSearch, type SearchItem } from "@/components/layout/header/HeaderSearch";
 import { AvatarMenu } from "@/components/layout/header/AvatarMenu";
-import { questionBanks } from "@/data/banks";
-import { adminUsers } from "@/data/adminData";
+import { useAdminBanks } from "@/api/banks.api";
+import { useAdminUsers } from "@/api/admin-users.api";
 
 const sectionPlatform = [
   { to: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -337,15 +337,18 @@ function AdminHeader({
   const payment = useSettingsStore((s) => s.settings.payment.status);
   const systemHealthy = ai !== "error" && payment !== "error";
 
+  const { data: usersData } = useAdminUsers({ limit: 40 });
+  const { data: banksData } = useAdminBanks({ limit: 100 });
+
   const searchItems: SearchItem[] = [
-    ...adminUsers.slice(0, 40).map((u) => ({
+    ...(usersData?.users ?? []).map((u) => ({
       id: u.id,
       label: u.name,
       sublabel: u.email,
       group: "Users",
       onSelect: () => navigate({ to: "/admin/users/$userId", params: { userId: u.id } }),
     })),
-    ...questionBanks.map((b) => ({
+    ...(banksData?.banks ?? []).map((b) => ({
       id: b.id,
       label: b.name,
       sublabel: `${b.subject} · ${b.questionCount} questions`,

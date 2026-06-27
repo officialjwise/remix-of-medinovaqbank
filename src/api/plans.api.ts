@@ -80,6 +80,27 @@ export interface CatalogSelection {
   limit?: number; // -1 = unlimited
 }
 
+/**
+ * Rich, display-oriented plan shape the public pricing surfaces and the Paystack
+ * checkout modal consume (months, currency, perMonth, badge tone). Derived from
+ * a backend `Plan` via `toDurationPlan` (see routes/pricing.tsx). Lives here —
+ * NOT in a mock data module — so the payment shim and checkout modal can import
+ * a real type. The `id` is the backend plan key string in the live wiring.
+ */
+export interface DurationPlan {
+  id: string;
+  name: string;
+  durationLabel: string;
+  months: number;
+  price: number;
+  currency: "GHS";
+  perMonth: number;
+  badge?: { label: string; tone: "accent" | "amber" | "navy" };
+  features: string[];
+  savePct?: number;
+  cta: string;
+}
+
 export interface Plan {
   id: string;
   /** Backend plan enum key (monthly | three_months | … | free_trial). */

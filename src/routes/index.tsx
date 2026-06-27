@@ -21,7 +21,7 @@ import { RotatingHero } from "@/components/brand/RotatingHero";
 import { usePaidPlans, useTrialPlan } from "@/api/plans.api";
 import { useCmsStore } from "@/stores/cmsStore";
 import { useExamTypes } from "@/api/exam-types.api";
-import { questionBanks } from "@/data/banks";
+import { usePublicBanks } from "@/api/banks.api";
 
 const institutions = [
   "Korle Bu Teaching Hospital",
@@ -91,6 +91,8 @@ function LandingPage() {
   const { data: trial } = useTrialPlan();
   const { cms } = useCmsStore();
   const { data: activeExams = [] } = useExamTypes();
+  const { data: banksData } = usePublicBanks({ limit: 100 });
+  const banks = banksData?.banks ?? [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -472,7 +474,7 @@ function LandingPage() {
             Question banks
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            {questionBanks.length} specialties, thousands of vignettes
+            {banks.length > 0 ? `${banks.length} specialties, ` : ""}thousands of vignettes
           </h2>
           <p className="mt-3 text-sm text-muted-foreground">
             Board-style cases across every core rotation — each with clinical breakdowns and
@@ -481,7 +483,7 @@ function LandingPage() {
         </div>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {questionBanks.map((b) => (
+          {banks.map((b) => (
             <div
               key={b.id}
               className="group flex items-center gap-4 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]"
@@ -495,7 +497,7 @@ function LandingPage() {
               <div className="min-w-0">
                 <h3 className="truncate text-sm font-bold text-foreground">{b.subject}</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {b.questionCount.toLocaleString()} questions · {b.topics.length} topics
+                  {b.questionCount.toLocaleString()} questions
                 </p>
               </div>
               {b.isFree && (

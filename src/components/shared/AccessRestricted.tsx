@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ShieldAlert, Clock, LifeBuoy } from "lucide-react";
-import type { Restriction } from "@/stores/protectionStore";
+import type { MyRestrictionStatus } from "@/api/protection.api";
 
 function countdown(toISO: string) {
   const ms = Math.max(0, new Date(toISO).getTime() - Date.now());
@@ -12,12 +12,14 @@ function countdown(toISO: string) {
 }
 
 /** Shown on a protected surface when the backend reports the user is restricted. */
-export function AccessRestricted({ restriction }: { restriction: Restriction }) {
+export function AccessRestricted({ restriction }: { restriction: MyRestrictionStatus }) {
   const [, tick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => tick((n) => n + 1), 1000);
     return () => clearInterval(t);
   }, []);
+
+  const unlockAt = restriction.restrictedUntil;
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-6 text-center">
@@ -33,14 +35,13 @@ export function AccessRestricted({ restriction }: { restriction: Restriction }) 
       </p>
 
       <div className="mt-6 w-full space-y-3 rounded-2xl border border-border bg-surface p-5 text-left shadow-[var(--shadow-card)]">
-        <Row label="Reason" value={restriction.reason} />
-        <Row label="Restricted at" value={new Date(restriction.restrictedAt).toLocaleString()} />
+        <Row label="Reason" value={restriction.reason ?? "Repeated screen-capture attempts"} />
         <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
           <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
             <Clock className="h-3.5 w-3.5" /> Unlocks in
           </span>
           <span className="font-mono text-lg font-bold tabular-nums text-error">
-            {countdown(restriction.unlockAt)}
+            {unlockAt ? countdown(unlockAt) : "—"}
           </span>
         </div>
       </div>

@@ -28,7 +28,7 @@ import { HeaderSearch, type SearchItem } from "@/components/layout/header/Header
 import { AvatarMenu } from "@/components/layout/header/AvatarMenu";
 import { SubscriptionChip, TrialBanner } from "@/components/shared/SubscriptionStatus";
 import { UpgradeModal } from "@/components/shared/UpgradeModal";
-import { questionBanks } from "@/data/banks";
+import { usePublicBanks } from "@/api/banks.api";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
@@ -216,6 +216,7 @@ function Topbar({
 }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const { data: banksData } = usePublicBanks({ limit: 50 });
 
   function handleLogout() {
     logout();
@@ -224,7 +225,7 @@ function Topbar({
   }
 
   const searchItems: SearchItem[] = [
-    ...questionBanks.map((b) => ({
+    ...(banksData?.banks ?? []).map((b) => ({
       id: b.id,
       label: b.name,
       sublabel: `${b.subject} · ${b.questionCount} questions`,

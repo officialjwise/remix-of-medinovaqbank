@@ -12,7 +12,7 @@ import {
   Users,
   Timer,
 } from "lucide-react";
-import { questionBanks } from "@/data/banks";
+import { useBank } from "@/api/banks.api";
 import { useCreateSession } from "@/api/quiz.api";
 import { useAuthStore } from "@/stores/authStore";
 import { subjectTheme } from "@/data/subjectColors";
@@ -20,10 +20,9 @@ import { Logo } from "@/components/brand/Logo";
 import type { Difficulty, QuestionBank, QuizMode } from "@/types";
 
 /**
- * Minimal preview shape derived from the URL when the bank isn't in the (legacy)
- * preview catalogue — keeps the configure screen rendering for real bank UUIDs
- * until the banks domain is wired (see GAP note). The actual session is created
- * from the real `bankId`, not this preview.
+ * Minimal preview shape used while the real bank loads (or if it fails to
+ * resolve) — keeps the configure screen rendering so the session can still be
+ * created from the real `bankId`.
  */
 function fallbackBank(bankId: string): QuestionBank {
   return {
@@ -47,27 +46,20 @@ export const Route = createFileRoute("/quiz/configure/$bankId")({
     if (typeof window === "undefined") return;
     if (!useAuthStore.getState().isAuthenticated) throw redirect({ to: "/login" });
   },
-  loader: ({ params }) => {
-    // Bank metadata for the preview comes from the legacy catalogue for now; if
-    // the id isn't there (real backend UUID) we render a minimal fallback rather
-    // than redirecting, so the session can still be created.
-    const bank = questionBanks.find((b) => b.id === params.bankId) ?? fallbackBank(params.bankId);
-    return { bank };
-  },
-  head: ({ loaderData }) => ({
-    meta: [
-      { title: `Configure ${loaderData?.bank.name ?? "Quiz"} — Medinovaqbank` },
-      { name: "robots", content: "noindex" },
-    ],
+  head: () => ({
+    meta: [{ title: "Configure Quiz — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: ConfigurePage,
 });
 
 function ConfigurePage() {
-  const { bank } = Route.useLoaderData();
+  const { bankId } = Route.useParams();
   const navigate = useNavigate();
   const createSession = useCreateSession();
   const subscription = useAuthStore((s) => s.subscription);
+  // Real bank detail (public). Falls back to a minimal preview while loading.
+  const { data: fetchedBank } = useBank(bankId);
+  const bank = fetchedBank ?? fallbackBank(bankId);
   const theme = subjectTheme(bank.subject);
 
   const [mode, setMode] = useState<QuizMode>("TUTOR");

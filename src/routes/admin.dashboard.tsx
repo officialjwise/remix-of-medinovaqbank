@@ -28,7 +28,6 @@ import {
   UserCog,
   ClipboardList,
 } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 import {
   useAdminDashboard,
@@ -40,7 +39,7 @@ import {
   dayLabel,
   CHART_PALETTE,
 } from "@/api/admin-analytics.api";
-import { useProtectionStore } from "@/stores/protectionStore";
+import { useProtectionSummary } from "@/api/protection.api";
 import { useAuthStore } from "@/stores/authStore";
 import { AdminDashboardSkeleton } from "@/components/shared/DashboardSkeletons";
 
@@ -129,7 +128,7 @@ const tooltipStyle = {
 
 function AdminDashboard() {
   const user = useAuthStore((s) => s.user);
-  const protectionEvents = useProtectionStore(useShallow((s) => s.events));
+  const protectionSummaryQ = useProtectionSummary();
 
   const dashboardQ = useAdminDashboard();
   const statusQ = useStatusCountsAnalytics();
@@ -505,17 +504,17 @@ function AdminDashboard() {
               <MetricRow
                 icon={<Shield className="h-4 w-4 text-[var(--color-primary)]" />}
                 label="Total Events"
-                value={String(protectionEvents.length)}
+                value={String(protectionSummaryQ.data?.totalViolations ?? 0)}
               />
               <MetricRow
                 icon={<AlertTriangle className="h-4 w-4 text-amber-500" />}
-                label="Strike Threshold"
-                value="3"
+                label="Screenshot Attempts"
+                value={String(protectionSummaryQ.data?.screenshotAttempts ?? 0)}
               />
               <MetricRow
                 icon={<CheckCircle className="h-4 w-4 text-[var(--color-accent)]" />}
-                label="Locked Users"
-                value="0"
+                label="Active Restrictions"
+                value={String(protectionSummaryQ.data?.activeRestrictions ?? 0)}
               />
             </div>
             <Link

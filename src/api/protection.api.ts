@@ -474,3 +474,68 @@ export function useReviewFlag() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: protectionKeys.all }),
   });
 }
+
+/* ================================================================== */
+/* User-facing content-protection (report a violation, check status)   */
+/* ================================================================== */
+
+/**
+ * User-facing endpoints (CurrentUser scope, no admin role):
+ *   - POST /protection/event              (report a detected violation)
+ *   - GET  /users/me/restriction-status   (am I currently restricted?)
+ *
+ * The backend owns ALL strike/lockout logic (admin-configurable thresholds,
+ * window, lockout). The client only DETECTS browser events and reports them;
+ * it never computes restrictions locally.
+ */
+
+/** Report payload — mirrors ReportEventDto. ipAddress/userAgent are captured server-side. */
+export interface ReportEventInput {
+  eventType: BackendProtectionEventType;
+  context: BackendProtectionContext;
+  contextId?: string;
+  pageNumber?: number;
+  metadata?: Record<string, unknown>;
+}
+
+/** Authoritative restriction status from the server (RestrictionStatus interface). */
+export interface MyRestrictionStatus {
+  restricted: boolean;
+  restrictedUntil: string | null;
+  reason: string | null;
+  strikeCount: number;
+  strikeThreshold: number;
+}
+
+export const protectionUserApi = {
+  async reportEvent(input: ReportEventInput): Promise<{ id: string }> {
+    return apiClient.post<{ id: string }>("/protection/event", input);
+  },
+  async myRestrictionStatus(): Promise<MyRestrictionStatus> {
+    return apiClient.get<MyRestrictionStatus>("/users/me/restriction-status");
+  },
+};
+
+export const protectionUserKeys = {
+  restrictionStatus: ["protection", "me", "restriction-status"] as const,
+};
+
+/** Fire-and-(mostly)-forget violation reporting. The server applies strike policy. */
+export function useReportProtectionEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReportEventInput) => protectionUserApi.reportEvent(input),
+    // A report may have just tripped a restriction — refresh my status.
+    onSuccess: () => void qc.invalidateQueries({ queryKey: protectionUserKeys.restrictionStatus }),
+  });
+}
+
+/** My current restriction status (drives the AccessRestricted lockout screen). */
+export function useMyRestrictionStatus(enabled = true) {
+  return useQuery({
+    queryKey: protectionUserKeys.restrictionStatus,
+    queryFn: () => protectionUserApi.myRestrictionStatus(),
+    enabled,
+    staleTime: 15_000,
+  });
+}

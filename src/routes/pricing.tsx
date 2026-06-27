@@ -3,10 +3,9 @@ import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
-import { type DurationPlan } from "@/data/plans";
 import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
 import { useAuthStore } from "@/stores/authStore";
-import { usePaidPlans, useTrialPlan, type Plan } from "@/api/plans.api";
+import { usePaidPlans, useTrialPlan, type DurationPlan, type Plan } from "@/api/plans.api";
 import { useCmsStore } from "@/stores/cmsStore";
 
 /** Adapt a backend-driven Plan to the DurationPlan the Paystack modal needs. */

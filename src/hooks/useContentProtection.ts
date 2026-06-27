@@ -5,8 +5,13 @@ import {
   useProtectionStore,
   type ProtectionContext,
   type ProtectionEventType,
-  type Restriction,
 } from "@/stores/protectionStore";
+import {
+  useReportProtectionEvent,
+  useMyRestrictionStatus,
+  type BackendProtectionEventType,
+  type MyRestrictionStatus,
+} from "@/api/protection.api";
 
 interface Options {
   context: ProtectionContext;
@@ -15,11 +20,27 @@ interface Options {
 }
 
 /**
+ * Maps a client-detected event to the backend `ProtectionEventType` enum.
+ * The browser observes a smaller set than the backend models; unmapped nuances
+ * collapse to the closest backend type.
+ */
+const TO_BACKEND_EVENT: Record<ProtectionEventType, BackendProtectionEventType> = {
+  screenshot_key: "screenshot_attempt",
+  clipboard_copy: "copy_attempt",
+  print_attempt: "print_attempt",
+  devtools_open: "devtools_open",
+  tab_blur: "page_blur_during_protected",
+  context_menu: "right_click",
+};
+
+/**
  * Best-effort content protection (deterrence + detection, NOT guaranteed
  * prevention — you can't truly block OS screenshots from a browser). Disables
  * the easy copy paths, detects what the browser can observe, blurs on
- * focus-loss / PrintScreen, and reports every attempt to the backend (mock
- * store) which applies the admin-configured strike → lockout policy.
+ * focus-loss / PrintScreen, and reports every attempt to the REAL backend
+ * (`POST /protection/event`), which applies the admin-configured strike →
+ * lockout policy. The active restriction is read authoritatively from the
+ * server (`GET /users/me/restriction-status`).
  *
  * Returns a `ref` to attach to the protected element, a `blurred` flag, and the
  * active `restriction` (if the user is/has become restricted).
@@ -28,30 +49,32 @@ export function useContentProtection({ context, contextId, page }: Options) {
   const ref = useRef<HTMLDivElement>(null);
   const user = useAuthStore((s) => s.user);
   const enabled = useProtectionStore((s) => s.settings.enabled);
-  const reportEvent = useProtectionStore((s) => s.reportEvent);
-  const getActiveRestriction = useProtectionStore((s) => s.getActiveRestriction);
+
+  const report = useReportProtectionEvent();
+  const { data: status } = useMyRestrictionStatus(!!user);
+
+  const restriction: MyRestrictionStatus | null = status?.restricted ? status : null;
 
   const [blurred, setBlurred] = useState(false);
-  const [restriction, setRestriction] = useState<Restriction | null>(null);
 
   const lastByType = useRef<Record<string, number>>({});
   const lastToast = useRef(0);
   const devtoolsReported = useRef(false);
 
-  // Reflect any existing restriction immediately on mount.
-  useEffect(() => {
-    if (user) setRestriction(getActiveRestriction(user.id));
-  }, [user, getActiveRestriction]);
-
-  const report = useCallback(
+  const reportMutate = report.mutate;
+  const fire = useCallback(
     (type: ProtectionEventType) => {
       if (!user) return;
       const now = Date.now();
       if (now - (lastByType.current[type] ?? 0) < 2500) return; // throttle identical events
       lastByType.current[type] = now;
 
-      const r = reportEvent({ type, context, contextId, page, user });
-      if (r) setRestriction(r);
+      reportMutate({
+        eventType: TO_BACKEND_EVENT[type],
+        context,
+        contextId,
+        pageNumber: page,
+      });
 
       if (now - lastToast.current > 4000) {
         lastToast.current = now;
@@ -60,7 +83,7 @@ export function useContentProtection({ context, contextId, page }: Options) {
         });
       }
     },
-    [user, reportEvent, context, contextId, page],
+    [user, reportMutate, context, contextId, page],
   );
 
   useEffect(() => {
@@ -69,11 +92,11 @@ export function useContentProtection({ context, contextId, page }: Options) {
 
     const onContext = (e: Event) => {
       e.preventDefault();
-      report("context_menu");
+      fire("context_menu");
     };
     const onCopy = (e: Event) => {
       e.preventDefault();
-      report("clipboard_copy");
+      fire("clipboard_copy");
     };
 
     const blurBriefly = () => {
@@ -84,11 +107,11 @@ export function useContentProtection({ context, contextId, page }: Options) {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "PrintScreen") {
         blurBriefly();
-        report("screenshot_key");
+        fire("screenshot_key");
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
         e.preventDefault();
-        report("print_attempt");
+        fire("print_attempt");
       }
       // Block common save/devtools shortcuts on the surface.
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") e.preventDefault();
@@ -96,14 +119,14 @@ export function useContentProtection({ context, contextId, page }: Options) {
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === "PrintScreen") {
         blurBriefly();
-        report("screenshot_key");
+        fire("screenshot_key");
       }
     };
-    const onBeforePrint = () => report("print_attempt");
+    const onBeforePrint = () => fire("print_attempt");
     const onVisibility = () => {
       if (document.hidden) {
         setBlurred(true);
-        report("tab_blur");
+        fire("tab_blur");
       } else setBlurred(false);
     };
     const onWinBlur = () => setBlurred(true);
@@ -127,7 +150,7 @@ export function useContentProtection({ context, contextId, page }: Options) {
         window.outerHeight - window.innerHeight > gap;
       if (open && !devtoolsReported.current) {
         devtoolsReported.current = true;
-        report("devtools_open");
+        fire("devtools_open");
       }
       if (!open) devtoolsReported.current = false;
     }, 1500);
@@ -144,7 +167,7 @@ export function useContentProtection({ context, contextId, page }: Options) {
       window.removeEventListener("focus", onWinFocus);
       window.clearInterval(dt);
     };
-  }, [enabled, report]);
+  }, [enabled, fire]);
 
   return { ref, blurred, restriction };
 }

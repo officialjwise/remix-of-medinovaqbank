@@ -5,7 +5,7 @@ import { AuthSplit, AuthDivider, GoogleButton } from "@/components/auth/AuthSpli
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { authApi, establishSession } from "@/api/auth.api";
 import { ApiError } from "@/api/client";
-import { useGeneralSettings } from "@/stores/settingsStore";
+import { usePublicSettings } from "@/api/settings-public.api";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -39,7 +39,9 @@ const SPECIALTIES = [
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const { trialDays, trialQuestionLimit } = useGeneralSettings();
+  const { data: publicSettings } = usePublicSettings();
+  const trialDays = publicSettings?.trialDays ?? 7;
+  const trialQuestionLimit = publicSettings?.trialQuestionLimit ?? 10;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

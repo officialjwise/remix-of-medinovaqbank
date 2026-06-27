@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Download, FileSpreadsheet, FileUp, Library, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
-import { questionBanks } from "@/data/banks";
+import { useAdminBanks } from "@/api/banks.api";
 
 export const Route = createFileRoute("/admin/uploads")({
   head: () => ({
@@ -42,6 +42,8 @@ const downloadTemplate = (ext: "csv" | "xlsx") => {
 function AdminUploads() {
   const navigate = useNavigate();
   const [bankId, setBankId] = useState<string>("");
+  const { data: banksData } = useAdminBanks({ limit: 100 });
+  const banks = banksData?.banks ?? [];
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -76,7 +78,7 @@ function AdminUploads() {
               className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">Select a question bank…</option>
-              {questionBanks.map((b) => (
+              {banks.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name} · {b.questionCount.toLocaleString()} questions
                 </option>
@@ -137,7 +139,7 @@ function AdminUploads() {
           Upload into a specific bank
         </h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {questionBanks.map((b) => (
+          {banks.map((b) => (
             <button
               key={b.id}
               onClick={() =>

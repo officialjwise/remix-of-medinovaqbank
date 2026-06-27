@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { CreditCard, Loader2, Smartphone, Building2, Check, X } from "lucide-react";
 import { toast } from "sonner";
-import type { DurationPlan } from "@/data/plans";
+import type { DurationPlan } from "@/api/plans.api";
 import { initializePayment, verifyPayment, type VerifyResponse } from "@/lib/paystack";
 import { useAuthStore } from "@/stores/authStore";
 

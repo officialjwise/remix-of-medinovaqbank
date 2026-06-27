@@ -15,17 +15,8 @@ import {
   Search,
   ShieldAlert,
   Smartphone,
-  Unlock,
   X,
 } from "lucide-react";
-import {
-  adminQuizSessions,
-  adminUsers,
-  loginSessions,
-  type AdminQuizSession,
-  type LoginSession,
-} from "@/data/adminData";
-import { questionBanks } from "@/data/banks";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
@@ -34,6 +25,54 @@ import {
   useTerminateSession,
   type DeviceSession,
 } from "@/api/admin-sessions.api";
+
+/**
+ * Local view-model types for the historical "All Sessions" and "Quiz Sessions"
+ * tabs. The backend currently exposes only the live device-session monitor
+ * (active + suspicious); there is NO historical login-session or quiz-session
+ * list endpoint, so those tabs render an empty state (GAP). These types are
+ * kept so the detail drawer continues to compile for all tab variants.
+ */
+export interface LoginSession {
+  id: string;
+  publicId: string;
+  userId: string;
+  userName: string;
+  email: string;
+  initials: string;
+  device: string;
+  browser: string;
+  os: string;
+  ip: string;
+  city: string;
+  country: string;
+  loginAt: string;
+  lastActivityMinAgo: number;
+  durationMin: number;
+  activity: "idle" | "in-quiz" | "browsing";
+  bankName?: string;
+  progress?: number;
+  status: "active" | "ended";
+  trial: boolean;
+  suspicious?: boolean;
+}
+
+export interface AdminQuizSession {
+  id: string;
+  publicId: string;
+  userId: string;
+  userName: string;
+  initials: string;
+  bankId: string;
+  bankName: string;
+  mode: "TUTOR" | "QUIZ";
+  scorePct: number;
+  questionsAnswered: number;
+  totalQuestions: number;
+  status: "completed" | "in-progress" | "abandoned";
+  durationMin: number;
+  date: string;
+}
 
 export const Route = createFileRoute("/admin/sessions")({
   head: () => ({
@@ -354,15 +393,9 @@ function AdminSessionsPage() {
   const suspiciousCount = suspiciousQuery.data?.total ?? suspiciousQuery.data?.sessions.length ?? 0;
 
   // GAP: backend has no "sessions today" / "quiz in progress" aggregates on the
-  // sessions module — these KPIs remain derived from mock data temporarily.
-  const sessionsToday = useMemo(() => {
-    const today = new Date().toDateString();
-    return loginSessions.filter((s) => new Date(s.loginAt).toDateString() === today).length;
-  }, []);
-  const quizInProgress = useMemo(
-    () => adminQuizSessions.filter((s) => s.status === "in-progress").length,
-    [],
-  );
+  // sessions module — shown as 0 until those endpoints exist (no mock).
+  const sessionsToday = 0;
+  const quizInProgress = 0;
 
   const handleTerminate = () => {
     if (!forceLogout) return;
@@ -682,154 +715,12 @@ function ActiveSessionsView({
 /* All Sessions                                                        */
 /* ------------------------------------------------------------------ */
 
-function AllSessionsView({ onView }: { onView: (s: LoginSession) => void }) {
-  const [searchRaw, setSearchRaw] = useState("");
-  const [device, setDevice] = useState("All");
-  const [country, setCountry] = useState("All");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
-  const search = useDebounce(searchRaw, 250);
-
-  const deviceOptions = useMemo(
-    () => ["All", ...Array.from(new Set(loginSessions.map((s) => s.device)))],
-    [],
-  );
-  const countryOptions = useMemo(
-    () => ["All", ...Array.from(new Set(loginSessions.map((s) => s.country)))],
-    [],
-  );
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return loginSessions.filter((s) => {
-      if (device !== "All" && s.device !== device) return false;
-      if (country !== "All" && s.country !== country) return false;
-      if (!q) return true;
-      return s.userName.toLowerCase().includes(q) || s.email.toLowerCase().includes(q);
-    });
-  }, [search, device, country]);
-
-  // reset page when filters change
-  const filterKey = `${search}|${device}|${country}|${perPage}`;
-  const lastKey = React.useRef(filterKey);
-  if (lastKey.current !== filterKey) {
-    lastKey.current = filterKey;
-    if (page !== 1) setPage(1);
-  }
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageRows = useMemo(() => {
-    const start = (page - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, page, perPage]);
-
+// GAP: no historical login-session list endpoint exists yet. Until one does,
+// this tab renders an empty state (live sessions are under "Active Sessions").
+function AllSessionsView(_props: { onView: (s: LoginSession) => void }) {
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchBox
-          value={searchRaw}
-          onChange={setSearchRaw}
-          placeholder="Search by name or email…"
-        />
-        <FilterSelect
-          value={device}
-          onChange={setDevice}
-          options={deviceOptions}
-          optionLabels={(v) => (v === "All" ? "All devices" : v)}
-        />
-        <FilterSelect
-          value={country}
-          onChange={setCountry}
-          options={countryOptions}
-          optionLabels={(v) => (v === "All" ? "All locations" : v)}
-        />
-        <span className="ml-auto text-xs text-muted-foreground">{filtered.length} sessions</span>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead className="border-b border-border bg-surface-alt/40">
-              <tr>
-                <th className={th}>User</th>
-                <th className={th}>Device</th>
-                <th className={th}>Location</th>
-                <th className={th}>Login time</th>
-                <th className={th}>Duration</th>
-                <th className={th}>Status</th>
-                <th className={`${th} text-right`}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.length === 0 ? (
-                <tr>
-                  <td colSpan={7}>
-                    <EmptyState message="No sessions match these filters." />
-                  </td>
-                </tr>
-              ) : (
-                pageRows.map((s) => (
-                  <tr
-                    key={s.id}
-                    className="border-b border-border last:border-0 transition-colors hover:bg-surface-alt/30"
-                  >
-                    <td className={td}>
-                      <div className="flex items-center gap-3">
-                        <Avatar initials={s.initials} />
-                        <div className="min-w-0">
-                          <div className="truncate font-semibold text-foreground">{s.userName}</div>
-                          <div className="truncate text-xs text-muted-foreground">{s.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className={td}>
-                      <div className="text-foreground">{s.browser}</div>
-                      <div className="text-xs text-muted-foreground">{s.os}</div>
-                    </td>
-                    <td className={td}>
-                      <div className="text-foreground">
-                        {s.city}, {s.country}
-                      </div>
-                      <div className="font-mono text-xs text-muted-foreground">{s.ip}</div>
-                    </td>
-                    <td className={`${td} text-muted-foreground`}>{formatDateTime(s.loginAt)}</td>
-                    <td className={`${td} tabular-nums text-foreground`}>
-                      {minutesToHm(s.durationMin)}
-                    </td>
-                    <td className={td}>
-                      {s.status === "active" ? (
-                        <Pill tone="success">Active</Pill>
-                      ) : (
-                        <Pill tone="muted">Ended</Pill>
-                      )}
-                    </td>
-                    <td className={`${td} text-right`}>
-                      <button
-                        type="button"
-                        onClick={() => onView(s)}
-                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          perPage={perPage}
-          onPage={setPage}
-          onPerPage={(n) => {
-            setPerPage(n);
-            setPage(1);
-          }}
-        />
-      </div>
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <EmptyState message="Historical session history isn't available yet. Use the Active Sessions tab for live device monitoring." />
     </div>
   );
 }
@@ -844,165 +735,11 @@ function scoreTone(pct: number): "success" | "warning" | "error" {
   return "error";
 }
 
-function QuizSessionsView({ onView }: { onView: (s: AdminQuizSession) => void }) {
-  const [searchRaw, setSearchRaw] = useState("");
-  const [bank, setBank] = useState("All");
-  const [mode, setMode] = useState("All");
-  const [status, setStatus] = useState("All");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
-  const search = useDebounce(searchRaw, 250);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return adminQuizSessions.filter((s) => {
-      if (bank !== "All" && s.bankId !== bank) return false;
-      if (mode !== "All" && s.mode !== mode) return false;
-      if (status !== "All" && s.status !== status) return false;
-      if (!q) return true;
-      return s.userName.toLowerCase().includes(q);
-    });
-  }, [search, bank, mode, status]);
-
-  const filterKey = `${search}|${bank}|${mode}|${status}|${perPage}`;
-  const lastKey = React.useRef(filterKey);
-  if (lastKey.current !== filterKey) {
-    lastKey.current = filterKey;
-    if (page !== 1) setPage(1);
-  }
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageRows = useMemo(() => {
-    const start = (page - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, page, perPage]);
-
+// GAP: no admin quiz-session list endpoint exists yet — renders an empty state.
+function QuizSessionsView(_props: { onView: (s: AdminQuizSession) => void }) {
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchBox value={searchRaw} onChange={setSearchRaw} placeholder="Search by user…" />
-        <FilterSelect
-          value={bank}
-          onChange={setBank}
-          options={["All", ...questionBanks.map((b) => b.id)]}
-          optionLabels={(v) =>
-            v === "All" ? "All banks" : (questionBanks.find((b) => b.id === v)?.name ?? v)
-          }
-        />
-        <FilterSelect
-          value={mode}
-          onChange={setMode}
-          options={["All", "TUTOR", "QUIZ"]}
-          optionLabels={(v) => (v === "All" ? "All modes" : v)}
-        />
-        <FilterSelect
-          value={status}
-          onChange={setStatus}
-          options={["All", "completed", "in-progress", "abandoned"]}
-          optionLabels={(v) => (v === "All" ? "All statuses" : v)}
-        />
-        <span className="ml-auto text-xs text-muted-foreground">{filtered.length} sessions</span>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] text-sm">
-            <thead className="border-b border-border bg-surface-alt/40">
-              <tr>
-                <th className={th}>User</th>
-                <th className={th}>Bank</th>
-                <th className={th}>Mode</th>
-                <th className={th}>Score</th>
-                <th className={th}>Questions</th>
-                <th className={th}>Status</th>
-                <th className={th}>Duration</th>
-                <th className={th}>Date</th>
-                <th className={`${th} text-right`}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.length === 0 ? (
-                <tr>
-                  <td colSpan={9}>
-                    <EmptyState message="No quiz sessions match these filters." />
-                  </td>
-                </tr>
-              ) : (
-                pageRows.map((s) => (
-                  <tr
-                    key={s.id}
-                    className="border-b border-border last:border-0 transition-colors hover:bg-surface-alt/30"
-                  >
-                    <td className={td}>
-                      <div className="flex items-center gap-3">
-                        <Avatar initials={s.initials} />
-                        <span className="truncate font-semibold text-foreground">{s.userName}</span>
-                      </div>
-                    </td>
-                    <td className={`${td} text-foreground`}>{s.bankName}</td>
-                    <td className={td}>
-                      {s.mode === "TUTOR" ? (
-                        <Pill tone="primary">TUTOR</Pill>
-                      ) : (
-                        <Pill tone="warning">QUIZ</Pill>
-                      )}
-                    </td>
-                    <td className={td}>
-                      {s.status === "completed" ? (
-                        <span
-                          className={`font-mono text-sm font-bold tabular-nums ${scoreTone(s.scorePct) === "success" ? "text-success" : scoreTone(s.scorePct) === "warning" ? "text-warning" : "text-error"}`}
-                        >
-                          {s.scorePct}%
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className={`${td} tabular-nums text-foreground`}>
-                      {s.questionsAnswered}/{s.totalQuestions}
-                    </td>
-                    <td className={td}>
-                      {s.status === "completed" ? (
-                        <Pill tone="success">Completed</Pill>
-                      ) : s.status === "in-progress" ? (
-                        <Pill tone="warning">In progress</Pill>
-                      ) : (
-                        <Pill tone="muted">Abandoned</Pill>
-                      )}
-                    </td>
-                    <td className={`${td} tabular-nums text-foreground`}>
-                      {minutesToHm(s.durationMin)}
-                    </td>
-                    <td className={`${td} text-muted-foreground`}>
-                      {new Date(s.date).toLocaleDateString()}
-                    </td>
-                    <td className={`${td} text-right`}>
-                      <button
-                        type="button"
-                        onClick={() => onView(s)}
-                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          perPage={perPage}
-          onPage={setPage}
-          onPerPage={(n) => {
-            setPerPage(n);
-            setPage(1);
-          }}
-        />
-      </div>
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <EmptyState message="Per-user quiz session history isn't available yet." />
     </div>
   );
 }
@@ -1012,12 +749,9 @@ function QuizSessionsView({ onView }: { onView: (s: AdminQuizSession) => void })
 /* ------------------------------------------------------------------ */
 
 function DeviceTrialControls({ suspiciousCount }: { suspiciousCount: number }) {
-  const trialUsers = useMemo(() => adminUsers.filter((u) => u.status === "trial").slice(0, 5), []);
-  const [clearTarget, setClearTarget] = useState<(typeof trialUsers)[number] | null>(null);
-
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      {/* Trial device locks */}
+      {/* Trial device locks — GAP: no trial-device-lock listing endpoint yet. */}
       <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)] lg:col-span-2">
         <div className="flex items-center gap-2">
           <Smartphone className="h-4 w-4 text-primary" />
@@ -1027,33 +761,9 @@ function DeviceTrialControls({ suspiciousCount }: { suspiciousCount: number }) {
           Trial accounts are bound to a single device. Clearing a lock lets the user re-bind on next
           login.
         </p>
-        <div className="mt-4 space-y-2">
-          {trialUsers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No trial users to display.</p>
-          ) : (
-            trialUsers.map((u) => (
-              <div
-                key={u.id}
-                className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-alt/40 px-3 py-2"
-              >
-                <Avatar initials={u.initials} />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-foreground">{u.name}</div>
-                  <div className="text-xs text-muted-foreground">{u.device}</div>
-                  <Fingerprintish value={u.deviceFingerprint} />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setClearTarget(u)}
-                  className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
-                >
-                  <Unlock className="h-3.5 w-3.5" />
-                  Clear device lock
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Trial device locks are managed per user from the user detail screen.
+        </p>
       </div>
 
       {/* Suspicious callout */}
@@ -1069,26 +779,6 @@ function DeviceTrialControls({ suspiciousCount }: { suspiciousCount: number }) {
             : `${suspiciousCount} session${suspiciousCount === 1 ? "" : "s"} flagged for multiple devices or unusual locations. Review under Active Sessions.`}
         </p>
       </div>
-
-      <ConfirmDialog
-        open={!!clearTarget}
-        title="Clear device lock?"
-        description={
-          clearTarget ? (
-            <>
-              Remove the device binding for{" "}
-              <strong className="text-foreground">{clearTarget.name}</strong>. They will be able to
-              bind a new device on their next login.
-            </>
-          ) : undefined
-        }
-        confirmLabel="Clear lock"
-        onCancel={() => setClearTarget(null)}
-        onConfirm={() => {
-          setClearTarget(null);
-          toast.success("Device lock cleared — user can re-bind on next login");
-        }}
-      />
     </div>
   );
 }

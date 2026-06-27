@@ -55,7 +55,7 @@ import {
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
 import { renderBrandedEmail, fillVars } from "@/lib/emailRender";
-import { DEFAULT_EMAIL_TEMPLATES } from "@/data/emailTemplates";
+import { DEFAULT_EMAIL_TEMPLATES } from "@/lib/emailTemplateDefaults";
 import { ApiError } from "@/api/client";
 import {
   useSettingsMap,

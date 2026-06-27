@@ -11,7 +11,7 @@
  * in-page "checkout modal" simulation is no longer the source of truth; prefer
  * the redirect flow wired in routes/_app.subscription.tsx + payment.callback.tsx.
  */
-import type { DurationPlan } from "@/data/plans";
+import type { DurationPlan } from "@/api/plans.api";
 import { paymentsApi, type BackendSubscriptionPlan } from "@/api/payments.api";
 
 export interface InitializeResponse {

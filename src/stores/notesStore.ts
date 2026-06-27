@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { highYieldNotes } from "@/data/notes";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -42,41 +41,6 @@ export const TIER_LABELS: Record<NoteTier, string> = {
   paid_only: "Paid Only",
   hidden: "Hidden",
 };
-
-/* ------------------------------------------------------------------ */
-/* Seed from the existing high-yield notes                             */
-/* ------------------------------------------------------------------ */
-
-const SEED: AdminNote[] = highYieldNotes.map((n, i) => {
-  const pageCount = 8 + (i % 4) * 2; // 8..14
-  const mid = Math.ceil(pageCount / 2);
-  const tier: NoteTier = i % 5 === 4 ? "paid_only" : i === 5 ? "hidden" : "trial_paid";
-  return {
-    id: `note-${i + 1}`,
-    title: n.title,
-    description: n.summary,
-    category: n.subject,
-    examType: "USMLE Step 1",
-    coverColor: n.subjectColor.match(/#([0-9A-Fa-f]{6})/)?.[0] ?? "#0E7C7B",
-    tier,
-    status: i === 2 ? "processing" : i === 4 ? "failed" : "ready",
-    pageCount,
-    topics: [
-      { id: `t-${i}-1`, name: "Core concepts", pageStart: 1, pageEnd: mid, hiddenForTrial: false },
-      {
-        id: `t-${i}-2`,
-        name: "Advanced & pearls",
-        pageStart: mid + 1,
-        pageEnd: pageCount,
-        hiddenForTrial: tier === "trial_paid" && i % 3 === 0,
-      },
-    ],
-    active: i !== 5,
-    createdAt: n.updatedAt,
-    subscribers: 200 + i * 137,
-    source: [...n.bullets, ...n.pearls],
-  };
-});
 
 /* ------------------------------------------------------------------ */
 /* Page content (simulated — real app serves watermarked page images)  */
@@ -143,7 +107,10 @@ interface NotesState {
 export const useNotesStore = create<NotesState>()(
   persist(
     (set, get) => ({
-      notes: SEED,
+      // GAP: admin high-yield notes management is a local-only screen; the real
+      // backend notes API (@/api/notes.api) serves the user-facing reader. No
+      // mock seed — starts empty until an admin adds notes.
+      notes: [],
       add: (note) => {
         const id = `note-${Date.now().toString(36)}`;
         set((s) => ({
@@ -191,6 +158,6 @@ export const useNotesStore = create<NotesState>()(
         set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, topics } : n)) })),
       getById: (id) => get().notes.find((n) => n.id === id),
     }),
-    { name: "medinova-notes", version: 1 },
+    { name: "medinova-notes-v2", version: 2 },
   ),
 );

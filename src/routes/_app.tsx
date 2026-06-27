@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuthStore } from "@/stores/authStore";
-import { useSettingsStore } from "@/stores/settingsStore";
+import { usePublicSettings, DEFAULT_DEVICE_BINDING } from "@/api/settings-public.api";
 import { authApi } from "@/api/auth.api";
 
 import { SplashScreen } from "@/components/layout/SplashScreen";
@@ -35,8 +35,10 @@ function AppLayout() {
   const { user, subscription, setUser } = useAuthStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const setSubscription = useAuthStore((s) => s.setSubscription);
-  const deviceBinding = useSettingsStore((s) => s.settings.trial.deviceBinding);
-  const maintenanceMode = useSettingsStore((s) => s.settings.general.maintenanceMode);
+  const { data: publicSettings } = usePublicSettings();
+  // Device binding is an admin-only policy not surfaced publicly — default ON.
+  const deviceBinding = DEFAULT_DEVICE_BINDING;
+  const maintenanceMode = publicSettings?.maintenanceMode ?? false;
   const navigate = Route.useNavigate();
   const fingerprint = useDeviceFingerprint();
 

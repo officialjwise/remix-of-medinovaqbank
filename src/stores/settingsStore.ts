@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { DEFAULT_EMAIL_TEMPLATES } from "@/data/emailTemplates";
+import { DEFAULT_EMAIL_TEMPLATES } from "@/lib/emailTemplateDefaults";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
