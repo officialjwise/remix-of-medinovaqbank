@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import {
@@ -7,9 +8,11 @@ import {
   useUnreadCount,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  notificationKeys,
   type NotifAudience,
   type NotifType,
 } from "@/api/notifications.api";
+import { useRealtimeStream } from "@/lib/realtime";
 
 const toneDot: Record<NotifType, string> = {
   signup: "bg-success",
@@ -47,7 +50,14 @@ export function NotificationsBell({
   const [open, setOpen] = useState(false);
   const ref = useClickOutside<HTMLDivElement>(() => setOpen(false));
   const navigate = useNavigate();
-  // Badge count polls on a short interval (realtime push lands later).
+  const qc = useQueryClient();
+  // Live bell: refresh count + list the instant a notification arrives over SSE;
+  // useUnreadCount's polling interval remains as a fallback if SSE is unavailable.
+  useRealtimeStream("notifications", {
+    notification: () => {
+      void qc.invalidateQueries({ queryKey: notificationKeys.all });
+    },
+  });
   const { data: unreadCount } = useUnreadCount();
   // Only fetch the recent list while the dropdown is open.
   const { data } = useNotifications({ limit: 6 }, { enabled: open });
