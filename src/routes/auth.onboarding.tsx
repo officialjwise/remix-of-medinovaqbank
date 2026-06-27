@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 import { ArrowRight, CheckCircle2, GraduationCap, Stethoscope, Target } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/brand/Logo";
@@ -8,15 +7,19 @@ import { authApi, establishSession } from "@/api/auth.api";
 import { ApiError } from "@/api/client";
 import { useAuthStore } from "@/stores/authStore";
 
-// New Google users are redirected here by the backend with a resumable
-// onboarding token; local sign-ups may also resume an in-progress session.
-const searchSchema = z.object({
-  onboardingToken: z.string().optional(),
-  provider: z.string().optional(),
-});
+/**
+ * New Google users are redirected here by the backend with a resumable
+ * onboarding token in the URL FRAGMENT (#onboardingToken=…) — kept out of the
+ * query string/logs/Referer. Read it once on the client, then scrub the hash.
+ */
+function readOnboardingToken(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (
+    new URLSearchParams(window.location.hash.replace(/^#/, "")).get("onboardingToken") ?? undefined
+  );
+}
 
 export const Route = createFileRoute("/auth/onboarding")({
-  validateSearch: searchSchema,
   head: () => ({
     meta: [{ title: "Welcome — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
@@ -47,11 +50,18 @@ const goals = [
 
 function Onboarding() {
   const navigate = useNavigate();
-  const { onboardingToken } = Route.useSearch();
+  const [onboardingToken] = useState(readOnboardingToken);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [step, setStep] = useState(0);
   const [data, setData] = useState({ specialty: "", institution: "", goal: "", country: "Ghana" });
   const [saving, setSaving] = useState(false);
+
+  // Scrub the onboarding token from the URL once read.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   // No onboarding session and not signed in → nothing to set up; start at register.
   useEffect(() => {

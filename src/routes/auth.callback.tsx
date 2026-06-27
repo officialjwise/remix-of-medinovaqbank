@@ -2,23 +2,34 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { z } from "zod";
 import { AuthSplit } from "@/components/auth/AuthSplit";
 import { authApi, establishSession } from "@/api/auth.api";
 import { ApiError } from "@/api/client";
 
-// The backend Google callback redirects here with a token pair for existing
-// users (new users are sent to /auth/onboarding instead). When the account has
-// 2FA enabled, it carries ?twoFactorToken=<challengeToken> instead of tokens.
-const searchSchema = z.object({
-  accessToken: z.string().optional(),
-  refreshToken: z.string().optional(),
-  twoFactorToken: z.string().optional(),
-  error: z.string().optional(),
-});
+/**
+ * The backend Google callback redirects here with the credentials in the URL
+ * FRAGMENT (#accessToken=…&refreshToken=… for existing users, or
+ * #twoFactorToken=… when 2FA is enabled). Fragments never reach the server or
+ * the Referer header; we read them once on the client and immediately wipe the
+ * hash from the address bar/history.
+ */
+function readAuthHash(): {
+  accessToken?: string;
+  refreshToken?: string;
+  twoFactorToken?: string;
+  error?: string;
+} {
+  if (typeof window === "undefined") return {};
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return {
+    accessToken: params.get("accessToken") ?? undefined,
+    refreshToken: params.get("refreshToken") ?? undefined,
+    twoFactorToken: params.get("twoFactorToken") ?? undefined,
+    error: params.get("error") ?? undefined,
+  };
+}
 
 export const Route = createFileRoute("/auth/callback")({
-  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "Verifying your account… — Medinovaqbank" },
@@ -29,8 +40,16 @@ export const Route = createFileRoute("/auth/callback")({
 });
 
 function AuthCallbackPage() {
-  const { accessToken, refreshToken, twoFactorToken, error } = Route.useSearch();
+  // Read the fragment once, then scrub it from the URL so the token never
+  // lingers in the address bar or browser history.
+  const [{ accessToken, refreshToken, twoFactorToken, error }] = useState(readAuthHash);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     // 2FA flows are handled interactively below — skip the auto token exchange.
