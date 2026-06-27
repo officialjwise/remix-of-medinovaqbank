@@ -1,5 +1,5 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -14,17 +14,17 @@ import {
 import {
   BookOpenCheck,
   Check,
-  ChevronDown,
   Clock,
   LayoutDashboard,
+  Loader2,
   Share2,
   SkipForward,
   TrendingUp,
   X,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
-import { useSessionStore } from "@/stores/sessionStore";
-import { computeResults, formatDuration, scoreColor } from "@/lib/quiz-results";
+import { useSessionResults } from "@/api/quiz.api";
+import { formatDuration, scoreColor } from "@/lib/quiz-results";
 
 export const Route = createFileRoute("/quiz/$sessionId/results")({
   beforeLoad: () => {
@@ -42,28 +42,25 @@ type Tab = "subject" | "difficulty" | "timeline";
 function ResultsPage() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
-  const session = useSessionStore((s) => s.sessions[sessionId]);
-  const questions = useSessionStore((s) => s.questions);
-  const ensureHistoricalSession = useSessionStore((s) => s.ensureHistoricalSession);
+  const { data: results, isLoading, isError } = useSessionResults(sessionId);
   const [tab, setTab] = useState<Tab>("subject");
-  const [openId, setOpenId] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
 
-  // Reconstruct a past session (from history) so results work after the fact.
-  useEffect(() => {
-    if (!session) ensureHistoricalSession(sessionId);
-  }, [session, sessionId, ensureHistoricalSession]);
+  if (isLoading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" /> Loading results…
+        </div>
+      </div>
+    );
+  }
 
-  const results = useMemo(
-    () => (session ? computeResults(session, questions) : null),
-    [session, questions],
-  );
-
-  if (!session || !results) {
+  if (isError || !results) {
     return (
       <div className="grid min-h-screen place-items-center bg-background p-6 text-center">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Session not found</h1>
+          <h1 className="text-xl font-bold text-foreground">Results unavailable</h1>
           <Link
             to="/banks"
             className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground"
@@ -81,7 +78,6 @@ function ResultsPage() {
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
-        {/* Hero */}
         <section className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary via-primary-light to-accent p-8 text-white shadow-[var(--shadow-card)] sm:p-10">
           <div
             aria-hidden
@@ -95,10 +91,10 @@ function ResultsPage() {
             <ScoreRing pct={results.scorePct} />
             <div className="flex-1 text-center sm:text-left">
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/80">
-                Session complete · {session.mode}
+                Session complete · {results.mode}
               </p>
               <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
-                {session.bankName}
+                {results.total} question session
               </h1>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <Chip icon={<Check className="h-3.5 w-3.5" />}>{results.correct} Correct</Chip>
@@ -111,7 +107,6 @@ function ResultsPage() {
                 </Chip>
               </div>
 
-              {/* Percentile line */}
               <div className="mt-5 max-w-md">
                 <div className="flex items-center justify-between text-xs font-semibold text-white/85">
                   <span className="inline-flex items-center gap-1.5">
@@ -149,7 +144,7 @@ function ResultsPage() {
                   type="button"
                   onClick={() => {
                     navigator.clipboard?.writeText(
-                      `I scored ${results.scorePct}% on ${session.bankName} — Medinovaqbank`,
+                      `I scored ${results.scorePct}% on a ${results.total}-question session — Medinovaqbank`,
                     );
                     setShared(true);
                     setTimeout(() => setShared(false), 2000);
@@ -164,7 +159,6 @@ function ResultsPage() {
           </div>
         </section>
 
-        {/* Quick stat cards */}
         <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Score" value={`${results.scorePct}%`} tone={sc.text} />
           <StatCard
@@ -184,7 +178,6 @@ function ResultsPage() {
           />
         </section>
 
-        {/* Performance breakdown */}
         <section className="mt-6 rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-bold tracking-tight text-foreground">
@@ -219,7 +212,7 @@ function ResultsPage() {
               <div className="h-72 w-full">
                 <ResponsiveContainer>
                   <BarChart
-                    data={results.bySubject}
+                    data={results.bySubject.map((b) => ({ name: b.name, pct: b.pct }))}
                     layout="vertical"
                     margin={{ left: 20, right: 20 }}
                   >
@@ -282,7 +275,7 @@ function ResultsPage() {
               <div className="h-72 w-full">
                 <ResponsiveContainer>
                   <LineChart
-                    data={results.timeline}
+                    data={results.timeline.map((t, i) => ({ q: i + 1, seconds: t.seconds }))}
                     margin={{ left: 0, right: 20, top: 10, bottom: 0 }}
                   >
                     <CartesianGrid stroke="var(--color-border)" />
@@ -325,66 +318,34 @@ function ResultsPage() {
           </div>
         </section>
 
-        {/* Answer summary */}
+        {/* Per-question outcome strip (no question text — full detail lives in Review) */}
         <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
-          <header className="border-b border-border px-5 py-4">
+          <header className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="text-lg font-bold tracking-tight text-foreground">Answer Summary</h2>
+            <Link
+              to="/quiz/$sessionId/review"
+              params={{ sessionId }}
+              className="text-sm font-semibold text-primary hover:underline"
+            >
+              Open full review →
+            </Link>
           </header>
-          <div>
-            {session.questionIds.map((qid, i) => {
-              const q = questions[qid];
-              if (!q) return null;
-              const ans = session.answers[qid];
-              const isCorrect = ans === q.correctKey;
-              const open = openId === qid;
-              const time = results.timeline[i]?.seconds ?? 0;
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-2 p-5">
+            {results.timeline.map((t, i) => {
+              const tone = t.skipped
+                ? "border-warning/40 bg-warning/15 text-warning"
+                : t.correct
+                  ? "border-success/40 bg-success/15 text-success"
+                  : "border-error/40 bg-error/15 text-error";
+              const label = t.skipped ? "Skipped" : t.correct ? "Correct" : "Wrong";
               return (
-                <div key={qid} className="border-b border-border last:border-b-0">
-                  <button
-                    type="button"
-                    onClick={() => setOpenId(open ? null : qid)}
-                    className="grid w-full grid-cols-[40px_1fr_56px_92px_56px] items-center gap-3 px-5 py-3 text-left text-sm transition-colors hover:bg-surface-alt"
-                  >
-                    <span className="font-bold text-muted-foreground">Q{i + 1}</span>
-                    <span className="line-clamp-1 text-foreground">{q.stem}</span>
-                    <span className="font-mono text-xs text-muted-foreground">{ans ?? "—"}</span>
-                    <span>
-                      {ans ? (
-                        isCorrect ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">
-                            <Check className="h-3 w-3" /> Correct
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-error/15 px-2 py-0.5 text-xs font-semibold text-error">
-                            <X className="h-3 w-3" /> Wrong
-                          </span>
-                        )
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning">
-                          Skipped
-                        </span>
-                      )}
-                    </span>
-                    <span className="flex items-center justify-end gap-1 font-mono text-xs text-muted-foreground">
-                      {time}s
-                      <ChevronDown
-                        className={`h-3.5 w-3.5 transition ${open ? "rotate-180" : ""}`}
-                      />
-                    </span>
-                  </button>
-                  {open && (
-                    <div className="border-t border-border bg-surface-alt/40 px-5 py-4 animate-in fade-in slide-in-from-top-1">
-                      <p className="text-sm text-foreground">{q.stem}</p>
-                      <p className="mt-3 text-xs font-bold uppercase tracking-wide text-success">
-                        Correct: {q.correctKey}.{" "}
-                        {q.options.find((o) => o.key === q.correctKey)?.text}
-                      </p>
-                      <p className="mt-2 text-sm text-muted-foreground">{q.whyCorrect}</p>
-                      <p className="mt-3 rounded-lg bg-gradient-to-br from-primary/10 to-accent/15 p-3 text-sm">
-                        <span className="font-bold text-primary">Key learning:</span> {q.keyPoint}
-                      </p>
-                    </div>
-                  )}
+                <div
+                  key={t.questionId}
+                  title={`Q${i + 1} · ${label} · ${t.seconds}s`}
+                  className={`flex flex-col items-center justify-center rounded-lg border px-1 py-2 text-xs font-bold tabular-nums ${tone}`}
+                >
+                  Q{i + 1}
+                  <span className="mt-0.5 text-[10px] font-medium opacity-80">{t.seconds}s</span>
                 </div>
               );
             })}
@@ -406,7 +367,6 @@ function ScoreRing({ pct }: { pct: number }) {
   const c = 2 * Math.PI * r;
   const [shown, setShown] = useState(0);
 
-  // Animate the ring + number on mount.
   useEffect(() => {
     const start = performance.now();
     const duration = 1000;

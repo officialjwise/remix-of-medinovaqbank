@@ -1,13 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { questionBanks } from "@/data/banks";
-import { getQuestionsForBank } from "@/data/questions";
 import {
   QuestionForm,
   type QuestionFormValues,
   type OptKey,
 } from "@/components/admin/QuestionForm";
+import {
+  questionsApi,
+  useAdminQuestions,
+  useQuestionBanksLite,
+  useUpdateQuestion,
+  type AdminQuestion,
+} from "@/api/questions.api";
 
 export const Route = createFileRoute("/admin/banks/$bankId/questions/$questionId")({
   head: () => ({
@@ -19,24 +24,36 @@ export const Route = createFileRoute("/admin/banks/$bankId/questions/$questionId
   component: EditQuestionPage,
 });
 
+function toFormValues(q: AdminQuestion): QuestionFormValues {
+  return {
+    bankId: q.bankId,
+    stem: q.stem,
+    imageUrl: q.imageUrl,
+    difficulty: q.difficulty,
+    topic: q.topic,
+    tags: q.tags,
+    options: q.options.map((o) => ({
+      key: o.key as OptKey,
+      text: o.text,
+      imageUrl: o.imageUrl,
+    })),
+    correctKey: q.correctKey as OptKey,
+    baseExplanation: q.baseExplanation,
+  };
+}
+
 function EditQuestionPage() {
   const { bankId, questionId } = Route.useParams();
   const navigate = useNavigate();
-  const bank = questionBanks.find((b) => b.id === bankId);
-  const seed = getQuestionsForBank(bankId, 12);
-  const q = seed.find((x) => x.id === questionId) ?? seed[0];
+  const { data: banks } = useQuestionBanksLite();
+  const bank = banks?.find((b) => b.id === bankId);
+  const update = useUpdateQuestion();
 
-  const initial: QuestionFormValues = {
-    bankId,
-    stem: q.stem,
-    imageUrl: "",
-    difficulty: q.difficulty,
-    topic: q.topic,
-    tags: q.related ?? [],
-    options: q.options.map((o) => ({ key: o.key as OptKey, text: o.text })),
-    correctKey: q.correctKey as OptKey,
-    baseExplanation: q.whyCorrect ?? "",
-  };
+  // No single-question admin endpoint exists; pull the bank's questions and find by id.
+  const { data, isLoading } = useAdminQuestions({ bankId, limit: 200 });
+  const q = data?.data.find((x) => x.id === questionId);
+
+  const back = () => navigate({ to: "/admin/banks/$bankId/questions", params: { bankId } });
 
   return (
     <div className="space-y-6">
@@ -52,16 +69,38 @@ function EditQuestionPage() {
         <p className="mt-0.5 text-sm text-muted-foreground">{bank?.name ?? "Question bank"}</p>
       </div>
 
-      <QuestionForm
-        mode="edit"
-        lockBank
-        initial={initial}
-        onCancel={() => navigate({ to: "/admin/banks/$bankId/questions", params: { bankId } })}
-        onSubmit={() => {
-          toast.success("Question updated");
-          navigate({ to: "/admin/banks/$bankId/questions", params: { bankId } });
-        }}
-      />
+      {isLoading ? (
+        <div className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
+          Loading question…
+        </div>
+      ) : !q ? (
+        <div className="rounded-xl border border-border bg-surface p-8 text-center">
+          <p className="text-sm text-muted-foreground">Question not found.</p>
+        </div>
+      ) : (
+        <QuestionForm
+          mode="edit"
+          lockBank
+          banks={banks ?? []}
+          uploadImage={questionsApi.uploadImage}
+          submitting={update.isPending}
+          initial={toFormValues(q)}
+          onCancel={back}
+          onSubmit={(v) => {
+            update.mutate(
+              { id: q.id, input: v },
+              {
+                onSuccess: () => {
+                  toast.success("Question updated");
+                  back();
+                },
+                onError: (err) =>
+                  toast.error(err instanceof Error ? err.message : "Could not update question"),
+              },
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

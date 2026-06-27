@@ -1,0 +1,456 @@
+/**
+ * QUESTIONS domain — self-contained API module (admin question management +
+ * user flagging). Backend wire types + boundary mapper + endpoint functions +
+ * TanStack Query hooks, all kept HERE (not in the shared @/api/types|mappers)
+ * to avoid cross-domain collisions.
+ *
+ * Endpoints (all under /api/v1):
+ *   GET    /admin/questions                       — paginated admin list (all fields)
+ *   POST   /admin/questions                       — create
+ *   PATCH  /admin/questions/:id                   — update / toggle active
+ *   DELETE /admin/questions/:id                   — delete
+ *   POST   /admin/questions/upload-image          — multipart image upload -> { url }
+ *   POST   /admin/question-banks/:bankId/upload   — bulk CSV/XLSX upload -> BulkUploadResult
+ *   GET    /admin/uploads/template                — XLSX template download (binary)
+ *   GET    /admin/question-banks                  — bank list (for selects/headers)
+ *   POST   /questions/flags                        — user flags a question
+ *
+ * Option model bridge:
+ *   Backend stores options as rows { id, label (A–E), text, isCorrect, imageUrl }.
+ *   The FE form/preview uses a key-based model { key: A–E, text, imageUrl } +
+ *   a single `correctKey`. We assign stable A–E letters by the row's `label`
+ *   (sorted) for display, and on write map FE options -> rows with `isCorrect`
+ *   derived from `correctKey`.
+ */
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient, BASE_URL, ApiError } from "@/api/client";
+import { useAuthStore } from "@/stores/authStore";
+import type { Difficulty } from "@/types";
+
+// ── Backend enums / wire shapes ──
+export type BackendDifficulty = "easy" | "medium" | "hard";
+export type FlagType = "bookmark" | "flag";
+
+export interface BackendQuestionOption {
+  id: string;
+  label: string; // 'A'..'E'
+  text: string;
+  imageUrl: string | null;
+  isCorrect?: boolean; // present in admin views
+}
+
+export interface BackendQuestion {
+  id: string;
+  bankId: string;
+  text: string;
+  imageUrl: string | null;
+  difficulty: BackendDifficulty;
+  subject: string;
+  topic: string | null;
+  tags: string[];
+  orderIndex: number | null;
+  isFlagged: boolean;
+  isActive: boolean;
+  timesAnswered: number;
+  timesCorrect: number;
+  options: BackendQuestionOption[];
+  explanation?: string | null;
+  createdAt: string;
+}
+
+/** Minimal bank shape used by selects/headers (subset of BankResponseDto). */
+export interface BackendBankLite {
+  id: string;
+  name: string;
+  examType: string | null;
+  difficulty: BackendDifficulty;
+  isActive: boolean;
+  totalQuestions: number;
+}
+
+// ── Difficulty mapping (backend easy/medium/hard <-> FE Beginner/Intermediate/Advanced). ──
+const DIFFICULTY_TO_FE: Record<BackendDifficulty, Difficulty> = {
+  easy: "Beginner",
+  medium: "Intermediate",
+  hard: "Advanced",
+};
+const DIFFICULTY_TO_BE: Record<Difficulty, BackendDifficulty> = {
+  Beginner: "easy",
+  Intermediate: "medium",
+  Advanced: "hard",
+};
+export function toFeDifficulty(d: BackendDifficulty): Difficulty {
+  return DIFFICULTY_TO_FE[d] ?? "Intermediate";
+}
+export function toBeDifficulty(d: Difficulty): BackendDifficulty {
+  return DIFFICULTY_TO_BE[d] ?? "medium";
+}
+
+// ── Frontend domain shape (what the management UI consumes). ──
+export interface AdminQuestionOption {
+  /** Stable display letter A–E (from the backend row `label`). */
+  key: string;
+  text: string;
+  imageUrl?: string;
+}
+
+export interface AdminQuestion {
+  id: string;
+  bankId: string;
+  stem: string;
+  imageUrl: string;
+  difficulty: Difficulty;
+  topic: string;
+  /** Backend `subject` — kept so create/update can round-trip it. */
+  subject: string;
+  tags: string[];
+  orderIndex: number | null;
+  isActive: boolean;
+  isFlagged: boolean;
+  timesAnswered: number;
+  timesCorrect: number;
+  /** Derived: % of attempts answered correctly (0 when never answered). */
+  correctRate: number;
+  hasImage: boolean;
+  options: AdminQuestionOption[];
+  correctKey: string;
+  baseExplanation: string;
+  createdAt: string;
+}
+
+// ── Boundary mapper ──
+export function mapQuestion(q: BackendQuestion): AdminQuestion {
+  const sorted = [...(q.options ?? [])].sort((a, b) => a.label.localeCompare(b.label));
+  const options: AdminQuestionOption[] = sorted.map((o) => ({
+    key: o.label,
+    text: o.text,
+    imageUrl: o.imageUrl ?? undefined,
+  }));
+  const correctKey = sorted.find((o) => o.isCorrect)?.label ?? sorted[0]?.label ?? "A";
+  const correctRate =
+    q.timesAnswered > 0 ? Math.round((q.timesCorrect / q.timesAnswered) * 100) : 0;
+  const hasImage = !!q.imageUrl || sorted.some((o) => !!o.imageUrl);
+
+  return {
+    id: q.id,
+    bankId: q.bankId,
+    stem: q.text,
+    imageUrl: q.imageUrl ?? "",
+    difficulty: toFeDifficulty(q.difficulty),
+    topic: q.topic ?? "",
+    subject: q.subject,
+    tags: q.tags ?? [],
+    orderIndex: q.orderIndex,
+    isActive: q.isActive,
+    isFlagged: q.isFlagged,
+    timesAnswered: q.timesAnswered,
+    timesCorrect: q.timesCorrect,
+    correctRate,
+    hasImage,
+    options,
+    correctKey,
+    baseExplanation: q.explanation ?? "",
+    createdAt: q.createdAt,
+  };
+}
+
+export function mapBankLite(b: BackendBankLite): BankLite {
+  return { id: b.id, name: b.name, examType: b.examType, isActive: b.isActive };
+}
+export interface BankLite {
+  id: string;
+  name: string;
+  examType: string | null;
+  isActive: boolean;
+}
+
+// ── Write payloads (mirror Create/UpdateQuestionDto + QuestionOptionDto). ──
+export interface QuestionOptionInput {
+  label: string; // 'A'..'E'
+  text: string;
+  imageUrl?: string;
+  isCorrect: boolean;
+}
+
+export interface CreateQuestionBody {
+  bankId: string;
+  text: string;
+  imageUrl?: string;
+  explanation?: string;
+  difficulty?: BackendDifficulty;
+  subject: string;
+  topic?: string;
+  tags?: string[];
+  orderIndex?: number;
+  options: QuestionOptionInput[];
+}
+
+export interface UpdateQuestionBody {
+  text?: string;
+  imageUrl?: string;
+  explanation?: string;
+  difficulty?: BackendDifficulty;
+  subject?: string;
+  topic?: string;
+  tags?: string[];
+  orderIndex?: number;
+  isActive?: boolean;
+  options?: QuestionOptionInput[];
+}
+
+/** The minimal slice of the FE form values needed to build a write payload. */
+export interface QuestionWriteInput {
+  bankId: string;
+  stem: string;
+  imageUrl?: string;
+  difficulty: Difficulty;
+  topic?: string;
+  /** Backend requires a subject; fall back to topic, then a default. */
+  subject?: string;
+  tags?: string[];
+  baseExplanation?: string;
+  options: { key: string; text: string; imageUrl?: string }[];
+  correctKey: string;
+}
+
+/** Build the backend option rows (label + isCorrect) from the FE key model. */
+export function toOptionRows(
+  options: { key: string; text: string; imageUrl?: string }[],
+  correctKey: string,
+): QuestionOptionInput[] {
+  return options.map((o) => ({
+    label: o.key,
+    text: o.text.trim(),
+    imageUrl: o.imageUrl || undefined,
+    isCorrect: o.key === correctKey,
+  }));
+}
+
+function resolveSubject(v: QuestionWriteInput): string {
+  return (v.subject || v.topic || "General").trim();
+}
+
+export function toCreateBody(v: QuestionWriteInput): CreateQuestionBody {
+  return {
+    bankId: v.bankId,
+    text: v.stem.trim(),
+    imageUrl: v.imageUrl || undefined,
+    explanation: v.baseExplanation?.trim() || undefined,
+    difficulty: toBeDifficulty(v.difficulty),
+    subject: resolveSubject(v),
+    topic: v.topic?.trim() || undefined,
+    tags: v.tags?.length ? v.tags : undefined,
+    options: toOptionRows(v.options, v.correctKey),
+  };
+}
+
+export function toUpdateBody(v: QuestionWriteInput): UpdateQuestionBody {
+  return {
+    text: v.stem.trim(),
+    imageUrl: v.imageUrl || undefined,
+    explanation: v.baseExplanation?.trim() || undefined,
+    difficulty: toBeDifficulty(v.difficulty),
+    subject: resolveSubject(v),
+    topic: v.topic?.trim() || undefined,
+    tags: v.tags ?? [],
+    options: toOptionRows(v.options, v.correctKey),
+  };
+}
+
+// ── Bulk-upload result (mirrors BulkUploadResult). ──
+export interface BulkUploadError {
+  row: number;
+  reason: string;
+}
+export interface BulkUploadResult {
+  total: number;
+  created: number;
+  failed: number;
+  errors: BulkUploadError[];
+}
+
+// ── List query params. ──
+export interface AdminQuestionQuery {
+  page?: number;
+  limit?: number;
+  bankId?: string;
+  difficulty?: BackendDifficulty;
+  topic?: string;
+  isActive?: boolean;
+  isFlagged?: boolean;
+}
+
+// ── Endpoint functions ──
+export const questionsApi = {
+  /** Admin paginated list. */
+  async list(params: AdminQuestionQuery = {}) {
+    const query: Record<string, string | number | boolean | undefined> = {
+      page: params.page,
+      limit: params.limit,
+      bankId: params.bankId,
+      difficulty: params.difficulty,
+      topic: params.topic,
+      isActive: params.isActive,
+      isFlagged: params.isFlagged,
+    };
+    const res = await apiClient.getPaginated<BackendQuestion>("/admin/questions", {
+      params: query,
+    });
+    return { data: res.data.map(mapQuestion), meta: res.meta };
+  },
+
+  async create(body: CreateQuestionBody): Promise<AdminQuestion> {
+    const data = await apiClient.post<BackendQuestion>("/admin/questions", body);
+    return mapQuestion(data);
+  },
+
+  async update(id: string, body: UpdateQuestionBody): Promise<AdminQuestion> {
+    const data = await apiClient.patch<BackendQuestion>(`/admin/questions/${id}`, body);
+    return mapQuestion(data);
+  },
+
+  async remove(id: string): Promise<AdminQuestion> {
+    const data = await apiClient.delete<BackendQuestion>(`/admin/questions/${id}`);
+    return mapQuestion(data);
+  },
+
+  /** Upload a question/option image; returns the stored URL. */
+  async uploadImage(file: File): Promise<string> {
+    const form = new FormData();
+    form.append("file", file);
+    const data = await apiClient.post<{ url: string }>("/admin/questions/upload-image", form);
+    return data.url;
+  },
+
+  /** Bulk-create questions from a CSV/XLSX file under a bank. */
+  async bulkUpload(bankId: string, file: File): Promise<BulkUploadResult> {
+    const form = new FormData();
+    form.append("file", file);
+    return apiClient.post<BulkUploadResult>(`/admin/question-banks/${bankId}/upload`, form);
+  },
+
+  /** Bank list for selects/headers. */
+  async listBanks(): Promise<BankLite[]> {
+    const res = await apiClient.getPaginated<BackendBankLite>("/admin/question-banks");
+    return res.data.map(mapBankLite);
+  },
+
+  /** User flags (or bookmarks) a question. */
+  async flag(questionId: string, type: FlagType = "flag", note?: string): Promise<void> {
+    await apiClient.post("/questions/flags", { questionId, type, note });
+  },
+};
+
+/**
+ * Download the XLSX bulk-upload template. The endpoint streams a binary file
+ * (no JSON envelope), so we hit it with a raw fetch carrying the auth token and
+ * trigger a browser download. SSR-safe: bails out if there's no DOM.
+ */
+export async function downloadQuestionTemplate(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const token = useAuthStore.getState().accessToken;
+  const res = await fetch(`${BASE_URL}/admin/uploads/template`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    throw new ApiError("Could not download template", res.status);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "question-upload-template.xlsx";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Query keys ──
+export const questionKeys = {
+  all: ["questions"] as const,
+  list: (params: AdminQuestionQuery) => [...questionKeys.all, "list", params] as const,
+  banks: ["question-banks-lite"] as const,
+};
+
+// ── Hooks ──
+
+/** Admin question list (paginated, filterable). */
+export function useAdminQuestions(params: AdminQuestionQuery = {}) {
+  return useQuery({
+    queryKey: questionKeys.list(params),
+    queryFn: () => questionsApi.list(params),
+    staleTime: 30_000,
+  });
+}
+
+/** Bank list (for form selects, headers, move targets). */
+export function useQuestionBanksLite() {
+  return useQuery({
+    queryKey: questionKeys.banks,
+    queryFn: questionsApi.listBanks,
+    staleTime: 60_000,
+  });
+}
+
+function useInvalidateQuestions() {
+  const qc = useQueryClient();
+  return () => void qc.invalidateQueries({ queryKey: questionKeys.all });
+}
+
+export function useCreateQuestion() {
+  const invalidate = useInvalidateQuestions();
+  return useMutation({
+    mutationFn: (input: QuestionWriteInput) => questionsApi.create(toCreateBody(input)),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateQuestion() {
+  const invalidate = useInvalidateQuestions();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: QuestionWriteInput }) =>
+      questionsApi.update(id, toUpdateBody(input)),
+    onSuccess: invalidate,
+  });
+}
+
+/** Toggle active via the update endpoint. */
+export function useToggleQuestionActive() {
+  const invalidate = useInvalidateQuestions();
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      questionsApi.update(id, { isActive }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteQuestion() {
+  const invalidate = useInvalidateQuestions();
+  return useMutation({
+    mutationFn: (id: string) => questionsApi.remove(id),
+    onSuccess: invalidate,
+  });
+}
+
+export function useBulkUploadQuestions() {
+  const invalidate = useInvalidateQuestions();
+  return useMutation({
+    mutationFn: ({ bankId, file }: { bankId: string; file: File }) =>
+      questionsApi.bulkUpload(bankId, file),
+    onSuccess: invalidate,
+  });
+}
+
+/** User-facing flag mutation. */
+export function useFlagQuestion() {
+  return useMutation({
+    mutationFn: ({
+      questionId,
+      type = "flag",
+      note,
+    }: {
+      questionId: string;
+      type?: FlagType;
+      note?: string;
+    }) => questionsApi.flag(questionId, type, note),
+  });
+}

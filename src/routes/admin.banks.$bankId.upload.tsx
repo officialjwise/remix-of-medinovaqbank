@@ -13,7 +13,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
-import { questionBanks } from "@/data/banks";
+import {
+  downloadQuestionTemplate,
+  useBulkUploadQuestions,
+  useQuestionBanksLite,
+} from "@/api/questions.api";
 
 export const Route = createFileRoute("/admin/banks/$bankId/upload")({
   head: () => ({
@@ -216,7 +220,9 @@ function parseCsvText(text: string): { rows: PreviewRow[]; fatal?: string } {
 
 function AdminBankUpload() {
   const { bankId } = Route.useParams();
-  const bank = questionBanks.find((b) => b.id === bankId);
+  const { data: banks } = useQuestionBanksLite();
+  const bank = banks?.find((b) => b.id === bankId);
+  const bulkUpload = useBulkUploadQuestions();
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [step, setStep] = useState<Step>("upload");
@@ -231,20 +237,6 @@ function AdminBankUpload() {
     return { valid, invalid, total: preview.length };
   }, [preview]);
 
-  if (!bank) {
-    return (
-      <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-card)]">
-        <p className="text-sm text-muted-foreground">Bank not found.</p>
-        <Link
-          to="/admin/banks"
-          className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline"
-        >
-          ← Back to banks
-        </Link>
-      </div>
-    );
-  }
-
   const onPick = (f: File) => {
     if (!/\.(csv|xlsx)$/i.test(f.name)) {
       toast.error("File must be .csv or .xlsx");
@@ -254,10 +246,12 @@ function AdminBankUpload() {
       toast.error("File exceeds the 10MB limit");
       return;
     }
+    // XLSX is parsed server-side; we only do a CSV pre-flight preview in-browser.
     if (/\.xlsx$/i.test(f.name)) {
-      toast.error(
-        "XLSX parsing isn't supported in-browser — export your sheet as CSV and upload that.",
-      );
+      setFile(f);
+      setResult(null);
+      setPreview([]);
+      setStep("preview");
       return;
     }
     const reader = new FileReader();
@@ -274,22 +268,29 @@ function AdminBankUpload() {
     reader.readAsText(f);
   };
 
+  /**
+   * Send the original file to the backend, which parses + validates + persists.
+   * We map the returned BulkUploadResult into the local UploadResult shape.
+   */
   const doImport = async () => {
+    if (!file) return;
     setStep("importing");
-    setProgress(0);
+    setProgress(40);
     setResult(null);
-    for (let i = 1; i <= 100; i += 5) {
-      await new Promise((r) => setTimeout(r, 40));
-      setProgress(i);
+    try {
+      const res = await bulkUpload.mutateAsync({ bankId, file });
+      setProgress(100);
+      setResult({
+        created: res.created,
+        failed: res.failed,
+        errors: res.errors.map((e) => ({ row: e.row, reason: e.reason })),
+      });
+      setStep("done");
+      toast.success(`Import complete: ${res.created} created, ${res.failed} failed`);
+    } catch (err) {
+      setStep("preview");
+      toast.error(err instanceof Error ? err.message : "Upload failed");
     }
-    const allErrors = preview.flatMap((r) => r.errors);
-    setResult({
-      created: previewStats.valid,
-      failed: previewStats.invalid,
-      errors: allErrors,
-    });
-    setStep("done");
-    toast.success(`Import complete: ${previewStats.valid} created, ${previewStats.invalid} failed`);
   };
 
   const reset = () => {
@@ -312,7 +313,7 @@ function AdminBankUpload() {
         Upload Question Bank
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Bank: <span className="font-bold text-primary">{bank.name}</span>
+        Bank: <span className="font-bold text-primary">{bank?.name ?? "Question bank"}</span>
       </p>
 
       {/* Step indicator */}
@@ -345,7 +346,11 @@ function AdminBankUpload() {
               <Download className="h-4 w-4 text-primary" /> Download Template CSV
             </button>
             <button
-              onClick={() => toast.info("XLSX template — same columns")}
+              onClick={() =>
+                void downloadQuestionTemplate().catch((err) =>
+                  toast.error(err instanceof Error ? err.message : "Could not download template"),
+                )
+              }
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt hover:border-border-strong transition-all"
             >
               <FileSpreadsheet className="h-4 w-4 text-accent" /> Download Template XLSX
@@ -422,120 +427,132 @@ function AdminBankUpload() {
           </div>
 
           {/* Validation summary */}
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-xs font-bold text-success border border-success/20">
-              <Check className="h-3.5 w-3.5" /> {previewStats.valid} valid
-            </span>
-            {previewStats.invalid > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-error/10 px-3 py-1.5 text-xs font-bold text-error border border-error/20">
-                <AlertCircle className="h-3.5 w-3.5" /> {previewStats.invalid} with errors
+          {preview.length > 0 ? (
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-xs font-bold text-success border border-success/20">
+                <Check className="h-3.5 w-3.5" /> {previewStats.valid} valid
               </span>
-            )}
-          </div>
-
-          {/* Preview table */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-surface-alt/30">
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-16">
-                      Row
-                    </th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-10">
-                      ✓
-                    </th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground min-w-[250px]">
-                      Question
-                    </th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      Correct
-                    </th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      Difficulty
-                    </th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      Topic
-                    </th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground min-w-[200px]">
-                      Issues
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.map((row) => {
-                    const hasErrors = row.errors.length > 0;
-                    const errorColumns = new Set(row.errors.map((e) => e.column));
-                    return (
-                      <tr
-                        key={row.rowNum}
-                        className={`border-b border-border last:border-b-0 transition-colors ${hasErrors ? "bg-error/5 hover:bg-error/10" : "hover:bg-surface-alt/30"}`}
-                      >
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                          {row.rowNum}
-                        </td>
-                        <td className="px-4 py-3">
-                          {hasErrors ? (
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-error/10">
-                              <AlertCircle className="h-3.5 w-3.5 text-error" />
-                            </span>
-                          ) : (
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-success/10">
-                              <Check className="h-3.5 w-3.5 text-success" />
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`block max-w-[320px] truncate text-sm ${errorColumns.has("question stem") ? "font-bold text-error" : "text-foreground"}`}
-                          >
-                            {row.data.question_text || (
-                              <span className="italic text-error">Empty</span>
-                            )}
-                          </span>
-                          {row.data.options_preview && (
-                            <span
-                              className={`mt-0.5 block max-w-[320px] truncate text-xs ${errorColumns.has("options (A-D)") ? "text-error" : "text-muted-foreground"}`}
-                              title={row.data.options_preview}
-                            >
-                              {row.data.options_preview}
-                            </span>
-                          )}
-                        </td>
-                        <td
-                          className={`px-4 py-3 font-mono font-bold ${errorColumns.has("right option") ? "text-error" : "text-foreground"}`}
-                        >
-                          {row.data.correct_option || "—"}
-                        </td>
-                        <td
-                          className={`px-4 py-3 text-sm ${errorColumns.has("difficulty") ? "font-bold text-error" : "text-foreground/80"}`}
-                        >
-                          {row.data.difficulty || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-foreground/80">
-                          {row.data.topic || "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {hasErrors ? (
-                            <div className="space-y-1">
-                              {row.errors.map((e, i) => (
-                                <p key={i} className="text-xs font-medium text-error">
-                                  <span className="font-bold text-error/70">{e.column}:</span>{" "}
-                                  {e.reason}
-                                </p>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-success/70">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {previewStats.invalid > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-error/10 px-3 py-1.5 text-xs font-bold text-error border border-error/20">
+                  <AlertCircle className="h-3.5 w-3.5" /> {previewStats.invalid} with errors
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">
+                Final validation runs on the server when you import.
+              </span>
             </div>
-          </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              In-browser preview is available for CSV only. This file will be parsed and validated
+              on the server when you import.
+            </p>
+          )}
+
+          {/* Preview table (CSV pre-flight only) */}
+          {preview.length > 0 && (
+            <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-surface-alt/30">
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-16">
+                        Row
+                      </th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground w-10">
+                        ✓
+                      </th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground min-w-[250px]">
+                        Question
+                      </th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Correct
+                      </th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Difficulty
+                      </th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Topic
+                      </th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground min-w-[200px]">
+                        Issues
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.map((row) => {
+                      const hasErrors = row.errors.length > 0;
+                      const errorColumns = new Set(row.errors.map((e) => e.column));
+                      return (
+                        <tr
+                          key={row.rowNum}
+                          className={`border-b border-border last:border-b-0 transition-colors ${hasErrors ? "bg-error/5 hover:bg-error/10" : "hover:bg-surface-alt/30"}`}
+                        >
+                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                            {row.rowNum}
+                          </td>
+                          <td className="px-4 py-3">
+                            {hasErrors ? (
+                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-error/10">
+                                <AlertCircle className="h-3.5 w-3.5 text-error" />
+                              </span>
+                            ) : (
+                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-success/10">
+                                <Check className="h-3.5 w-3.5 text-success" />
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`block max-w-[320px] truncate text-sm ${errorColumns.has("question stem") ? "font-bold text-error" : "text-foreground"}`}
+                            >
+                              {row.data.question_text || (
+                                <span className="italic text-error">Empty</span>
+                              )}
+                            </span>
+                            {row.data.options_preview && (
+                              <span
+                                className={`mt-0.5 block max-w-[320px] truncate text-xs ${errorColumns.has("options (A-D)") ? "text-error" : "text-muted-foreground"}`}
+                                title={row.data.options_preview}
+                              >
+                                {row.data.options_preview}
+                              </span>
+                            )}
+                          </td>
+                          <td
+                            className={`px-4 py-3 font-mono font-bold ${errorColumns.has("right option") ? "text-error" : "text-foreground"}`}
+                          >
+                            {row.data.correct_option || "—"}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-sm ${errorColumns.has("difficulty") ? "font-bold text-error" : "text-foreground/80"}`}
+                          >
+                            {row.data.difficulty || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-foreground/80">
+                            {row.data.topic || "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {hasErrors ? (
+                              <div className="space-y-1">
+                                {row.errors.map((e, i) => (
+                                  <p key={i} className="text-xs font-medium text-error">
+                                    <span className="font-bold text-error/70">{e.column}:</span>{" "}
+                                    {e.reason}
+                                  </p>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-success/70">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="flex items-center justify-between pt-2">
@@ -546,18 +563,19 @@ function AdminBankUpload() {
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
             <div className="flex items-center gap-3">
-              {previewStats.invalid > 0 && (
+              {preview.length > 0 && previewStats.invalid > 0 && (
                 <p className="text-xs font-medium text-warning">
-                  {previewStats.invalid} row{previewStats.invalid !== 1 ? "s" : ""} will be skipped
+                  {previewStats.invalid} row{previewStats.invalid !== 1 ? "s" : ""} may be skipped
                   due to errors
                 </p>
               )}
               <button
                 onClick={doImport}
-                disabled={previewStats.valid === 0}
+                disabled={bulkUpload.isPending || (preview.length > 0 && previewStats.valid === 0)}
                 className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-accent px-6 text-sm font-bold text-white shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <Check className="h-4 w-4" /> Import {previewStats.valid} Questions
+                <Check className="h-4 w-4" />{" "}
+                {preview.length > 0 ? `Import ${previewStats.valid} Questions` : "Import Questions"}
               </button>
             </div>
           </div>
@@ -605,20 +623,16 @@ function AdminBankUpload() {
             </header>
             {result.errors.length > 0 && (
               <div>
-                <div className="grid grid-cols-[60px_100px_1fr] gap-4 border-b border-border bg-surface-alt/30 px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <div className="grid grid-cols-[60px_1fr] gap-4 border-b border-border bg-surface-alt/30 px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                   <span>Row</span>
-                  <span>Column</span>
                   <span>Reason</span>
                 </div>
                 {result.errors.map((e, i) => (
                   <div
                     key={i}
-                    className="grid grid-cols-[60px_100px_1fr] gap-4 border-b border-border px-6 py-3 last:border-b-0 hover:bg-surface-alt/20 transition-colors"
+                    className="grid grid-cols-[60px_1fr] gap-4 border-b border-border px-6 py-3 last:border-b-0 hover:bg-surface-alt/20 transition-colors"
                   >
                     <span className="font-mono text-xs font-bold text-foreground">{e.row}</span>
-                    <span className="font-mono text-xs text-accent font-semibold">
-                      {e.column || "—"}
-                    </span>
                     <span className="text-sm text-error font-medium">{e.reason}</span>
                   </div>
                 ))}

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Bookmark,
@@ -12,126 +12,160 @@ import {
   GraduationCap,
   Keyboard,
   LayoutGrid,
+  Loader2,
   SkipForward,
   Timer,
   X,
   Zap,
 } from "lucide-react";
+import {
+  useCompleteSession,
+  useSessionState,
+  useSubmitAnswer,
+  type AnswerResult,
+  type QuizQuestion,
+} from "@/api/quiz.api";
 import { useSessionStore } from "@/stores/sessionStore";
-import { ClinicalBreakdown } from "@/components/quiz/ClinicalBreakdown";
-import { QuestionNavigator } from "@/components/quiz/QuestionNavigator";
+import { TutorBreakdown } from "@/components/quiz/TutorBreakdown";
 import { ProtectedSurface } from "@/components/shared/ProtectedSurface";
-import type { Question } from "@/types";
 
 export const Route = createFileRoute("/quiz/$sessionId/")({
   component: QuizPage,
 });
 
-const OPTION_KEYS = ["A", "B", "C", "D", "E"] as const;
-type OptionKey = (typeof OPTION_KEYS)[number];
-
 function QuizPage() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
-  const session = useSessionStore((s) => s.sessions[sessionId]);
-  const questionMap = useSessionStore((s) => s.questions);
-  const selectAnswer = useSessionStore((s) => s.selectAnswer);
-  const submitAnswer = useSessionStore((s) => s.submitAnswer);
+
+  const { data: state, isLoading, isError, error } = useSessionState(sessionId);
+  const submit = useSubmitAnswer(sessionId);
+  const complete = useCompleteSession(sessionId);
+
+  const ui = useSessionStore((s) => s.ui[sessionId]);
+  const selectOption = useSessionStore((s) => s.selectOption);
+  const markSubmitted = useSessionStore((s) => s.markSubmitted);
   const toggleBookmark = useSessionStore((s) => s.toggleBookmark);
-  const finishSession = useSessionStore((s) => s.finishSession);
+  const toggleFlag = useSessionStore((s) => s.toggleFlag);
 
   const [index, setIndex] = useState(0);
-  const [navOpen, setNavOpen] = useState(false); // mobile sheet
+  const [navOpen, setNavOpen] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [flagged, setFlagged] = useState<Record<string, boolean>>({});
-  const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
+  const [qStart, setQStart] = useState(() => Date.now());
+  // Per-question submit results held in-memory so tutor mode can render the
+  // correct option + fetch the breakdown. Keyed by questionId.
+  const [results, setResults] = useState<Record<string, AnswerResult>>({});
 
-  // Timer tick (counts up; converted to remaining if the session has a duration)
+  const questions = state?.questions ?? [];
+  const total = questions.length;
+
+  // Whole-session timer (counts up).
   useEffect(() => {
     const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const total = session?.questionIds.length ?? 0;
+  // Start the session at the first unanswered question.
+  useEffect(() => {
+    if (state) setIndex(Math.min(state.currentIndex, Math.max(0, total - 1)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.session.id]);
 
-  const go = useCallback(
-    (delta: number) => {
-      setFeedback(null);
-      setIndex((i) => Math.min(total - 1, Math.max(0, i + delta)));
-    },
-    [total],
+  // Reset the per-question stopwatch whenever the visible question changes.
+  useEffect(() => {
+    setQStart(Date.now());
+  }, [index]);
+
+  const question: QuizQuestion | undefined = questions[index];
+  const qid = question?.id;
+
+  const selectedOptionId = qid ? ui?.selected[qid] : undefined;
+  const result = qid ? results[qid] : undefined;
+  const isSubmitted = qid ? !!ui?.submitted[qid] : false;
+  const isLast = index === total - 1;
+  const isTutor = state?.session.mode === "TUTOR";
+
+  const answeredSet = useMemo(
+    () => new Set(state?.answeredQuestionIds ?? []),
+    [state?.answeredQuestionIds],
   );
 
+  const go = useCallback(
+    (delta: number) => setIndex((i) => Math.min(total - 1, Math.max(0, i + delta))),
+    [total],
+  );
   const jump = useCallback((i: number) => {
-    setFeedback(null);
     setIndex(i);
     setNavOpen(false);
   }, []);
 
-  const qid = session?.questionIds[index];
-  const question: Question | undefined = qid ? questionMap[qid] : undefined;
-  const selected = qid ? session?.answers[qid] : undefined;
-  const isSubmitted = qid ? !!session?.submitted[qid] : false;
-  const isLast = index === total - 1;
-
   const finish = useCallback(() => {
-    finishSession(sessionId);
-    navigate({ to: "/quiz/$sessionId/results", params: { sessionId } });
-  }, [finishSession, navigate, sessionId]);
+    complete.mutate(undefined, {
+      onSuccess: () => navigate({ to: "/quiz/$sessionId/results", params: { sessionId } }),
+      onError: () =>
+        // Even if completion races, surface the results screen (which fetches).
+        navigate({ to: "/quiz/$sessionId/results", params: { sessionId } }),
+    });
+  }, [complete, navigate, sessionId]);
 
-  const handleSubmit = useCallback(() => {
-    if (!qid || !question || !selected || isSubmitted) return;
-    submitAnswer(sessionId, qid);
-    setFeedback(selected === question.correctKey ? "correct" : "incorrect");
-  }, [qid, question, selected, isSubmitted, submitAnswer, sessionId]);
+  const doSubmit = useCallback(
+    (skip = false) => {
+      if (!qid || isSubmitted || submit.isPending) return;
+      const optionId = skip ? undefined : selectedOptionId;
+      if (!skip && !optionId) return;
+      const timeSpentSeconds = Math.max(0, Math.round((Date.now() - qStart) / 1000));
+      submit.mutate(
+        { questionId: qid, selectedOptionId: optionId, timeSpentSeconds },
+        {
+          onSuccess: (res) => {
+            markSubmitted(sessionId, qid, res.answerId);
+            setResults((prev) => ({ ...prev, [qid]: res }));
+          },
+        },
+      );
+    },
+    [qid, isSubmitted, submit, selectedOptionId, qStart, sessionId, markSubmitted],
+  );
 
-  const handleNextOrSubmit = useCallback(() => {
-    if (!session) return;
-    if (session.mode === "QUIZ") {
-      if (selected && !isSubmitted && qid) submitAnswer(sessionId, qid);
+  // Quiz mode: submitting records the answer but reveals nothing; advance.
+  const handlePrimary = useCallback(() => {
+    if (!state) return;
+    if (isTutor) {
+      if (!isSubmitted) return doSubmit(false);
       if (isLast) return finish();
-      go(1);
-    } else {
-      if (!isSubmitted) return handleSubmit();
-      if (isLast) return finish();
-      go(1);
+      return go(1);
     }
-  }, [
-    session,
-    selected,
-    isSubmitted,
-    qid,
-    submitAnswer,
-    sessionId,
-    isLast,
-    finish,
-    go,
-    handleSubmit,
-  ]);
+    // Quiz mode
+    if (!isSubmitted && selectedOptionId) {
+      doSubmit(false);
+      if (isLast) return; // wait for record; user taps finish
+      return go(1);
+    }
+    if (isLast) return finish();
+    go(1);
+  }, [state, isTutor, isSubmitted, isLast, selectedOptionId, doSubmit, finish, go]);
 
-  // Keyboard navigation — number/letter keys select, Enter submits, arrows move.
+  // Keyboard: 1–5 / A–E select, Enter submits/advances, arrows move, b bookmarks.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable))
         return;
-      if (!session || !qid || !question) return;
+      if (!question || !qid) return;
 
-      // Number 1-5 or letter A-E selects the matching option (if it exists).
-      let key: OptionKey | null = null;
-      if (/^[1-5]$/.test(e.key)) key = OPTION_KEYS[Number(e.key) - 1] ?? null;
-      else if (/^[a-eA-E]$/.test(e.key)) key = e.key.toUpperCase() as OptionKey;
-      if (key && question.options.some((o) => o.key === key)) {
+      let optIndex = -1;
+      if (/^[1-5]$/.test(e.key)) optIndex = Number(e.key) - 1;
+      else if (/^[a-eA-E]$/.test(e.key)) optIndex = e.key.toUpperCase().charCodeAt(0) - 65;
+      const opt = optIndex >= 0 ? question.options[optIndex] : undefined;
+      if (opt) {
         if (!isSubmitted) {
           e.preventDefault();
-          selectAnswer(sessionId, qid, key);
+          selectOption(sessionId, qid, opt.id);
         }
         return;
       }
-
       if (e.key === "Enter") {
         e.preventDefault();
-        handleNextOrSubmit();
+        handlePrimary();
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         go(1);
@@ -145,25 +179,25 @@ function QuizPage() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [
-    session,
-    qid,
-    question,
-    isSubmitted,
-    selectAnswer,
-    sessionId,
-    handleNextOrSubmit,
-    go,
-    toggleBookmark,
-  ]);
+  }, [question, qid, isSubmitted, selectOption, sessionId, handlePrimary, go, toggleBookmark]);
 
-  if (!session) {
+  if (isLoading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" /> Loading session…
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !state) {
     return (
       <div className="grid min-h-screen place-items-center bg-background p-6 text-center">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Session not found</h1>
+          <h1 className="text-xl font-bold text-foreground">Session unavailable</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            This session may have been cleared. Start a new one from your question banks.
+            {error instanceof Error ? error.message : "This session could not be loaded."}
           </p>
           <Link
             to="/banks"
@@ -176,16 +210,16 @@ function QuizPage() {
     );
   }
 
-  const showExplanation = session.mode === "TUTOR" && isSubmitted;
-  const answeredCount = session.questionIds.filter((id) => session.submitted[id]).length;
+  const showTutorReveal = isTutor && isSubmitted && !!result;
+  const answeredCount = state.answeredQuestionIds.length;
   const progressPct = total === 0 ? 0 : Math.round((answeredCount / total) * 100);
-  const remaining = session.durationSec ? Math.max(0, session.durationSec - elapsed) : null;
-  const isTutor = session.mode === "TUTOR";
+  const limitSec = state.session.timeLimitMinutes ? state.session.timeLimitMinutes * 60 : null;
+  const remaining = limitSec !== null ? Math.max(0, limitSec - elapsed) : null;
   const lowTime = remaining !== null && remaining <= 60;
+  const correctOptionId = result?.correctOptionId;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
         <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
           <Link
@@ -196,7 +230,7 @@ function QuizPage() {
           </Link>
           <div className="hidden min-w-0 flex-1 items-center justify-center sm:flex">
             <span className="truncate text-sm font-semibold text-foreground">
-              {session.bankName}
+              {state.session.totalQuestions} question session
             </span>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -210,7 +244,7 @@ function QuizPage() {
               ) : (
                 <Zap className="h-3.5 w-3.5" />
               )}
-              {session.mode}
+              {state.session.mode}
             </span>
             {remaining !== null && (
               <span
@@ -234,13 +268,13 @@ function QuizPage() {
             <button
               type="button"
               onClick={finish}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-primary to-accent px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+              disabled={complete.isPending}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-primary to-accent px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-60"
             >
               <Check className="h-3.5 w-3.5" /> Finish
             </button>
           </div>
         </div>
-        {/* Progress bar */}
         <div className="h-1 w-full bg-surface-alt">
           <div
             className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
@@ -250,12 +284,10 @@ function QuizPage() {
       </header>
 
       <div className="flex w-full gap-0 lg:gap-6 lg:px-6 lg:py-6">
-        {/* Main content */}
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:px-0 lg:py-0">
           <ProtectedSurface context="quiz_session" contextId={sessionId} page={index + 1}>
             {question ? (
               <>
-                {/* Counter + actions */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-3 py-1 text-xs font-semibold text-foreground">
@@ -273,57 +305,55 @@ function QuizPage() {
                       type="button"
                       onClick={() => qid && toggleBookmark(sessionId, qid)}
                       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                        qid && session.bookmarked[qid]
+                        qid && ui?.bookmarked[qid]
                           ? "border-accent/40 bg-accent/10 text-accent"
                           : "border-border bg-surface text-muted-foreground hover:bg-surface-alt"
                       }`}
-                      aria-pressed={!!(qid && session.bookmarked[qid])}
+                      aria-pressed={!!(qid && ui?.bookmarked[qid])}
                     >
-                      {qid && session.bookmarked[qid] ? (
+                      {qid && ui?.bookmarked[qid] ? (
                         <BookmarkCheck className="h-4 w-4" />
                       ) : (
                         <Bookmark className="h-4 w-4" />
                       )}
                       <span className="hidden sm:inline">
-                        {qid && session.bookmarked[qid] ? "Bookmarked" : "Bookmark"}
+                        {qid && ui?.bookmarked[qid] ? "Bookmarked" : "Bookmark"}
                       </span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => qid && setFlagged((f) => ({ ...f, [qid]: !f[qid] }))}
+                      onClick={() => qid && toggleFlag(sessionId, qid)}
                       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                        qid && flagged[qid]
+                        qid && ui?.flagged[qid]
                           ? "border-warning/40 bg-warning/10 text-warning"
                           : "border-border bg-surface text-muted-foreground hover:bg-surface-alt"
                       }`}
-                      aria-pressed={!!(qid && flagged[qid])}
+                      aria-pressed={!!(qid && ui?.flagged[qid])}
                     >
                       <Flag className="h-4 w-4" />
                       <span className="hidden sm:inline">
-                        {qid && flagged[qid] ? "Flagged" : "Flag"}
+                        {qid && ui?.flagged[qid] ? "Flagged" : "Flag"}
                       </span>
                     </button>
                   </div>
                 </div>
 
-                {/* Question card */}
                 <article
                   className={`relative mt-3 overflow-hidden rounded-2xl border bg-surface p-6 shadow-[var(--shadow-card)] transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${
-                    feedback === "correct"
-                      ? "border-success/50 ring-1 ring-success/30"
-                      : feedback === "incorrect"
-                        ? "border-error/50 ring-1 ring-error/30"
-                        : "border-border"
+                    showTutorReveal
+                      ? result?.isCorrect
+                        ? "border-success/50 ring-1 ring-success/30"
+                        : "border-error/50 ring-1 ring-error/30"
+                      : "border-border"
                   }`}
                 >
                   <div
                     aria-hidden
                     className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent"
                   />
-                  {/* Optional question image (guarded — may not exist yet) */}
-                  {(question as { imageUrl?: string }).imageUrl && (
+                  {question.imageUrl && (
                     <img
-                      src={(question as { imageUrl?: string }).imageUrl}
+                      src={question.imageUrl}
                       alt="Clinical image for this question"
                       className="relative mx-auto mb-4 max-h-72 rounded-xl border border-border object-contain"
                     />
@@ -333,21 +363,15 @@ function QuizPage() {
                   </p>
                 </article>
 
-                {/* Options */}
                 <div className="mt-5 space-y-3">
                   {question.options.map((opt, i) => {
-                    const chosen = selected === opt.key;
-                    const correctKey = question.correctKey;
-                    const optImage =
-                      (opt as { image?: string; imageUrl?: string }).image ??
-                      (opt as { imageUrl?: string }).imageUrl;
-
+                    const chosen = selectedOptionId === opt.id;
                     let cls =
                       "border-border bg-surface text-foreground hover:border-primary/50 hover:bg-primary/5";
                     let badge = "border-border bg-surface-alt text-foreground";
 
-                    if (showExplanation) {
-                      if (opt.key === correctKey) {
+                    if (showTutorReveal) {
+                      if (opt.id === correctOptionId) {
                         cls =
                           "border-success bg-success/10 text-foreground shadow-[0_0_0_1px_var(--color-success)]";
                         badge = "border-success bg-success text-white";
@@ -361,43 +385,43 @@ function QuizPage() {
                       cls =
                         "border-primary bg-primary/10 text-foreground shadow-[0_0_0_1px_var(--color-primary)]";
                       badge = "border-primary bg-primary text-primary-foreground";
-                    } else if (isSubmitted && !isTutor) {
+                    } else if (isSubmitted) {
                       cls = "border-border bg-surface-alt/40 text-muted-foreground opacity-70";
                     }
 
                     return (
                       <button
-                        key={opt.key}
+                        key={opt.id}
                         type="button"
                         disabled={isSubmitted}
-                        onClick={() => qid && selectAnswer(sessionId, qid, opt.key)}
+                        onClick={() => qid && selectOption(sessionId, qid, opt.id)}
                         className={`group relative flex w-full items-start gap-4 rounded-xl border p-4 text-left transition-all duration-200 animate-in fade-in slide-in-from-bottom-1 disabled:cursor-default ${cls}`}
                         style={{ animationDelay: `${i * 40}ms` }}
                       >
                         <span
                           className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border text-xs font-bold transition-all duration-200 ${badge}`}
                         >
-                          {showExplanation && opt.key === correctKey ? (
+                          {showTutorReveal && opt.id === correctOptionId ? (
                             <Check className="h-4 w-4" />
-                          ) : showExplanation && chosen ? (
+                          ) : showTutorReveal && chosen ? (
                             <X className="h-4 w-4" />
                           ) : (
-                            opt.key
+                            opt.label
                           )}
                         </span>
                         <span className="flex-1 pt-0.5">
                           <span className="block text-[15px] leading-relaxed">{opt.text}</span>
-                          {optImage && (
+                          {opt.imageUrl && (
                             <img
-                              src={optImage}
-                              alt={`Option ${opt.key}`}
+                              src={opt.imageUrl}
+                              alt={`Option ${opt.label}`}
                               className="mt-2 max-h-40 rounded-lg border border-border object-contain"
                             />
                           )}
                         </span>
                         {!isSubmitted && (
                           <span className="mt-1 hidden flex-shrink-0 rounded border border-border px-1.5 text-[10px] font-bold text-muted-foreground/70 sm:block">
-                            {opt.key}
+                            {opt.label}
                           </span>
                         )}
                       </button>
@@ -405,23 +429,27 @@ function QuizPage() {
                   })}
                 </div>
 
-                {/* Submit / Skip */}
                 {!isSubmitted && (
                   <div className="mt-5 flex flex-wrap items-center gap-3">
                     {isTutor ? (
                       <button
                         type="button"
-                        onClick={handleSubmit}
-                        disabled={!selected}
+                        onClick={() => doSubmit(false)}
+                        disabled={!selectedOptionId || submit.isPending}
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        <Check className="h-4 w-4" /> Submit Answer
+                        {submit.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Check className="h-4 w-4" />
+                        )}
+                        Submit Answer
                       </button>
                     ) : (
                       <button
                         type="button"
-                        onClick={handleNextOrSubmit}
-                        disabled={!selected}
+                        onClick={handlePrimary}
+                        disabled={!selectedOptionId || submit.isPending}
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {isLast ? "Finish Session" : "Next"} <ChevronRight className="h-4 w-4" />
@@ -429,11 +457,12 @@ function QuizPage() {
                     )}
                     <button
                       type="button"
-                      onClick={() => (isLast ? finish() : go(1))}
-                      className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                      onClick={() => doSubmit(true)}
+                      disabled={submit.isPending}
+                      className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                     >
                       <SkipForward className="h-4 w-4" />
-                      {isLast ? "Skip & finish" : "Skip question"}
+                      Skip question
                     </button>
                     <span className="ml-auto hidden items-center gap-1.5 text-[11px] text-muted-foreground/70 md:inline-flex">
                       <Keyboard className="h-3.5 w-3.5" /> 1-5 select · Enter submit · ← → move
@@ -441,10 +470,33 @@ function QuizPage() {
                   </div>
                 )}
 
-                {/* Tutor reveal: rich clinical breakdown */}
-                {showExplanation && (
+                {/* Quiz mode: answer recorded, no correctness shown */}
+                {!isTutor && isSubmitted && (
+                  <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-alt/40 px-4 py-3">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Answer recorded. Results are revealed when you finish.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => (isLast ? finish() : go(1))}
+                      className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+                    >
+                      {isLast ? "Finish Session" : "Next Question"}{" "}
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Tutor reveal: server clinical breakdown */}
+                {showTutorReveal && result && (
                   <>
-                    <ClinicalBreakdown question={question} selected={selected} />
+                    <TutorBreakdown
+                      answerId={result.answerId}
+                      isCorrect={result.isCorrect}
+                      selectedOptionId={result.selectedOptionId}
+                      options={question.options}
+                      correctOptionId={result.correctOptionId}
+                    />
                     <div className="mt-5 flex justify-end">
                       <button
                         type="button"
@@ -458,7 +510,6 @@ function QuizPage() {
                   </>
                 )}
 
-                {/* Bottom navigation */}
                 <div className="mt-8 flex items-center justify-between border-t border-border pt-5">
                   <button
                     type="button"
@@ -493,41 +544,41 @@ function QuizPage() {
           </ProtectedSurface>
         </main>
 
-        {/* Desktop navigator */}
         <aside className="sticky top-[4.5rem] hidden h-fit w-72 flex-shrink-0 lg:block">
           <div className="rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
-            <QuestionNavigator
-              session={session}
-              questions={questionMap}
+            <RuntimeNavigator
+              questions={questions}
+              answeredSet={answeredSet}
+              results={results}
+              isTutor={!!isTutor}
+              bookmarked={ui?.bookmarked ?? {}}
               currentIndex={index}
               onJump={jump}
             />
-            {remaining !== null ? (
-              <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-surface-alt px-3 py-2.5 text-sm">
-                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                  <Timer className="h-4 w-4" /> Remaining
-                </span>
-                <span
-                  className={`font-mono font-semibold tabular-nums ${lowTime ? "text-error" : "text-foreground"}`}
-                >
-                  {formatTime(remaining)}
-                </span>
-              </div>
-            ) : (
-              <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-surface-alt px-3 py-2.5 text-sm">
-                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                  <Clock className="h-4 w-4" /> Elapsed
-                </span>
-                <span className="font-mono font-semibold tabular-nums text-foreground">
-                  {formatTime(elapsed)}
-                </span>
-              </div>
-            )}
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-surface-alt px-3 py-2.5 text-sm">
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                {remaining !== null ? (
+                  <>
+                    <Timer className="h-4 w-4" /> Remaining
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-4 w-4" /> Elapsed
+                  </>
+                )}
+              </span>
+              <span
+                className={`font-mono font-semibold tabular-nums ${
+                  remaining !== null && lowTime ? "text-error" : "text-foreground"
+                }`}
+              >
+                {formatTime(remaining ?? elapsed)}
+              </span>
+            </div>
           </div>
         </aside>
       </div>
 
-      {/* Mobile navigator sheet */}
       {navOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
@@ -537,9 +588,12 @@ function QuizPage() {
           />
           <div className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-border bg-surface p-5 shadow-2xl animate-in slide-in-from-bottom duration-300">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border-strong" />
-            <QuestionNavigator
-              session={session}
-              questions={questionMap}
+            <RuntimeNavigator
+              questions={questions}
+              answeredSet={answeredSet}
+              results={results}
+              isTutor={!!isTutor}
+              bookmarked={ui?.bookmarked ?? {}}
               currentIndex={index}
               onJump={jump}
             />
@@ -553,6 +607,78 @@ function QuizPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Server-driven navigator. Reflects answered/current state without ever holding
+ * unanswered question content or the correct answer. In tutor mode it can show
+ * correct/incorrect for questions answered IN THIS client (from the in-memory
+ * submit results); otherwise it shows a neutral "answered" state.
+ */
+function RuntimeNavigator({
+  questions,
+  answeredSet,
+  results,
+  isTutor,
+  bookmarked,
+  currentIndex,
+  onJump,
+}: {
+  questions: QuizQuestion[];
+  answeredSet: Set<string>;
+  results: Record<string, AnswerResult>;
+  isTutor: boolean;
+  bookmarked: Record<string, true>;
+  currentIndex: number;
+  onJump: (i: number) => void;
+}) {
+  const answered = questions.filter((q) => answeredSet.has(q.id)).length;
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          Navigator
+        </span>
+        <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+          {answered}/{questions.length}
+        </span>
+      </div>
+      <div className="grid grid-cols-5 gap-1.5">
+        {questions.map((q, i) => {
+          const isCurrent = i === currentIndex;
+          const isAnswered = answeredSet.has(q.id);
+          const res = results[q.id];
+          let tone =
+            "border-border bg-surface-alt text-muted-foreground hover:border-border-strong hover:text-foreground";
+          if (isCurrent) {
+            tone =
+              "border-primary bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-[0_0_0_2px_var(--color-ring)] ring-1 ring-primary";
+          } else if (isTutor && res) {
+            tone = res.isCorrect
+              ? "border-success/40 bg-success/15 text-success"
+              : "border-error/40 bg-error/15 text-error";
+          } else if (isAnswered) {
+            tone = "border-accent/40 bg-accent/15 text-accent";
+          }
+          return (
+            <button
+              key={q.id}
+              type="button"
+              onClick={() => onJump(i)}
+              aria-current={isCurrent ? "true" : undefined}
+              className={`relative flex h-9 w-full items-center justify-center rounded-lg border text-xs font-bold tabular-nums transition-all duration-200 hover:scale-105 ${tone}`}
+            >
+              {i + 1}
+              {bookmarked[q.id] && (
+                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-warning" />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

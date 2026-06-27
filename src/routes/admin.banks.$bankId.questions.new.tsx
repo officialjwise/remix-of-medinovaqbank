@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { questionBanks } from "@/data/banks";
 import { QuestionForm, emptyQuestion } from "@/components/admin/QuestionForm";
+import { questionsApi, useCreateQuestion, useQuestionBanksLite } from "@/api/questions.api";
 
 export const Route = createFileRoute("/admin/banks/$bankId/questions/new")({
   head: () => ({
@@ -17,7 +17,9 @@ export const Route = createFileRoute("/admin/banks/$bankId/questions/new")({
 function NewQuestionPage() {
   const { bankId } = Route.useParams();
   const navigate = useNavigate();
-  const bank = questionBanks.find((b) => b.id === bankId);
+  const { data: banks } = useQuestionBanksLite();
+  const bank = banks?.find((b) => b.id === bankId);
+  const create = useCreateQuestion();
 
   return (
     <div className="space-y-6">
@@ -38,11 +40,20 @@ function NewQuestionPage() {
       <QuestionForm
         mode="create"
         lockBank
+        banks={banks ?? []}
+        uploadImage={questionsApi.uploadImage}
+        submitting={create.isPending}
         initial={emptyQuestion(bankId)}
         onCancel={() => navigate({ to: "/admin/banks/$bankId/questions", params: { bankId } })}
-        onSubmit={(_v, publish) => {
-          toast.success(publish ? "Question published" : "Draft saved");
-          navigate({ to: "/admin/banks/$bankId/questions", params: { bankId } });
+        onSubmit={(v) => {
+          create.mutate(v, {
+            onSuccess: () => {
+              toast.success("Question published");
+              navigate({ to: "/admin/banks/$bankId/questions", params: { bankId } });
+            },
+            onError: (err) =>
+              toast.error(err instanceof Error ? err.message : "Could not create question"),
+          });
         }}
       />
     </div>

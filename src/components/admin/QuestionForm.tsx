@@ -1,8 +1,12 @@
 import { useMemo, useRef, useState } from "react";
 import { Check, ImagePlus, Info, Lock, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
-import { questionBanks } from "@/data/banks";
 import type { Difficulty } from "@/types";
+
+export interface BankOption {
+  id: string;
+  name: string;
+}
 
 export const OPT_KEYS = ["A", "B", "C", "D", "E"] as const;
 export type OptKey = (typeof OPT_KEYS)[number];
@@ -40,8 +44,17 @@ export function emptyQuestion(bankId: string): QuestionFormValues {
   };
 }
 
-/** Validate an image file (type + size) then read it to a data URL. Toasts on failure. */
-function readImageFile(file: File | undefined | null, onDone: (dataUrl: string) => void) {
+/**
+ * Validate an image file (type + size) then resolve it to a URL.
+ * When an `uploader` is provided, the file is uploaded and the stored URL is
+ * used; otherwise it falls back to an inline data URL (no backend wiring).
+ * Toasts on failure.
+ */
+function readImageFile(
+  file: File | undefined | null,
+  onDone: (url: string) => void,
+  uploader?: (file: File) => Promise<string>,
+) {
   if (!file) return;
   if (!file.type.startsWith("image/")) {
     toast.error("Please choose an image file");
@@ -49,6 +62,14 @@ function readImageFile(file: File | undefined | null, onDone: (dataUrl: string) 
   }
   if (file.size > MAX_IMAGE_BYTES) {
     toast.error("Image must be 5MB or smaller");
+    return;
+  }
+  if (uploader) {
+    void uploader(file)
+      .then(onDone)
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Could not upload that image"),
+      );
     return;
   }
   const reader = new FileReader();
@@ -63,12 +84,21 @@ export function QuestionForm({
   mode,
   initial,
   lockBank = false,
+  banks = [],
+  uploadImage,
+  submitting = false,
   onSubmit,
   onCancel,
 }: {
   mode: "create" | "edit";
   initial: QuestionFormValues;
   lockBank?: boolean;
+  /** Real bank options for the picker (id + name). */
+  banks?: BankOption[];
+  /** When provided, images are uploaded server-side and the stored URL is used. */
+  uploadImage?: (file: File) => Promise<string>;
+  /** Disables the action buttons while a save is in flight. */
+  submitting?: boolean;
   onSubmit: (values: QuestionFormValues, publish: boolean) => void;
   onCancel: () => void;
 }) {
@@ -140,7 +170,7 @@ export function QuestionForm({
                 className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="">Select a bank…</option>
-                {questionBanks.map((b) => (
+                {banks.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
                   </option>
@@ -191,7 +221,11 @@ export function QuestionForm({
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragOver(false);
-                  readImageFile(e.dataTransfer.files?.[0], (url) => set("imageUrl", url));
+                  readImageFile(
+                    e.dataTransfer.files?.[0],
+                    (url) => set("imageUrl", url),
+                    uploadImage,
+                  );
                 }}
                 className={`flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors ${dragOver ? "border-primary bg-primary/5" : "border-border bg-surface-alt/20 hover:border-primary/50 hover:bg-surface-alt/40"}`}
               >
@@ -210,7 +244,7 @@ export function QuestionForm({
               accept="image/*"
               className="hidden"
               onChange={(e) => {
-                readImageFile(e.target.files?.[0], (url) => set("imageUrl", url));
+                readImageFile(e.target.files?.[0], (url) => set("imageUrl", url), uploadImage);
                 e.target.value = "";
               }}
             />
@@ -274,6 +308,7 @@ export function QuestionForm({
                     )}
                     <OptionImageButton
                       hasImage={!!o.imageUrl}
+                      uploader={uploadImage}
                       onPick={(url) => setOptionImage(o.key, url)}
                     />
                     {v.options.length > 2 && (
@@ -419,15 +454,16 @@ export function QuestionForm({
           <button
             type="button"
             onClick={() => submit(true)}
-            disabled={!valid}
+            disabled={!valid || submitting}
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent text-sm font-bold text-white shadow-md hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {mode === "create" ? "Publish question" : "Save changes"}
+            {submitting ? "Saving…" : mode === "create" ? "Publish question" : "Save changes"}
           </button>
           <button
             type="button"
             onClick={() => submit(false)}
-            className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-lg border border-border bg-surface text-sm font-semibold text-foreground hover:bg-surface-alt"
+            disabled={submitting}
+            className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-lg border border-border bg-surface text-sm font-semibold text-foreground hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50"
           >
             Save as draft
           </button>
@@ -448,9 +484,11 @@ export function QuestionForm({
 function OptionImageButton({
   hasImage,
   onPick,
+  uploader,
 }: {
   hasImage: boolean;
   onPick: (url: string) => void;
+  uploader?: (file: File) => Promise<string>;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
@@ -470,7 +508,7 @@ function OptionImageButton({
         accept="image/*"
         className="hidden"
         onChange={(e) => {
-          readImageFile(e.target.files?.[0], onPick);
+          readImageFile(e.target.files?.[0], onPick, uploader);
           e.target.value = "";
         }}
       />

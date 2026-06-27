@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { questionBanks } from "@/data/banks";
 import { QuestionForm, emptyQuestion } from "@/components/admin/QuestionForm";
+import { questionsApi, useCreateQuestion, useQuestionBanksLite } from "@/api/questions.api";
 
 export const Route = createFileRoute("/admin/questions/create")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -20,7 +20,10 @@ export const Route = createFileRoute("/admin/questions/create")({
 function CreateQuestion() {
   const navigate = useNavigate();
   const { bankId } = Route.useSearch();
-  const lockBank = !!bankId && questionBanks.some((b) => b.id === bankId);
+  const { data: banks } = useQuestionBanksLite();
+  const create = useCreateQuestion();
+
+  const lockBank = !!bankId && (banks ?? []).some((b) => b.id === bankId);
   const startBankId = lockBank ? bankId! : "";
 
   return (
@@ -35,7 +38,7 @@ function CreateQuestion() {
         <h2 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Create Question</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {lockBank
-            ? questionBanks.find((b) => b.id === bankId)?.name
+            ? (banks ?? []).find((b) => b.id === bankId)?.name
             : "Choose a bank and author a new question."}
         </p>
       </div>
@@ -43,11 +46,23 @@ function CreateQuestion() {
       <QuestionForm
         mode="create"
         lockBank={lockBank}
+        banks={banks ?? []}
+        uploadImage={questionsApi.uploadImage}
+        submitting={create.isPending}
         initial={emptyQuestion(startBankId)}
         onCancel={() => navigate({ to: "/admin/questions" })}
-        onSubmit={(v, publish) => {
-          toast.success(publish ? "Question published" : "Draft saved");
-          navigate({ to: "/admin/banks/$bankId/questions", params: { bankId: v.bankId } });
+        onSubmit={(v) => {
+          create.mutate(v, {
+            onSuccess: () => {
+              toast.success("Question published");
+              navigate({
+                to: "/admin/banks/$bankId/questions",
+                params: { bankId: v.bankId },
+              });
+            },
+            onError: (err) =>
+              toast.error(err instanceof Error ? err.message : "Could not create question"),
+          });
         }}
       />
     </div>

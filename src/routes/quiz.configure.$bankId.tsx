@@ -13,11 +13,34 @@ import {
   Timer,
 } from "lucide-react";
 import { questionBanks } from "@/data/banks";
-import { useSessionStore } from "@/stores/sessionStore";
+import { useCreateSession } from "@/api/quiz.api";
 import { useAuthStore } from "@/stores/authStore";
 import { subjectTheme } from "@/data/subjectColors";
 import { Logo } from "@/components/brand/Logo";
-import type { Difficulty, QuizMode } from "@/types";
+import type { Difficulty, QuestionBank, QuizMode } from "@/types";
+
+/**
+ * Minimal preview shape derived from the URL when the bank isn't in the (legacy)
+ * preview catalogue — keeps the configure screen rendering for real bank UUIDs
+ * until the banks domain is wired (see GAP note). The actual session is created
+ * from the real `bankId`, not this preview.
+ */
+function fallbackBank(bankId: string): QuestionBank {
+  return {
+    id: bankId,
+    subject: "Question Bank",
+    subjectColor: "slate",
+    accentHex: "#0E7C7B",
+    name: "Question Bank",
+    description: "Configure and start your study session.",
+    questionCount: 100,
+    difficulty: "Intermediate",
+    topics: [],
+    examType: "GENERAL",
+    sessionsCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+}
 
 export const Route = createFileRoute("/quiz/configure/$bankId")({
   beforeLoad: () => {
@@ -25,8 +48,10 @@ export const Route = createFileRoute("/quiz/configure/$bankId")({
     if (!useAuthStore.getState().isAuthenticated) throw redirect({ to: "/login" });
   },
   loader: ({ params }) => {
-    const bank = questionBanks.find((b) => b.id === params.bankId);
-    if (!bank) throw redirect({ to: "/banks" });
+    // Bank metadata for the preview comes from the legacy catalogue for now; if
+    // the id isn't there (real backend UUID) we render a minimal fallback rather
+    // than redirecting, so the session can still be created.
+    const bank = questionBanks.find((b) => b.id === params.bankId) ?? fallbackBank(params.bankId);
     return { bank };
   },
   head: ({ loaderData }) => ({
@@ -41,7 +66,7 @@ export const Route = createFileRoute("/quiz/configure/$bankId")({
 function ConfigurePage() {
   const { bank } = Route.useLoaderData();
   const navigate = useNavigate();
-  const createSession = useSessionStore((s) => s.createSession);
+  const createSession = useCreateSession();
   const subscription = useAuthStore((s) => s.subscription);
   const theme = subjectTheme(bank.subject);
 
@@ -51,17 +76,30 @@ function ConfigurePage() {
   const [topics, setTopics] = useState<string[]>([]);
   const [timer, setTimer] = useState<number | null>(null);
   const [order, setOrder] = useState<"shuffled" | "sequential">("shuffled");
+  const [error, setError] = useState<string | null>(null);
 
   function start() {
-    const id = createSession({
-      bankId: bank.id,
-      mode,
-      count,
-      topics,
-      difficulty,
-      durationSec: timer ?? undefined,
-    });
-    navigate({ to: "/quiz/$sessionId", params: { sessionId: id } });
+    setError(null);
+    createSession.mutate(
+      {
+        bankId: bank.id,
+        mode,
+        questionCount: count,
+        // Backend takes a minute-based time limit; the timer pills are seconds.
+        timeLimitMinutes: timer ? Math.round(timer / 60) : undefined,
+      },
+      {
+        onSuccess: (state) => {
+          navigate({
+            to: "/quiz/$sessionId",
+            params: { sessionId: state.session.id },
+          });
+        },
+        onError: (err) => {
+          setError(err instanceof Error ? err.message : "Could not start the session.");
+        },
+      },
+    );
   }
 
   function toggleTopic(t: string) {
@@ -217,6 +255,11 @@ function ConfigurePage() {
               </div>
             </Section>
 
+            {error && (
+              <p className="rounded-lg border border-error/30 bg-error/10 px-4 py-2.5 text-sm font-medium text-error">
+                {error}
+              </p>
+            )}
             <div className="flex items-center justify-end gap-3 pt-2">
               <Link
                 to="/banks"
@@ -227,10 +270,11 @@ function ConfigurePage() {
               <button
                 type="button"
                 onClick={start}
-                className="inline-flex h-11 items-center justify-center rounded-lg px-6 text-sm font-semibold text-white shadow-[0_10px_24px_-8px_rgb(14_124_123_/_0.5)] transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+                disabled={createSession.isPending}
+                className="inline-flex h-11 items-center justify-center rounded-lg px-6 text-sm font-semibold text-white shadow-[0_10px_24px_-8px_rgb(14_124_123_/_0.5)] transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ background: "linear-gradient(135deg, #0E7C7B 0%, #2BC97F 100%)" }}
               >
-                Start session →
+                {createSession.isPending ? "Starting…" : "Start session →"}
               </button>
             </div>
           </div>

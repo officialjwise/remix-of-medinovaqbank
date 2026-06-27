@@ -1,10 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Lock, Search } from "lucide-react";
-import { questionBanks } from "@/data/banks";
 import { useAuthStore } from "@/stores/authStore";
 import { subjectTheme } from "@/data/subjectColors";
-import type { Difficulty, ExamType, QuestionBank } from "@/types";
+import { usePublicBanks, type Bank, type DisplayDifficulty } from "@/api/banks.api";
 
 export const Route = createFileRoute("/_app/banks")({
   head: () => ({
@@ -13,16 +12,7 @@ export const Route = createFileRoute("/_app/banks")({
   component: BanksPage,
 });
 
-const subjects = ["All", ...Array.from(new Set(questionBanks.map((b) => b.subject)))];
-const difficulties: ("All" | Difficulty)[] = ["All", "Beginner", "Intermediate", "Advanced"];
-const examTypes: ("All" | ExamType)[] = [
-  "All",
-  "USMLE",
-  "PLAB",
-  "MDCN",
-  "MEDICAL COUNCIL",
-  "GENERAL",
-];
+const difficulties: ("All" | DisplayDifficulty)[] = ["All", "Beginner", "Intermediate", "Advanced"];
 const sorts = ["Newest", "Most Questions", "Most Sessions"] as const;
 
 function BanksPage() {
@@ -33,13 +23,28 @@ function BanksPage() {
 
   const [query, setQuery] = useState("");
   const [subject, setSubject] = useState("All");
-  const [difficulty, setDifficulty] = useState<"All" | Difficulty>("All");
-  const [exam, setExam] = useState<"All" | ExamType>("All");
+  const [difficulty, setDifficulty] = useState<"All" | DisplayDifficulty>("All");
+  const [exam, setExam] = useState("All");
   const [sort, setSort] = useState<(typeof sorts)[number]>("Newest");
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  const { data, isLoading, isError } = usePublicBanks();
+  const allBanks = useMemo(() => data?.banks ?? [], [data]);
+
+  // Filter option lists derive from the live result set.
+  const subjects = useMemo(
+    () => ["All", ...Array.from(new Set(allBanks.map((b) => b.subject)))],
+    [allBanks],
+  );
+  const examTypes = useMemo(
+    () => ["All", ...Array.from(new Set(allBanks.map((b) => b.examType).filter(Boolean)))],
+    [allBanks],
+  );
+
+  // The public list endpoint only filters difficulty/search server-side; the
+  // remaining facets (subject, examType, sort) are applied client-side.
   const filtered = useMemo(() => {
-    let list = questionBanks.slice();
+    let list = allBanks.slice();
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter(
@@ -56,7 +61,7 @@ function BanksPage() {
     else if (sort === "Most Questions") list.sort((a, b) => b.questionCount - a.questionCount);
     else if (sort === "Most Sessions") list.sort((a, b) => b.sessionsCount - a.sessionsCount);
     return list;
-  }, [query, subject, difficulty, exam, sort]);
+  }, [allBanks, query, subject, difficulty, exam, sort]);
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -64,7 +69,7 @@ function BanksPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Question Banks</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {filtered.length} of {questionBanks.length} banks across every major specialty.
+            {filtered.length} of {allBanks.length} banks across every major specialty.
           </p>
         </div>
         <div className="relative w-full sm:w-80">
@@ -85,15 +90,10 @@ function BanksPage() {
         <FilterSelect
           label="Difficulty"
           value={difficulty}
-          onChange={(v) => setDifficulty(v as "All" | Difficulty)}
+          onChange={(v) => setDifficulty(v as "All" | DisplayDifficulty)}
           options={difficulties}
         />
-        <FilterSelect
-          label="Exam"
-          value={exam}
-          onChange={(v) => setExam(v as "All" | ExamType)}
-          options={examTypes}
-        />
+        <FilterSelect label="Exam" value={exam} onChange={setExam} options={examTypes} />
         <div className="ml-auto">
           <FilterSelect
             label="Sort"
@@ -105,19 +105,36 @@ function BanksPage() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((bank) => (
-          <BankCard
-            key={bank.id}
-            bank={bank}
-            locked={!isActive && trialExhausted && !bank.isFree}
-            trialLeft={onTrial && !trialExhausted ? (subscription?.trialQuestionsLeft ?? 0) : null}
-            onLockedClick={() => setShowUpgrade(true)}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-56 animate-pulse rounded-xl border border-border bg-surface-alt/40"
+            />
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="mt-10 rounded-xl border border-dashed border-error/40 bg-surface p-10 text-center">
+          <p className="text-sm text-error">Could not load question banks. Please try again.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((bank) => (
+            <BankCard
+              key={bank.id}
+              bank={bank}
+              locked={!isActive && trialExhausted && !bank.isFree}
+              trialLeft={
+                onTrial && !trialExhausted ? (subscription?.trialQuestionsLeft ?? 0) : null
+              }
+              onLockedClick={() => setShowUpgrade(true)}
+            />
+          ))}
+        </div>
+      )}
 
-      {filtered.length === 0 && (
+      {!isLoading && !isError && filtered.length === 0 && (
         <div className="mt-10 rounded-xl border border-dashed border-border bg-surface p-10 text-center">
           <p className="text-sm text-muted-foreground">No banks match those filters.</p>
         </div>
@@ -163,7 +180,7 @@ function BankCard({
   trialLeft,
   onLockedClick,
 }: {
-  bank: QuestionBank;
+  bank: Bank;
   locked: boolean;
   trialLeft: number | null;
   onLockedClick: () => void;

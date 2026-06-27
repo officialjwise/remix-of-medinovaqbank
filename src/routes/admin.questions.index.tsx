@@ -1,13 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Copy, Edit, Eye, Filter, ImageIcon, Plus, Search, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Edit, Eye, Filter, ImageIcon, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { questionBanks } from "@/data/banks";
-import { getQuestionsForBank } from "@/data/questions";
-import type { Difficulty, Question } from "@/types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { useDebounce } from "@/hooks/useDebounce";
+import {
+  useAdminQuestions,
+  useDeleteQuestion,
+  useQuestionBanksLite,
+  useToggleQuestionActive,
+  type AdminQuestion,
+} from "@/api/questions.api";
 
 export const Route = createFileRoute("/admin/questions/")({
   head: () => ({
@@ -16,22 +20,6 @@ export const Route = createFileRoute("/admin/questions/")({
   component: AdminQuestions,
 });
 
-const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
-
-/** Deterministic answer stats seeded from the question id (stable across renders). */
-function statsFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 100000;
-  const answered = 40 + (h % 1960); // 40–1999
-  const rate = 18 + ((h >> 3) % 78); // 18–95
-  return { answered, rate };
-}
-/** Deterministic "has image" flag so the has-image filter has something to bite on. */
-function seededHasImage(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 17 + id.charCodeAt(i)) % 100000;
-  return h % 3 === 0;
-}
 function rateTone(rate: number) {
   return rate >= 70 ? "text-success" : rate >= 40 ? "text-warning" : "text-error";
 }
@@ -43,10 +31,9 @@ function ratePill(rate: number) {
       : "bg-error/10 text-error";
 }
 
-interface Row extends Question {
+interface Row extends AdminQuestion {
   answered: number;
   rate: number;
-  hasImage: boolean;
 }
 
 function AdminQuestions() {
@@ -57,42 +44,42 @@ function AdminQuestions() {
   const [rateBucket, setRateBucket] = useState<"All" | "high" | "mid" | "low">("All");
   const [topicFilter, setTopicFilter] = useState("All");
 
+  const { data: banks } = useQuestionBanksLite();
+  const { data: questionsData } = useAdminQuestions({ limit: 500 });
+  const toggleActive = useToggleQuestionActive();
+  const deleteQuestion = useDeleteQuestion();
+
   const allQuestions: Row[] = useMemo(
     () =>
-      questionBanks
-        .flatMap((b) => getQuestionsForBank(b.id, 12))
-        .map((q) => {
-          const s = statsFor(q.id);
-          return {
-            ...q,
-            answered: s.answered,
-            rate: s.rate,
-            hasImage: !!q.imageUrl || seededHasImage(q.id),
-          };
-        }),
-    [],
+      (questionsData?.data ?? []).map((q) => ({
+        ...q,
+        answered: q.timesAnswered,
+        rate: q.correctRate,
+      })),
+    [questionsData],
   );
 
   const topics = useMemo(
-    () => ["All", ...Array.from(new Set(allQuestions.map((q) => q.topic)))],
+    () => ["All", ...Array.from(new Set(allQuestions.map((q) => q.topic).filter(Boolean)))],
     [allQuestions],
   );
 
-  // ---- Local mutation state (mock) ----
+  const bankList = useMemo(() => banks ?? [], [banks]);
+  const bankNameById = useMemo(() => new Map(bankList.map((b) => [b.id, b.name])), [bankList]);
+
+  // Active state is server-driven; mirror locally for instant toggles.
   const [inactive, setInactive] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setInactive(new Set(allQuestions.filter((q) => !q.isActive).map((q) => q.id)));
+  }, [allQuestions]);
   const [deleted, setDeleted] = useState<Set<string>>(new Set());
-  const [overrides, setOverrides] = useState<
-    Record<string, { difficulty?: Difficulty; topic?: string }>
-  >({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<Row | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
-  const [moveTarget, setMoveTarget] = useState("");
 
   const rows = useMemo(() => {
     return allQuestions
       .filter((q) => !deleted.has(q.id))
-      .map((q) => ({ ...q, ...overrides[q.id] }))
       .filter((q) => {
         if (bankFilter !== "All" && q.bankId !== bankFilter) return false;
         if (imageFilter !== "All" && q.hasImage !== (imageFilter === "Yes")) return false;
@@ -106,16 +93,7 @@ function AdminQuestions() {
         }
         return true;
       });
-  }, [
-    allQuestions,
-    deleted,
-    overrides,
-    bankFilter,
-    imageFilter,
-    topicFilter,
-    rateBucket,
-    debouncedQuery,
-  ]);
+  }, [allQuestions, deleted, bankFilter, imageFilter, topicFilter, rateBucket, debouncedQuery]);
 
   const visibleIds = rows.map((q) => q.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
@@ -146,40 +124,43 @@ function AdminQuestions() {
       else next.add(id);
       return next;
     });
-    toast.success(active ? "Question activated" : "Question deactivated");
+    toggleActive.mutate(
+      { id, isActive: active },
+      {
+        onSuccess: () => toast.success(active ? "Question activated" : "Question deactivated"),
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : "Could not update question"),
+      },
+    );
   }
   function bulkActivate(active: boolean) {
+    const ids = [...selected];
     setInactive((prev) => {
       const next = new Set(prev);
-      selected.forEach((id) => (active ? next.delete(id) : next.add(id)));
+      ids.forEach((id) => (active ? next.delete(id) : next.add(id)));
       return next;
     });
-    toast.success(
-      `${selected.size} question${selected.size === 1 ? "" : "s"} ${active ? "activated" : "deactivated"}`,
-    );
-  }
-  function bulkMove(targetBankId: string) {
-    if (!targetBankId) return;
-    const bank = questionBanks.find((b) => b.id === targetBankId);
-    toast.success(
-      `Moved ${selected.size} question${selected.size === 1 ? "" : "s"} to ${bank?.name ?? "bank"}`,
-    );
-    setMoveTarget("");
+    Promise.all(ids.map((id) => toggleActive.mutateAsync({ id, isActive: active })))
+      .then(() =>
+        toast.success(
+          `${ids.length} question${ids.length === 1 ? "" : "s"} ${active ? "activated" : "deactivated"}`,
+        ),
+      )
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Some questions could not be updated"),
+      );
     setSelected(new Set());
   }
   function bulkDelete() {
-    setDeleted((prev) => new Set([...prev, ...selected]));
-    toast.success(`Deleted ${selected.size} question${selected.size === 1 ? "" : "s"}`);
+    const ids = [...selected];
+    setDeleted((prev) => new Set([...prev, ...ids]));
+    Promise.all(ids.map((id) => deleteQuestion.mutateAsync(id)))
+      .then(() => toast.success(`Deleted ${ids.length} question${ids.length === 1 ? "" : "s"}`))
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Some questions could not be deleted"),
+      );
     setSelected(new Set());
     setConfirmBulkDelete(false);
-  }
-  function duplicate(id: string) {
-    void id;
-    toast.success("Question duplicated");
-  }
-  function quickEdit(id: string, patch: { difficulty?: Difficulty; topic?: string }) {
-    setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
-    toast.success(patch.difficulty ? "Difficulty updated" : "Topic updated");
   }
 
   return (
@@ -189,7 +170,7 @@ function AdminQuestions() {
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Questions</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {(allQuestions.length - deleted.size).toLocaleString()} questions across{" "}
-            {questionBanks.length} banks
+            {bankList.length} banks
           </p>
         </div>
         <Link
@@ -220,7 +201,7 @@ function AdminQuestions() {
             className="h-10 rounded-lg border border-border bg-surface pl-9 pr-3 text-sm"
           >
             <option value="All">All banks</option>
-            {questionBanks.map((b) => (
+            {bankList.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
               </option>
@@ -259,21 +240,6 @@ function AdminQuestions() {
             >
               Deactivate
             </button>
-            <select
-              value={moveTarget}
-              onChange={(e) => {
-                setMoveTarget(e.target.value);
-                bulkMove(e.target.value);
-              }}
-              className="h-8 rounded-lg border border-border bg-surface px-2 text-xs font-semibold text-foreground"
-            >
-              <option value="">Move to bank…</option>
-              {questionBanks.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
             <button
               onClick={() => setConfirmBulkDelete(true)}
               className="inline-flex h-8 items-center gap-1 rounded-lg bg-error/10 px-3 text-xs font-semibold text-error hover:bg-error/20"
@@ -324,7 +290,7 @@ function AdminQuestions() {
             </thead>
             <tbody className="divide-y divide-border">
               {rows.map((q) => {
-                const bank = questionBanks.find((b) => b.id === q.bankId);
+                const bankName = bankNameById.get(q.bankId);
                 const isInactive = inactive.has(q.id);
                 const isSelected = selected.has(q.id);
                 return (
@@ -357,18 +323,10 @@ function AdminQuestions() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{bank?.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{bankName ?? "—"}</td>
+                    <td className="px-4 py-3 text-foreground/80">{q.topic || "—"}</td>
                     <td className="px-4 py-3">
-                      <InlineTopic
-                        value={q.topic}
-                        onChange={(t) => quickEdit(q.id, { topic: t })}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <InlineDifficulty
-                        value={q.difficulty}
-                        onChange={(d) => quickEdit(q.id, { difficulty: d })}
-                      />
+                      <DiffBadge d={q.difficulty} />
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
                       {q.answered.toLocaleString()}
@@ -405,13 +363,6 @@ function AdminQuestions() {
                         >
                           <Edit className="h-3.5 w-3.5" />
                         </Link>
-                        <button
-                          onClick={() => duplicate(q.id)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-surface-alt"
-                          aria-label="Duplicate"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -525,70 +476,19 @@ function StudentPreview({ q, onClose }: { q: Row; onClose: () => void }) {
   );
 }
 
-function InlineDifficulty({
-  value,
-  onChange,
-}: {
-  value: Difficulty;
-  onChange: (d: Difficulty) => void;
-}) {
+function DiffBadge({ d }: { d: string }) {
   const tone =
-    value === "Beginner"
+    d === "Beginner"
       ? "bg-success/10 text-success"
-      : value === "Advanced"
+      : d === "Advanced"
         ? "bg-error/10 text-error"
         : "bg-warning/10 text-warning";
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as Difficulty)}
-      aria-label="Quick-edit difficulty"
-      className={`cursor-pointer rounded-full border-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide outline-none focus:ring-2 focus:ring-accent/30 ${tone}`}
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${tone}`}
     >
-      {DIFFICULTIES.map((d) => (
-        <option key={d} value={d}>
-          {d}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function InlineTopic({ value, onChange }: { value: string; onChange: (t: string) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  if (editing) {
-    return (
-      <input
-        autoFocus
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => {
-          setEditing(false);
-          if (draft.trim() && draft !== value) onChange(draft.trim());
-          else setDraft(value);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.currentTarget.blur();
-          }
-          if (e.key === "Escape") {
-            setDraft(value);
-            setEditing(false);
-          }
-        }}
-        className="h-7 w-32 rounded-md border border-border bg-surface px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-accent/20"
-      />
-    );
-  }
-  return (
-    <button
-      onClick={() => setEditing(true)}
-      className="rounded-md px-1.5 py-0.5 text-left text-muted-foreground hover:bg-surface-alt hover:text-foreground"
-      title="Click to edit topic"
-    >
-      {value}
-    </button>
+      {d}
+    </span>
   );
 }
 

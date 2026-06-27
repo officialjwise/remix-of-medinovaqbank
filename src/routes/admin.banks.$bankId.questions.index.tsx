@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
-  Copy,
   Download,
   Edit,
   Eye,
@@ -15,12 +14,18 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { questionBanks } from "@/data/banks";
-import { getQuestionsForBank } from "@/data/questions";
-import type { Difficulty, Question } from "@/types";
+import type { Difficulty } from "@/types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { useDebounce } from "@/hooks/useDebounce";
+import {
+  downloadQuestionTemplate,
+  useAdminQuestions,
+  useDeleteQuestion,
+  useQuestionBanksLite,
+  useToggleQuestionActive,
+  type AdminQuestion,
+} from "@/api/questions.api";
 
 export const Route = createFileRoute("/admin/banks/$bankId/questions/")({
   head: () => ({
@@ -30,25 +35,12 @@ export const Route = createFileRoute("/admin/banks/$bankId/questions/")({
 });
 
 type Sort = "manual" | "newest" | "oldest" | "rate-desc" | "rate-asc";
-const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
 
-interface Row extends Question {
-  correctRate: number;
+/** Row view-model: the mapped admin question plus convenience aliases. */
+interface Row extends AdminQuestion {
   answered: number;
-  hasImage: boolean;
 }
 
-/** Deterministic answer stats seeded from the question id. */
-function statsFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 100000;
-  return { rate: 18 + (h % 78), answered: 40 + ((h >> 3) % 1960) };
-}
-function seededHasImage(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 17 + id.charCodeAt(i)) % 100000;
-  return h % 3 === 0;
-}
 function rateTone(rate: number) {
   return rate >= 70 ? "text-success" : rate >= 40 ? "text-warning" : "text-error";
 }
@@ -60,35 +52,19 @@ function ratePill(rate: number) {
       : "bg-error/10 text-error";
 }
 
-function downloadTemplate() {
-  const header =
-    "question number,question stem,options (A-D),right option,difficulty (optional),topic (optional)";
-  const blob = new Blob([`${header}\n`], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "question-bank-template.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 function AdminBankQuestions() {
   const { bankId } = Route.useParams();
   const navigate = useNavigate();
-  const bank = questionBanks.find((b) => b.id === bankId);
+  const { data: banks } = useQuestionBanksLite();
+  const bank = banks?.find((b) => b.id === bankId);
+
+  const { data: questionsData } = useAdminQuestions({ bankId, limit: 200 });
+  const toggleActive = useToggleQuestionActive();
+  const deleteQuestion = useDeleteQuestion();
 
   const all: Row[] = useMemo(
-    () =>
-      getQuestionsForBank(bankId, 40).map((q) => {
-        const s = statsFor(q.id);
-        return {
-          ...q,
-          correctRate: s.rate,
-          answered: s.answered,
-          hasImage: !!q.imageUrl || seededHasImage(q.id),
-        };
-      }),
-    [bankId],
+    () => (questionsData?.data ?? []).map((q) => ({ ...q, answered: q.timesAnswered })),
+    [questionsData],
   );
 
   const [query, setQuery] = useState("");
@@ -107,11 +83,12 @@ function AdminBankQuestions() {
     setOrder(all.map((q) => q.id));
   }, [all]);
 
+  // Active state is server-driven; mirror it locally so toggles feel instant.
   const [inactive, setInactive] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setInactive(new Set(all.filter((q) => !q.isActive).map((q) => q.id)));
+  }, [all]);
   const [deleted, setDeleted] = useState<Set<string>>(new Set());
-  const [overrides, setOverrides] = useState<
-    Record<string, { difficulty?: Difficulty; topic?: string }>
-  >({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<Row | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Row | null>(null);
@@ -122,10 +99,7 @@ function AdminBankQuestions() {
   const topics = useMemo(() => ["All", ...Array.from(new Set(all.map((q) => q.topic)))], [all]);
 
   const filtered = useMemo(() => {
-    let rows = order
-      .map((id) => byId.get(id))
-      .filter((q): q is Row => !!q && !deleted.has(q.id))
-      .map((q) => ({ ...q, ...overrides[q.id] }));
+    let rows = order.map((id) => byId.get(id)).filter((q): q is Row => !!q && !deleted.has(q.id));
     if (debouncedQuery.trim()) {
       const s = debouncedQuery.toLowerCase();
       rows = rows.filter(
@@ -153,7 +127,6 @@ function AdminBankQuestions() {
     order,
     byId,
     deleted,
-    overrides,
     debouncedQuery,
     difficulty,
     topic,
@@ -206,39 +179,43 @@ function AdminBankQuestions() {
       else next.add(id);
       return next;
     });
-    toast.success(active ? "Question activated" : "Question deactivated");
+    toggleActive.mutate(
+      { id, isActive: active },
+      {
+        onSuccess: () => toast.success(active ? "Question activated" : "Question deactivated"),
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : "Could not update question"),
+      },
+    );
   }
   function bulkActivate(active: boolean) {
+    const ids = [...selected];
     setInactive((prev) => {
       const next = new Set(prev);
-      selected.forEach((id) => (active ? next.delete(id) : next.add(id)));
+      ids.forEach((id) => (active ? next.delete(id) : next.add(id)));
       return next;
     });
-    toast.success(
-      `${selected.size} question${selected.size === 1 ? "" : "s"} ${active ? "activated" : "deactivated"}`,
-    );
-  }
-  function bulkMove(targetBankId: string) {
-    if (!targetBankId) return;
-    const target = questionBanks.find((b) => b.id === targetBankId);
-    toast.success(
-      `Moved ${selected.size} question${selected.size === 1 ? "" : "s"} to ${target?.name ?? "bank"}`,
-    );
+    Promise.all(ids.map((id) => toggleActive.mutateAsync({ id, isActive: active })))
+      .then(() =>
+        toast.success(
+          `${ids.length} question${ids.length === 1 ? "" : "s"} ${active ? "activated" : "deactivated"}`,
+        ),
+      )
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Some questions could not be updated"),
+      );
     setSelected(new Set());
   }
   function bulkDelete() {
-    setDeleted((prev) => new Set([...prev, ...selected]));
-    toast.success(`Deleted ${selected.size} question${selected.size === 1 ? "" : "s"}`);
+    const ids = [...selected];
+    setDeleted((prev) => new Set([...prev, ...ids]));
+    Promise.all(ids.map((id) => deleteQuestion.mutateAsync(id)))
+      .then(() => toast.success(`Deleted ${ids.length} question${ids.length === 1 ? "" : "s"}`))
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Some questions could not be deleted"),
+      );
     setSelected(new Set());
     setConfirmBulkDelete(false);
-  }
-  function duplicate(id: string) {
-    void id;
-    toast.success("Question duplicated");
-  }
-  function quickEdit(id: string, patch: { difficulty?: Difficulty; topic?: string }) {
-    setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
-    toast.success(patch.difficulty ? "Difficulty updated" : "Topic updated");
   }
   function onDrop(targetId: string) {
     if (!dragId || dragId === targetId) {
@@ -257,20 +234,6 @@ function AdminBankQuestions() {
     toast.success("Question order updated");
   }
 
-  if (!bank) {
-    return (
-      <div className="rounded-xl border border-border bg-surface p-8 text-center">
-        <p className="text-sm text-muted-foreground">Bank not found.</p>
-        <Link
-          to="/admin/banks"
-          className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline"
-        >
-          ← Back to banks
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <div>
       {/* Header */}
@@ -283,13 +246,14 @@ function AdminBankQuestions() {
             <ArrowLeft className="h-3.5 w-3.5" /> Banks
           </Link>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">{bank.name}</h2>
-            <span
-              className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
-              style={{ background: bank.accentHex }}
-            >
-              {bank.subject}
-            </span>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+              {bank?.name ?? "Question bank"}
+            </h2>
+            {bank?.examType && (
+              <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                {bank.examType}
+              </span>
+            )}
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {filtered.length} of {all.length - deleted.size} questions
@@ -297,7 +261,11 @@ function AdminBankQuestions() {
         </div>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={downloadTemplate}
+            onClick={() =>
+              void downloadQuestionTemplate().catch((err) =>
+                toast.error(err instanceof Error ? err.message : "Could not download template"),
+              )
+            }
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt"
           >
             <Download className="h-4 w-4" /> Template
@@ -404,23 +372,6 @@ function AdminBankQuestions() {
             >
               Deactivate
             </button>
-            <select
-              defaultValue=""
-              onChange={(e) => {
-                bulkMove(e.target.value);
-                e.target.value = "";
-              }}
-              className="h-8 rounded-lg border border-border bg-surface px-2 text-xs font-semibold text-foreground"
-            >
-              <option value="">Move to bank…</option>
-              {questionBanks
-                .filter((b) => b.id !== bankId)
-                .map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-            </select>
             <button
               onClick={() => setConfirmBulkDelete(true)}
               className="inline-flex h-8 items-center gap-1 rounded-lg bg-error/10 px-3 text-xs font-semibold text-error hover:bg-error/20"
@@ -519,10 +470,7 @@ function AdminBankQuestions() {
                   </span>
                 </span>
                 <span>
-                  <InlineDifficulty
-                    value={q.difficulty}
-                    onChange={(d) => quickEdit(q.id, { difficulty: d })}
-                  />
+                  <DiffBadge d={q.difficulty} />
                 </span>
                 <span className="text-right font-mono text-xs text-muted-foreground">
                   {q.answered.toLocaleString()}
@@ -556,13 +504,6 @@ function AdminBankQuestions() {
                   >
                     <Edit className="h-4 w-4" />
                   </Link>
-                  <button
-                    onClick={() => duplicate(q.id)}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground"
-                    aria-label="Duplicate"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </button>
                   <button
                     onClick={() => setConfirmDelete(q)}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-error/10 hover:text-error"
@@ -613,9 +554,15 @@ function AdminBankQuestions() {
         confirmLabel="Delete"
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => {
-          if (confirmDelete) setDeleted((prev) => new Set(prev).add(confirmDelete.id));
-          toast.success("Question deleted");
+          const target = confirmDelete;
           setConfirmDelete(null);
+          if (!target) return;
+          setDeleted((prev) => new Set(prev).add(target.id));
+          deleteQuestion.mutate(target.id, {
+            onSuccess: () => toast.success("Question deleted"),
+            onError: (err) =>
+              toast.error(err instanceof Error ? err.message : "Could not delete question"),
+          });
         }}
       />
 
@@ -712,12 +659,14 @@ function PreviewDrawer({ q, bankId, onClose }: { q: Row; bankId: string; onClose
               );
             })}
           </ul>
-          {reveal && q.whyCorrect && (
+          {reveal && q.baseExplanation && (
             <div className="rounded-lg border border-border bg-surface-alt/40 p-4">
               <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                AI explanation (preview)
+                Base explanation (admin)
               </p>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{q.whyCorrect}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                {q.baseExplanation}
+              </p>
             </div>
           )}
         </div>
@@ -732,35 +681,6 @@ function PreviewDrawer({ q, bankId, onClose }: { q: Row; bankId: string; onClose
         </footer>
       </div>
     </div>
-  );
-}
-
-function InlineDifficulty({
-  value,
-  onChange,
-}: {
-  value: Difficulty;
-  onChange: (d: Difficulty) => void;
-}) {
-  const tone =
-    value === "Beginner"
-      ? "bg-success/10 text-success"
-      : value === "Advanced"
-        ? "bg-error/10 text-error"
-        : "bg-warning/10 text-warning";
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as Difficulty)}
-      aria-label="Quick-edit difficulty"
-      className={`cursor-pointer rounded-full border-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide outline-none focus:ring-2 focus:ring-accent/30 ${tone}`}
-    >
-      {DIFFICULTIES.map((d) => (
-        <option key={d} value={d}>
-          {d}
-        </option>
-      ))}
-    </select>
   );
 }
 

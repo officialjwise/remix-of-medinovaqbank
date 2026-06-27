@@ -2,9 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Edit, Plus, Trash2, FileText, Upload, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { questionBanks } from "@/data/banks";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
-import type { Difficulty, ExamType } from "@/types";
+import {
+  useAdminBanks,
+  useToggleBankActive,
+  useDeleteBank,
+  type DisplayDifficulty,
+} from "@/api/banks.api";
 
 export const Route = createFileRoute("/admin/banks/")({
   head: () => ({
@@ -13,55 +17,28 @@ export const Route = createFileRoute("/admin/banks/")({
   component: AdminBanks,
 });
 
-interface BankDraft {
-  id?: string;
-  name: string;
-  subject: string;
-  examType: ExamType;
-  description: string;
-  difficulty: Difficulty;
-  isActive: boolean;
-}
-
-const emptyDraft: BankDraft = {
-  name: "",
-  subject: "Internal Medicine",
-  examType: "USMLE",
-  description: "",
-  difficulty: "Intermediate",
-  isActive: true,
-};
-
-const SUBJECTS = [
-  "Internal Medicine",
-  "Surgery",
-  "OB/GYN",
-  "Paediatrics",
-  "Pharmacology",
-  "Pathology",
-  "Radiology",
-  "Psychiatry",
-  "Anatomy",
-];
-const EXAM_TYPES: ExamType[] = ["USMLE", "PLAB", "MDCN", "MEDICAL COUNCIL", "GENERAL"];
-const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
+const DIFFICULTIES: DisplayDifficulty[] = ["Beginner", "Intermediate", "Advanced"];
 
 function AdminBanks() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("All");
-  const [difficultyFilter, setDifficultyFilter] = useState<"All" | Difficulty>("All");
-  const [activeFilters, setActiveFilters] = useState<Record<string, boolean>>({});
+  const [difficultyFilter, setDifficultyFilter] = useState<"All" | DisplayDifficulty>("All");
 
-  const totalQuestions = questionBanks.reduce((s, b) => s + b.questionCount, 0);
-  const activeBanks = questionBanks.length;
+  const { data, isLoading, isError } = useAdminBanks();
+  const toggleActive = useToggleBankActive();
+  const deleteBank = useDeleteBank();
+  const banks = useMemo(() => data?.banks ?? [], [data]);
+
+  const totalQuestions = banks.reduce((s, b) => s + b.questionCount, 0);
+  const activeBanks = banks.filter((b) => b.isActive).length;
 
   const subjects = useMemo(
-    () => ["All", ...Array.from(new Set(questionBanks.map((b) => b.subject)))],
-    [],
+    () => ["All", ...Array.from(new Set(banks.map((b) => b.subject)))],
+    [banks],
   );
 
-  const filtered = questionBanks.filter((b) => {
+  const filtered = banks.filter((b) => {
     if (subjectFilter !== "All" && b.subject !== subjectFilter) return false;
     if (difficultyFilter !== "All" && b.difficulty !== difficultyFilter) return false;
     if (query.trim()) {
@@ -72,6 +49,8 @@ function AdminBanks() {
     return true;
   });
 
+  const pendingDelete = confirmDelete ? banks.find((b) => b.id === confirmDelete) : null;
+
   return (
     <div>
       {/* Header */}
@@ -79,7 +58,7 @@ function AdminBanks() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Question Banks</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{activeBanks} banks</span> ·{" "}
+            <span className="font-semibold text-foreground">{banks.length} banks</span> ·{" "}
             {totalQuestions.toLocaleString()} questions · {activeBanks} active
           </p>
         </div>
@@ -128,14 +107,27 @@ function AdminBanks() {
       </div>
 
       {/* Bank cards grid */}
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-64 animate-pulse rounded-2xl border border-border bg-surface-alt/40"
+            />
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="mt-12 rounded-2xl border border-dashed border-error/40 bg-surface p-12 text-center text-sm text-error">
+          Could not load banks. Please try again.
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="mt-12 rounded-2xl border border-dashed border-border bg-surface p-12 text-center text-sm text-muted-foreground">
           No banks match those filters.
         </div>
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((b) => {
-            const isActive = activeFilters[b.id] !== false;
+            const isActive = b.isActive;
             const difficultyPct =
               b.difficulty === "Beginner" ? 33 : b.difficulty === "Intermediate" ? 66 : 100;
             return (
@@ -156,10 +148,17 @@ function AdminBanks() {
                       <ToggleSwitch
                         size="sm"
                         checked={isActive}
+                        disabled={toggleActive.isPending}
                         ariaLabel={`Toggle ${b.name} active`}
                         onChange={() => {
-                          setActiveFilters((f) => ({ ...f, [b.id]: !isActive }));
-                          toast.success(`${b.name} ${!isActive ? "activated" : "paused"}`);
+                          toggleActive.mutate(
+                            { id: b.id, isActive: !isActive },
+                            {
+                              onSuccess: () =>
+                                toast.success(`${b.name} ${!isActive ? "activated" : "paused"}`),
+                              onError: () => toast.error("Could not update bank"),
+                            },
+                          );
                         }}
                       />
                       {isActive ? "Active" : "Paused"}
@@ -240,8 +239,11 @@ function AdminBanks() {
       {confirmDelete && (
         <Modal title="Delete bank?" onClose={() => setConfirmDelete(null)}>
           <p className="text-sm text-muted-foreground">
-            This will permanently remove the bank and all its questions. This action cannot be
-            undone.
+            This will deactivate{" "}
+            <span className="font-semibold text-foreground">
+              {pendingDelete?.name ?? "this bank"}
+            </span>{" "}
+            so it no longer appears to learners. You can re-activate it later.
           </p>
           <div className="mt-6 flex justify-end gap-2">
             <button
@@ -251,13 +253,20 @@ function AdminBanks() {
               Cancel
             </button>
             <button
+              disabled={deleteBank.isPending}
               onClick={() => {
-                toast.success("Bank deleted");
-                setConfirmDelete(null);
+                const id = confirmDelete;
+                deleteBank.mutate(id, {
+                  onSuccess: () => {
+                    toast.success("Bank deleted");
+                    setConfirmDelete(null);
+                  },
+                  onError: () => toast.error("Could not delete bank"),
+                });
               }}
-              className="inline-flex h-10 items-center rounded-lg bg-error px-4 text-sm font-semibold text-white hover:bg-error/90"
+              className="inline-flex h-10 items-center rounded-lg bg-error px-4 text-sm font-semibold text-white hover:bg-error/90 disabled:opacity-60"
             >
-              <Trash2 className="mr-1.5 h-4 w-4" /> Delete
+              <Trash2 className="mr-1.5 h-4 w-4" /> {deleteBank.isPending ? "Deleting…" : "Delete"}
             </button>
           </div>
         </Modal>

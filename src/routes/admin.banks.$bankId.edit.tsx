@@ -1,67 +1,113 @@
-import { createFileRoute, Link, useNavigate, useParams, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { questionBanks } from "@/data/banks";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import type { Difficulty } from "@/types";
 import { useExamTypes } from "@/api/exam-types.api";
+import { useCategories } from "@/api/categories.api";
+import {
+  useBank,
+  useUpdateBank,
+  useDeleteBank,
+  toBackendDifficulty,
+  type DisplayDifficulty,
+} from "@/api/banks.api";
 
 export const Route = createFileRoute("/admin/banks/$bankId/edit")({
   head: () => ({
     meta: [{ title: "Admin · Edit Bank — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
-  loader: ({ params }) => {
-    const bank = questionBanks.find((b) => b.id === params.bankId);
-    if (!bank) throw notFound();
-    return { bank };
-  },
   component: EditBankPage,
-  notFoundComponent: () => (
-    <div className="p-12 text-center">
-      <p className="text-lg font-bold">Bank not found</p>
-      <Link to="/admin/banks" className="mt-3 inline-block text-sm font-semibold text-accent">
-        ← Back to Banks
-      </Link>
-    </div>
-  ),
 });
 
-const SUBJECTS = [
-  "Internal Medicine",
-  "Surgery",
-  "OB/GYN",
-  "Paediatrics",
-  "Pharmacology",
-  "Pathology",
-  "Radiology",
-  "Psychiatry",
-  "Anatomy",
-];
-const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
+const DIFFICULTIES: DisplayDifficulty[] = ["Beginner", "Intermediate", "Advanced"];
+
+interface EditForm {
+  name: string;
+  categoryId: string;
+  /** Selected exam-type name (single) — submitted as a one-element examTypeIds. */
+  examType: string;
+  description: string;
+  difficulty: DisplayDifficulty;
+  isActive: boolean;
+  isFree: boolean;
+}
 
 function EditBankPage() {
   const { bankId } = useParams({ from: "/admin/banks/$bankId/edit" });
   const navigate = useNavigate();
-  const bank = questionBanks.find((b) => b.id === bankId)!;
+  const { data: bank, isLoading, isError } = useBank(bankId);
   const { data: examTypes = [] } = useExamTypes();
+  const { data: categories = [] } = useCategories();
+  const updateBank = useUpdateBank();
+  const deleteBank = useDeleteBank();
 
-  const [form, setForm] = useState({
-    name: bank.name,
-    subject: bank.subject,
-    examType: bank.examType as string,
-    description: bank.description,
-    difficulty: bank.difficulty,
-    isActive: true,
-    isFree: bank.isFree,
-    topics: bank.topics.join(", "),
-  });
+  const [form, setForm] = useState<EditForm | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Hydrate the form once the bank loads.
+  useEffect(() => {
+    if (!bank) return;
+    setForm({
+      name: bank.name,
+      categoryId: bank.categoryId,
+      examType: bank.examType,
+      description: bank.description,
+      difficulty: bank.difficulty,
+      isActive: bank.isActive,
+      isFree: bank.isFree,
+    });
+  }, [bank]);
+
+  if (isLoading || (!bank && !isError)) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <div className="h-8 w-40 animate-pulse rounded bg-surface-alt" />
+        <div className="mt-6 h-96 animate-pulse rounded-2xl border border-border bg-surface-alt/40" />
+      </div>
+    );
+  }
+
+  if (isError || !bank || !form) {
+    return (
+      <div className="p-12 text-center">
+        <p className="text-lg font-bold">Bank not found</p>
+        <Link to="/admin/banks" className="mt-3 inline-block text-sm font-semibold text-accent">
+          ← Back to Banks
+        </Link>
+      </div>
+    );
+  }
+
   function save() {
+    if (!form) return;
     if (!form.name.trim()) return toast.error("Name is required");
-    toast.success(`Updated "${form.name}"`);
-    navigate({ to: "/admin/banks" });
+    if (!form.categoryId) return toast.error("Select a subject (category)");
+    // Map the single selected exam-type name back to its id (when resolvable).
+    const matchedExamType = examTypes.find((et) => et.name === form.examType);
+    updateBank.mutate(
+      {
+        id: bankId,
+        input: {
+          name: form.name.trim(),
+          description: form.description.trim(),
+          categoryId: form.categoryId,
+          difficulty: toBackendDifficulty(form.difficulty),
+          isActive: form.isActive,
+          // isFree (free preview) maps to NON-public; paid banks are public.
+          isPublic: !form.isFree,
+          // Only replace associations when we can resolve an id from the list.
+          ...(matchedExamType ? { examTypeIds: [matchedExamType.id] } : {}),
+        },
+      },
+      {
+        onSuccess: (updated) => {
+          toast.success(`Updated "${updated.name}"`);
+          navigate({ to: "/admin/banks" });
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Could not update bank"),
+      },
+    );
   }
 
   return (
@@ -77,8 +123,7 @@ function EditBankPage() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Edit Bank</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {bank.questionCount.toLocaleString()} questions · {bank.sessionsCount.toLocaleString()}{" "}
-            sessions
+            {bank.questionCount.toLocaleString()} questions
           </p>
         </div>
         <button
@@ -99,14 +144,20 @@ function EditBankPage() {
         </Field>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Subject">
+          <Field label="Subject (Category)">
             <select
-              value={form.subject}
-              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              value={form.categoryId}
+              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
               className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             >
-              {SUBJECTS.map((s) => (
-                <option key={s}>{s}</option>
+              {/* Preserve the bank's current category even if it's inactive/missing from the list. */}
+              {form.categoryId && !categories.some((c) => c.id === form.categoryId) && (
+                <option value={form.categoryId}>{bank.subject}</option>
+              )}
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </Field>
@@ -138,19 +189,13 @@ function EditBankPage() {
           />
         </Field>
 
-        <Field label="Topics (comma-separated)">
-          <input
-            value={form.topics}
-            onChange={(e) => setForm({ ...form, topics: e.target.value })}
-            className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-          />
-        </Field>
-
         <div className="grid gap-5 sm:grid-cols-3">
           <Field label="Difficulty">
             <select
               value={form.difficulty}
-              onChange={(e) => setForm({ ...form, difficulty: e.target.value as Difficulty })}
+              onChange={(e) =>
+                setForm({ ...form, difficulty: e.target.value as DisplayDifficulty })
+              }
               className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             >
               {DIFFICULTIES.map((s) => (
@@ -190,23 +235,29 @@ function EditBankPage() {
         </Link>
         <button
           onClick={save}
-          className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-5 text-sm font-bold text-white shadow-md"
+          disabled={updateBank.isPending}
+          className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-5 text-sm font-bold text-white shadow-md disabled:opacity-60"
         >
-          <Save className="h-4 w-4" /> Save changes
+          <Save className="h-4 w-4" /> {updateBank.isPending ? "Saving…" : "Save changes"}
         </button>
       </div>
 
       <ConfirmDialog
         open={confirmDelete}
         title={`Delete "${bank.name}"?`}
-        description="This will permanently remove the bank and all its questions. This action cannot be undone."
+        description="This will deactivate the bank so it no longer appears to learners. You can re-activate it later."
         variant="destructive"
         typedConfirmation="DELETE"
         confirmLabel="Delete bank"
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {
-          toast.success("Bank deleted");
-          navigate({ to: "/admin/banks" });
+          deleteBank.mutate(bankId, {
+            onSuccess: () => {
+              toast.success("Bank deleted");
+              navigate({ to: "/admin/banks" });
+            },
+            onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete bank"),
+          });
         }}
       />
     </div>

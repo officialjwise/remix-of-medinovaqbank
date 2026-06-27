@@ -39,12 +39,12 @@ import {
 } from "recharts";
 import { useShallow } from "zustand/react/shallow";
 import { useAuthStore } from "@/stores/authStore";
-import { useSessionStore } from "@/stores/sessionStore";
+import { useSessions, useCreateSession } from "@/api/quiz.api";
 import { useTrial } from "@/hooks/useTrial";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 import { UserDashboardSkeleton } from "@/components/shared/DashboardSkeletons";
 import { useInitialLoad } from "@/hooks/useInitialLoad";
-import { questionBanks, recentSessions } from "@/data/banks";
+import { questionBanks } from "@/data/banks";
 import { useUnreadCount } from "@/api/notifications.api";
 import { usePaidPlans } from "@/api/plans.api";
 import type { QuizMode } from "@/types";
@@ -125,8 +125,8 @@ function DashboardPage() {
     useShallow((s) => ({ user: s.user, subscription: s.subscription })),
   );
   const navigate = useNavigate();
-  const sessionsMap = useSessionStore((s) => s.sessions);
-  const createSession = useSessionStore((s) => s.createSession);
+  const { data: serverSessions } = useSessions();
+  const createSession = useCreateSession();
   const { isTrial, daysLeft, questionsLeft, questionsTotal, expired } = useTrial();
 
   // Unread badge on the dashboard header bell (capped at 3 for display parity).
@@ -138,13 +138,14 @@ function DashboardPage() {
 
   if (loading) return <UserDashboardSkeleton />;
 
-  /* Derive session stats */
-  const liveInProgress = Object.values(sessionsMap)
-    .filter((s) => s.questionIds.some((id) => !s.submitted[id]))
+  /* Derive session stats from the server session list */
+  const sessions = serverSessions ?? [];
+  const liveInProgress = sessions
+    .filter((s) => s.inProgress)
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
 
-  const completed = recentSessions.filter((s) => !s.inProgress);
-  const totalAnswered = recentSessions.reduce((a, s) => a + s.questionsAnswered, 0);
+  const completed = sessions.filter((s) => !s.inProgress);
+  const totalAnswered = sessions.reduce((a, s) => a + s.answeredCount, 0);
   const avgScore = Math.round(
     completed.reduce((a, s) => a + s.scorePct, 0) / Math.max(completed.length, 1),
   );
@@ -202,15 +203,18 @@ function DashboardPage() {
   ];
 
   function startBank(bankId: string, mode: QuizMode) {
-    const id = createSession({
-      bankId,
-      mode,
-      count: 10,
-      topics: [],
-      difficulty: "All",
-      durationSec: mode === "QUIZ" ? 600 : undefined,
-    });
-    navigate({ to: "/quiz/$sessionId", params: { sessionId: id } });
+    createSession.mutate(
+      {
+        bankId,
+        mode,
+        questionCount: 10,
+        timeLimitMinutes: mode === "QUIZ" ? 10 : undefined,
+      },
+      {
+        onSuccess: (state) =>
+          navigate({ to: "/quiz/$sessionId", params: { sessionId: state.session.id } }),
+      },
+    );
   }
 
   return (
@@ -324,9 +328,9 @@ function DashboardPage() {
       {/* ── Continue / start session ─────────────────────────────────── */}
       {liveInProgress ? (
         <LiveContinueCard
-          bankName={liveInProgress.bankName}
-          answered={liveInProgress.questionIds.filter((id) => liveInProgress.submitted[id]).length}
-          total={liveInProgress.questionIds.length}
+          bankName={`${liveInProgress.totalQuestions}-question session`}
+          answered={liveInProgress.answeredCount}
+          total={liveInProgress.totalQuestions}
           onResume={() =>
             navigate({ to: "/quiz/$sessionId", params: { sessionId: liveInProgress.id } })
           }
@@ -449,9 +453,11 @@ function DashboardPage() {
                   className="flex items-center gap-4 px-6 py-3.5 transition-colors hover:bg-surface-alt/50"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{s.bankName}</p>
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {s.totalQuestions}-question session
+                    </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {formatDateStable(s.completedAt)}
+                      {formatDateStable(s.completedAt ?? s.startedAt)}
                     </p>
                   </div>
                   <span
@@ -465,7 +471,7 @@ function DashboardPage() {
                   </span>
                   <ScoreBadge value={s.scorePct} />
                   <span className="text-xs text-muted-foreground">
-                    {s.questionsAnswered}/{s.totalQuestions}
+                    {s.answeredCount}/{s.totalQuestions}
                   </span>
                   <Link
                     to="/quiz/$sessionId/results"

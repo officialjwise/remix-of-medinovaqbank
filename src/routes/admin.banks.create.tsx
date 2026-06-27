@@ -2,8 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Plus, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import type { Difficulty } from "@/types";
 import { useExamTypes } from "@/api/exam-types.api";
+import { useCategories } from "@/api/categories.api";
+import { useCreateBank, toBackendDifficulty, type DisplayDifficulty } from "@/api/banks.api";
 
 export const Route = createFileRoute("/admin/banks/create")({
   head: () => ({
@@ -15,33 +16,22 @@ export const Route = createFileRoute("/admin/banks/create")({
   component: CreateBankPage,
 });
 
-const SUBJECTS = [
-  "Internal Medicine",
-  "Surgery",
-  "OB/GYN",
-  "Paediatrics",
-  "Pharmacology",
-  "Pathology",
-  "Radiology",
-  "Psychiatry",
-  "Anatomy",
-];
-const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
+const DIFFICULTIES: DisplayDifficulty[] = ["Beginner", "Intermediate", "Advanced"];
 
 function CreateBankPage() {
   const navigate = useNavigate();
   const { data: examTypes = [] } = useExamTypes();
+  const { data: categories = [] } = useCategories();
+  const createBank = useCreateBank();
   const [form, setForm] = useState({
     name: "",
-    subject: "Internal Medicine",
+    categoryId: "",
     examTypeIds: [] as string[],
     description: "",
-    difficulty: "Intermediate" as Difficulty,
+    difficulty: "Intermediate" as DisplayDifficulty,
     isActive: true,
     isFree: false,
-    topics: "",
   });
-  const [saving, setSaving] = useState(false);
 
   function toggleExamType(id: string) {
     setForm((f) => ({
@@ -52,20 +42,39 @@ function CreateBankPage() {
     }));
   }
 
+  const saving = createBank.isPending;
+
   function save() {
     if (!form.name.trim()) {
       toast.error("Bank name is required");
+      return;
+    }
+    if (!form.categoryId) {
+      toast.error("Select a subject (category)");
       return;
     }
     if (form.examTypeIds.length === 0) {
       toast.error("Select at least one exam type");
       return;
     }
-    setSaving(true);
-    setTimeout(() => {
-      toast.success(`Created "${form.name}"`);
-      navigate({ to: "/admin/banks" });
-    }, 500);
+    createBank.mutate(
+      {
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+        categoryId: form.categoryId,
+        examTypeIds: form.examTypeIds,
+        difficulty: toBackendDifficulty(form.difficulty),
+        // isFree (free preview) maps to NON-public; paid banks are public.
+        isPublic: !form.isFree,
+      },
+      {
+        onSuccess: (bank) => {
+          toast.success(`Created "${bank.name}"`);
+          navigate({ to: "/admin/banks" });
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create bank"),
+      },
+    );
   }
 
   return (
@@ -96,14 +105,19 @@ function CreateBankPage() {
           />
         </Field>
 
-        <Field label="Subject">
+        <Field label="Subject (Category)" required>
           <select
-            value={form.subject}
-            onChange={(e) => setForm({ ...form, subject: e.target.value })}
+            value={form.categoryId}
+            onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
             className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm sm:max-w-xs"
           >
-            {SUBJECTS.map((s) => (
-              <option key={s}>{s}</option>
+            <option value="" disabled>
+              Select a category…
+            </option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </Field>
@@ -162,36 +176,19 @@ function CreateBankPage() {
           />
         </Field>
 
-        <Field label="Topics (comma-separated)">
-          <input
-            value={form.topics}
-            onChange={(e) => setForm({ ...form, topics: e.target.value })}
-            placeholder="Cardiology, Pulmonology, Endocrinology"
-            className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-          />
-        </Field>
-
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Difficulty">
             <select
               value={form.difficulty}
-              onChange={(e) => setForm({ ...form, difficulty: e.target.value as Difficulty })}
+              onChange={(e) =>
+                setForm({ ...form, difficulty: e.target.value as DisplayDifficulty })
+              }
               className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             >
               {DIFFICULTIES.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
-          </Field>
-          <Field label="Status">
-            <label className="flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm">
-              <input
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-              />
-              <span>{form.isActive ? "Active" : "Inactive"}</span>
-            </label>
           </Field>
           <Field label="Access">
             <label className="flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm">
