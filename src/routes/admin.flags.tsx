@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Flag, Eye, Check, Power, X } from "lucide-react";
+import { useState } from "react";
+import { Flag, Eye, Check, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useFlags, useReviewFlag, type FlagReview } from "@/api/flags.api";
 
 export const Route = createFileRoute("/admin/flags")({
   head: () => ({
@@ -14,113 +15,56 @@ export const Route = createFileRoute("/admin/flags")({
   component: AdminFlags,
 });
 
-type FlagType = "Incorrect Answer" | "Typo / Wording" | "Outdated" | "Ambiguous" | "Other";
+type StatusFilter = "Open" | "Reviewed" | "All";
+const STATUSES: readonly StatusFilter[] = ["Open", "Reviewed", "All"];
 
-interface FlagRow {
-  id: string;
-  questionId: string;
-  bankName: string;
-  stem: string;
-  flagType: FlagType;
-  note: string;
-  user: string;
-  email: string;
-  date: string;
-  status: "Open" | "Reviewed" | "Cleared";
+/** Map the status filter to the backend `isReviewed` query param. */
+function isReviewedFor(status: StatusFilter): boolean | undefined {
+  if (status === "Open") return false;
+  if (status === "Reviewed") return true;
+  return undefined;
 }
 
-const seed: FlagRow[] = [
-  {
-    id: "f-1",
-    questionId: "q-im-014",
-    bankName: "Internal Medicine Shelf",
-    stem: "A 56-year-old man with crushing chest pain radiating to the left arm…",
-    flagType: "Incorrect Answer",
-    note: "Option B should be the correct answer based on STEMI localization for inferior leads.",
-    user: "Akua Mensah",
-    email: "akua@example.com",
-    date: "2026-04-22",
-    status: "Open",
-  },
-  {
-    id: "f-2",
-    questionId: "q-pharm-027",
-    bankName: "Pharmacology Core",
-    stem: "Which of the following is the mechanism of action of metformin?",
-    flagType: "Typo / Wording",
-    note: "Stem says 'metaformin' instead of 'metformin'.",
-    user: "Kwame Boateng",
-    email: "kwame@example.com",
-    date: "2026-04-21",
-    status: "Open",
-  },
-  {
-    id: "f-3",
-    questionId: "q-surgery-009",
-    bankName: "Surgery Core",
-    stem: "After a road traffic accident, a 34-year-old presents with…",
-    flagType: "Ambiguous",
-    note: "Two options could plausibly be correct.",
-    user: "Adjoa Owusu",
-    email: "adjoa@example.com",
-    date: "2026-04-19",
-    status: "Reviewed",
-  },
-  {
-    id: "f-4",
-    questionId: "q-paeds-031",
-    bankName: "Paediatrics",
-    stem: "Vaccination schedule recommended at age 9 months in Ghana…",
-    flagType: "Outdated",
-    note: "GHS schedule was updated in 2024.",
-    user: "Esi Quaye",
-    email: "esi@example.com",
-    date: "2026-04-15",
-    status: "Open",
-  },
-  {
-    id: "f-5",
-    questionId: "q-obgyn-022",
-    bankName: "Obstetrics & Gynaecology",
-    stem: "A 28-year-old G2P1 at 38 weeks GA presents with…",
-    flagType: "Other",
-    note: "Image is not loading on mobile.",
-    user: "Yaw Asante",
-    email: "yaw@example.com",
-    date: "2026-04-12",
-    status: "Cleared",
-  },
-];
-
-const FLAG_TYPES: ("All" | FlagType)[] = [
-  "All",
-  "Incorrect Answer",
-  "Typo / Wording",
-  "Outdated",
-  "Ambiguous",
-  "Other",
-];
-const STATUSES = ["All", "Open", "Reviewed", "Cleared"] as const;
+function timeAgo(iso: string) {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+}
 
 function AdminFlags() {
-  const [rows, setRows] = useState<FlagRow[]>(seed);
-  const [type, setType] = useState<(typeof FLAG_TYPES)[number]>("All");
-  const [status, setStatus] = useState<(typeof STATUSES)[number]>("Open");
-  const [details, setDetails] = useState<FlagRow | null>(null);
-  const [deactivate, setDeactivate] = useState<FlagRow | null>(null);
+  const [status, setStatus] = useState<StatusFilter>("Open");
+  const [details, setDetails] = useState<FlagReview | null>(null);
+  const [dismissTarget, setDismissTarget] = useState<FlagReview | null>(null);
 
-  const filtered = useMemo(
-    () =>
-      rows.filter((r) => {
-        if (type !== "All" && r.flagType !== type) return false;
-        if (status !== "All" && r.status !== status) return false;
-        return true;
-      }),
-    [rows, type, status],
-  );
+  const { data, isLoading, isError, refetch } = useFlags({
+    isReviewed: isReviewedFor(status),
+  });
+  const reviewMut = useReviewFlag();
 
-  const update = (id: string, patch: Partial<FlagRow>) =>
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const rows = data?.items ?? [];
+
+  const resolve = (id: string, action: "reviewed" | "cleared" | "dismissed") => {
+    reviewMut.mutate(
+      { id, action },
+      {
+        onSuccess: () => {
+          const label =
+            action === "cleared"
+              ? "Flag cleared"
+              : action === "dismissed"
+                ? "Flag dismissed"
+                : "Marked as reviewed";
+          toast.success(label);
+          setDetails(null);
+          setDismissTarget(null);
+        },
+        onError: () => toast.error("Could not update flag"),
+      },
+    );
+  };
 
   return (
     <div>
@@ -128,38 +72,52 @@ function AdminFlags() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Flagged Questions</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {filtered.length} of {rows.length} reports
+            {isLoading ? "Loading…" : `${rows.length} report${rows.length === 1 ? "" : "s"}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterSelect
-            label="Type"
-            value={type}
-            onChange={(v) => setType(v as typeof type)}
-            options={FLAG_TYPES}
-          />
-          <FilterSelect
             label="Status"
             value={status}
-            onChange={(v) => setStatus(v as typeof status)}
+            onChange={(v) => setStatus(v as StatusFilter)}
             options={STATUSES as readonly string[]}
           />
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {isError ? (
+        <div className="mt-6 rounded-2xl border border-error/30 bg-error-light/40 p-12 text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-error/10 text-error">
+            <AlertTriangle className="h-6 w-6" />
+          </span>
+          <h3 className="mt-4 text-base font-bold text-foreground">Couldn't load flags</h3>
+          <button
+            onClick={() => void refetch()}
+            className="mt-4 inline-flex h-9 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt"
+          >
+            Retry
+          </button>
+        </div>
+      ) : isLoading ? (
+        <div className="mt-6 space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-32 animate-pulse rounded-xl border border-border bg-surface"
+            />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-border bg-surface p-12 text-center">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-light text-success">
             <Check className="h-6 w-6" />
           </span>
-          <h3 className="mt-4 text-base font-bold text-foreground">No flags match these filters</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Try changing the type or status filter.
-          </p>
+          <h3 className="mt-4 text-base font-bold text-foreground">No flags match this filter</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Try a different status.</p>
         </div>
       ) : (
         <div className="mt-6 space-y-3">
-          {filtered.map((r) => (
+          {rows.map((r) => (
             <article
               key={r.id}
               className="rounded-xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]"
@@ -168,31 +126,39 @@ function AdminFlags() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center gap-1 rounded-full bg-warning-light px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning">
-                      <Flag className="h-3 w-3" /> {r.flagType}
+                      <Flag className="h-3 w-3" /> Flag
                     </span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">{r.bankName}</span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      {r.questionId}
-                    </span>
+                    {r.subject && (
+                      <>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className="text-xs text-muted-foreground">{r.subject}</span>
+                      </>
+                    )}
+                    {r.questionId && (
+                      <>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {r.questionId.slice(0, 8)}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <p className="mt-1.5 line-clamp-2 text-sm font-semibold text-foreground">
-                    {r.stem}
+                    {r.stem || "(question unavailable)"}
                   </p>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">"{r.note}"</p>
+                  {r.reason && (
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">"{r.reason}"</p>
+                  )}
                   <p className="mt-2 text-[11px] text-muted-foreground">
-                    Reported by <span className="font-semibold text-foreground">{r.user}</span> ·{" "}
-                    {r.date}
+                    Reported by <span className="font-semibold text-foreground">{r.userName}</span>{" "}
+                    · {timeAgo(r.createdAt)}
                   </p>
                 </div>
                 <span
                   className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
                     r.status === "Open"
                       ? "bg-warning-light text-warning"
-                      : r.status === "Reviewed"
-                        ? "bg-accent/10 text-accent"
-                        : "bg-success-light text-success"
+                      : "bg-success-light text-success"
                   }`}
                 >
                   {r.status}
@@ -205,23 +171,24 @@ function AdminFlags() {
                 >
                   <Eye className="h-3.5 w-3.5" /> Review
                 </button>
-                {r.status !== "Cleared" && (
-                  <button
-                    onClick={() => {
-                      update(r.id, { status: "Cleared" });
-                      toast.success("Flag cleared");
-                    }}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt"
-                  >
-                    <Check className="h-3.5 w-3.5" /> Clear Flag
-                  </button>
+                {!r.isReviewed && (
+                  <>
+                    <button
+                      disabled={reviewMut.isPending}
+                      onClick={() => resolve(r.id, "cleared")}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt disabled:opacity-50"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Clear Flag
+                    </button>
+                    <button
+                      disabled={reviewMut.isPending}
+                      onClick={() => setDismissTarget(r)}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-error/30 bg-error-light/40 px-3 text-xs font-semibold text-error hover:bg-error-light disabled:opacity-50"
+                    >
+                      <X className="h-3.5 w-3.5" /> Dismiss
+                    </button>
+                  </>
                 )}
-                <button
-                  onClick={() => setDeactivate(r)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-error/30 bg-error-light/40 px-3 text-xs font-semibold text-error hover:bg-error-light"
-                >
-                  <Power className="h-3.5 w-3.5" /> Deactivate Question
-                </button>
               </footer>
             </article>
           ))}
@@ -231,36 +198,30 @@ function AdminFlags() {
       {details && (
         <DetailsModal
           row={details}
+          pending={reviewMut.isPending}
           onClose={() => setDetails(null)}
-          onMarkReviewed={() => {
-            update(details.id, { status: "Reviewed" });
-            toast.success("Marked as reviewed");
-            setDetails(null);
-          }}
+          onMarkReviewed={() => resolve(details.id, "reviewed")}
         />
       )}
 
       <ConfirmDialog
-        open={deactivate !== null}
-        title="Deactivate question?"
+        open={dismissTarget !== null}
+        title="Dismiss this flag?"
         description={
-          deactivate ? (
+          dismissTarget ? (
             <>
-              This will hide question <code className="font-mono">{deactivate.questionId}</code>{" "}
-              from all users until it is reactivated.
+              This marks the flag reviewed without clearing the question's flagged banner. The
+              question stays flagged for other reviewers.
             </>
           ) : null
         }
-        confirmLabel="Deactivate"
-        cancelLabel="Keep Active"
+        confirmLabel="Dismiss"
+        cancelLabel="Keep Open"
         variant="destructive"
         onConfirm={() => {
-          if (!deactivate) return;
-          update(deactivate.id, { status: "Reviewed" });
-          toast.success("Question deactivated");
-          setDeactivate(null);
+          if (dismissTarget) resolve(dismissTarget.id, "dismissed");
         }}
-        onCancel={() => setDeactivate(null)}
+        onCancel={() => setDismissTarget(null)}
       />
     </div>
   );
@@ -268,10 +229,12 @@ function AdminFlags() {
 
 function DetailsModal({
   row,
+  pending,
   onClose,
   onMarkReviewed,
 }: {
-  row: FlagRow;
+  row: FlagReview;
+  pending: boolean;
   onClose: () => void;
   onMarkReviewed: () => void;
 }) {
@@ -298,25 +261,27 @@ function DetailsModal({
         <div className="space-y-4 p-5">
           <div className="flex flex-wrap gap-2 text-xs">
             <span className="inline-flex items-center gap-1 rounded-full bg-warning-light px-2 py-0.5 font-bold uppercase tracking-wide text-warning">
-              {row.flagType}
+              Flag
             </span>
-            <span className="rounded-full bg-surface-alt px-2 py-0.5 font-mono text-muted-foreground">
-              {row.questionId}
-            </span>
-            <span className="text-muted-foreground">{row.bankName}</span>
+            {row.questionId && (
+              <span className="rounded-full bg-surface-alt px-2 py-0.5 font-mono text-muted-foreground">
+                {row.questionId}
+              </span>
+            )}
+            {row.subject && <span className="text-muted-foreground">{row.subject}</span>}
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
               Question
             </p>
-            <p className="mt-1 text-sm text-foreground">{row.stem}</p>
+            <p className="mt-1 text-sm text-foreground">{row.stem || "(question unavailable)"}</p>
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
               Reporter Note
             </p>
             <p className="mt-1 rounded-lg border-l-4 border-warning bg-warning-light/40 p-3 text-sm text-foreground">
-              "{row.note}"
+              {row.reason ? `"${row.reason}"` : "No note provided."}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -324,14 +289,16 @@ function DetailsModal({
               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                 Reported By
               </p>
-              <p className="mt-0.5 font-semibold text-foreground">{row.user}</p>
-              <p className="text-xs text-muted-foreground">{row.email}</p>
+              <p className="mt-0.5 font-semibold text-foreground">{row.userName}</p>
+              {row.userEmail && <p className="text-xs text-muted-foreground">{row.userEmail}</p>}
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                 Date
               </p>
-              <p className="mt-0.5 font-semibold text-foreground">{row.date}</p>
+              <p className="mt-0.5 font-semibold text-foreground">
+                {new Date(row.createdAt).toLocaleDateString()}
+              </p>
             </div>
           </div>
         </div>
@@ -342,10 +309,11 @@ function DetailsModal({
           >
             Close
           </button>
-          {row.status === "Open" && (
+          {!row.isReviewed && (
             <button
+              disabled={pending}
               onClick={onMarkReviewed}
-              className="inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
+              className="inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
             >
               Mark as Reviewed
             </button>
