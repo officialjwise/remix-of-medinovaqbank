@@ -25,6 +25,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/authStore";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
@@ -466,9 +467,17 @@ function UserRow({
       </button>
 
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-xs font-bold text-white">
-          {u.initials}
-        </span>
+        {u.avatar ? (
+          <img
+            src={u.avatar}
+            alt={u.name}
+            className="h-9 w-9 flex-shrink-0 rounded-xl object-cover"
+          />
+        ) : (
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-xs font-bold text-white">
+            {u.initials}
+          </span>
+        )}
         <div className="min-w-0">
           <button
             onClick={onView}
@@ -514,8 +523,11 @@ function RowActions({
   const reactivateMutation = useReactivateUser();
   const banMutation = useBanUser();
   const flagMutation = useFlagUser();
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   const isSuspended = user.status === "suspended" || user.status === "banned";
+  // No self-moderation: an admin can't flag/suspend/ban/delete their own account.
+  const isSelf = currentUserId === user.id;
 
   return (
     <div className="inline-flex items-center gap-1 text-left">
@@ -537,75 +549,84 @@ function RowActions({
       <IconBtn title="Send email" onClick={() => setModal("email")}>
         <Mail className="h-4 w-4" />
       </IconBtn>
-      <IconBtn title="Flag account" onClick={() => setModal("flag")}>
-        <Flag className="h-4 w-4" />
-      </IconBtn>
 
-      {isSuspended ? (
-        <IconBtn
-          title="Reactivate"
-          tone="success"
-          disabled={reactivateMutation.isPending}
-          onClick={() =>
-            reactivateMutation.mutate(user.id, {
-              onSuccess: () => toast.success(`${user.name} reactivated`),
-              onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
-            })
-          }
-        >
-          {reactivateMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <UserCheck className="h-4 w-4" />
-          )}
-        </IconBtn>
+      {isSelf ? (
+        <span className="ml-1 rounded-md bg-surface-alt px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+          You
+        </span>
       ) : (
-        <IconBtn
-          title="Suspend"
-          tone="warning"
-          disabled={suspendMutation.isPending}
-          onClick={() =>
-            suspendMutation.mutate(
-              { id: user.id },
-              {
-                onSuccess: () => toast.success(`${user.name} suspended`),
-                onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
-              },
-            )
-          }
-        >
-          {suspendMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+        <>
+          <IconBtn title="Flag account" onClick={() => setModal("flag")}>
+            <Flag className="h-4 w-4" />
+          </IconBtn>
+
+          {isSuspended ? (
+            <IconBtn
+              title="Reactivate"
+              tone="success"
+              disabled={reactivateMutation.isPending}
+              onClick={() =>
+                reactivateMutation.mutate(user.id, {
+                  onSuccess: () => toast.success(`${user.name} reactivated`),
+                  onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
+                })
+              }
+            >
+              {reactivateMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserCheck className="h-4 w-4" />
+              )}
+            </IconBtn>
           ) : (
-            <Ban className="h-4 w-4" />
+            <IconBtn
+              title="Suspend"
+              tone="warning"
+              disabled={suspendMutation.isPending}
+              onClick={() =>
+                suspendMutation.mutate(
+                  { id: user.id },
+                  {
+                    onSuccess: () => toast.success(`${user.name} suspended`),
+                    onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
+                  },
+                )
+              }
+            >
+              {suspendMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Ban className="h-4 w-4" />
+              )}
+            </IconBtn>
           )}
-        </IconBtn>
+
+          <IconBtn
+            title="Ban"
+            tone="error"
+            disabled={banMutation.isPending}
+            onClick={() =>
+              banMutation.mutate(
+                { id: user.id },
+                {
+                  onSuccess: () => toast.success(`${user.name} banned`),
+                  onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
+                },
+              )
+            }
+          >
+            {banMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ShieldBan className="h-4 w-4" />
+            )}
+          </IconBtn>
+
+          <IconBtn title="Delete" tone="error" onClick={onDelete}>
+            <Trash2 className="h-4 w-4" />
+          </IconBtn>
+        </>
       )}
-
-      <IconBtn
-        title="Ban"
-        tone="error"
-        disabled={banMutation.isPending}
-        onClick={() =>
-          banMutation.mutate(
-            { id: user.id },
-            {
-              onSuccess: () => toast.success(`${user.name} banned`),
-              onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
-            },
-          )
-        }
-      >
-        {banMutation.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <ShieldBan className="h-4 w-4" />
-        )}
-      </IconBtn>
-
-      <IconBtn title="Delete" tone="error" onClick={onDelete}>
-        <Trash2 className="h-4 w-4" />
-      </IconBtn>
 
       {modal === "edit" && (
         <EditUserModal

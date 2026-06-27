@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { useAuthStore } from "@/stores/authStore";
 import { useAdminPlan, useUpdatePlan, toPlanWritePayload } from "@/api/plans.api";
 import { useFeatureIdByKey } from "@/api/features.api";
 import { SubscriptionPlanForm } from "@/components/admin/SubscriptionPlanForm";
@@ -16,24 +15,9 @@ export const Route = createFileRoute("/admin/subscriptions/plans/$planId/edit")(
 function EditPlan() {
   const { planId } = Route.useParams();
   const navigate = useNavigate();
-  const isSuper = useAuthStore((s) => s.user?.role) === "SUPER_ADMIN";
   const featureIdByKey = useFeatureIdByKey();
   const { data: plan, isLoading } = useAdminPlan(planId, featureIdByKey);
   const updatePlan = useUpdatePlan();
-
-  if (!isSuper) {
-    return (
-      <div className="rounded-2xl border border-border bg-surface p-10 text-center">
-        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-warning/10 text-warning">
-          <Lock className="h-6 w-6" />
-        </span>
-        <h2 className="mt-4 text-lg font-bold text-foreground">Super Admin only</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Plan configuration is restricted to super admins.
-        </p>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (

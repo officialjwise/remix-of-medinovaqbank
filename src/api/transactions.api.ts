@@ -19,12 +19,8 @@ import { useAuthStore } from "@/stores/authStore";
 
 // ── Backend enums (mirror src/database/entities/enums.ts). ──
 export type BackendPaymentStatus = "pending" | "success" | "failed";
-export type BackendSubscriptionPlan =
-  | "monthly"
-  | "three_months"
-  | "six_months"
-  | "twelve_months"
-  | "free_trial";
+/** Free-text plan key (e.g. "monthly", "pro_annual_2026"). */
+export type BackendSubscriptionPlan = string;
 
 // ── Backend wire shapes (AdminTransactionResponseDto / detail). ──
 export interface BackendTransaction {

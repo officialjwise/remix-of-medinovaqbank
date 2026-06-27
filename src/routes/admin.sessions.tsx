@@ -345,12 +345,19 @@ type Tab = (typeof TABS)[number];
 
 /**
  * Helpers to adapt the real backend `DeviceSession` (active sessions monitor)
- * into the display primitives the table/drawer expect. Name/email are NOT on
- * the DeviceSession DTO (GAP) — we derive a stable initials token from userId
- * and surface the userId as the display label.
+ * into the display primitives the table/drawer expect. The DTO carries the
+ * user's name/email (joined server-side); we show those, never the raw UUID.
  */
-function initialsFromId(userId: string): string {
-  return userId.replace(/-/g, "").slice(0, 2).toUpperCase() || "??";
+/** Initials from a human label ("Jane Doe" → "JD", "a@b.com" → "A"). */
+function initialsFromLabel(label: string): string {
+  const parts = label.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (
+    label
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .slice(0, 2)
+      .toUpperCase() || "??"
+  );
 }
 
 /** Map free-text `currentActivity` to the structured UI activity enum. */
@@ -632,16 +639,16 @@ function ActiveSessionsView({
                     >
                       <td className={td}>
                         <div className="flex items-center gap-3">
-                          <Avatar initials={initialsFromId(s.userId)} />
+                          <Avatar initials={initialsFromLabel(s.userLabel)} />
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="truncate font-semibold text-foreground">
-                                {s.userId}
+                                {s.userLabel}
                               </span>
                               {s.isSuspicious && <Pill tone="error">⚑ Flagged</Pill>}
                             </div>
                             <div className="truncate text-xs text-muted-foreground">
-                              {s.deviceType ?? "Unknown device"}
+                              {s.userEmail ?? s.deviceType ?? "Unknown device"}
                             </div>
                           </div>
                         </div>
@@ -799,17 +806,17 @@ function DrawerRow({ label, children }: { label: string; children: React.ReactNo
 }
 
 function drawerInitials(payload: DrawerPayload): string {
-  if (payload.kind === "device") return initialsFromId(payload.data.userId);
+  if (payload.kind === "device") return initialsFromLabel(payload.data.userLabel);
   return payload.data.initials;
 }
 
 function drawerTitle(payload: DrawerPayload): string {
-  if (payload.kind === "device") return payload.data.userId;
+  if (payload.kind === "device") return payload.data.userLabel;
   return payload.data.userName;
 }
 
 function drawerSubtitle(payload: DrawerPayload): string {
-  if (payload.kind === "device") return payload.data.locationLabel;
+  if (payload.kind === "device") return payload.data.userEmail ?? payload.data.locationLabel;
   if (payload.kind === "login") return payload.data.email;
   return `Quiz session · ${payload.data.id}`;
 }

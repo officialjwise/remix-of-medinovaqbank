@@ -23,13 +23,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 
-// ── Backend enums (mirror src/database/entities/enums.ts). ──
-export type BackendSubscriptionPlan =
-  | "monthly"
-  | "three_months"
-  | "six_months"
-  | "twelve_months"
-  | "free_trial";
+// ── Plan key: free-text slug (e.g. "monthly", "pro_annual_2026"). ──
+export type BackendSubscriptionPlan = string;
 
 /** One row in a plan card's feature list (JSONB on PlanConfiguration). */
 export interface BackendPlanFeature {

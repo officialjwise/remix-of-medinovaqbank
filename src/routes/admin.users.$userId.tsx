@@ -22,6 +22,7 @@ import {
   Shield,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/authStore";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   EditUserModal,
@@ -91,13 +92,18 @@ function scoreColor(pct: number) {
   return pct >= 80 ? "text-success" : pct >= 60 ? "text-warning" : "text-error";
 }
 
-const PLAN_LABEL: Record<BackendSubscriptionPlan, string> = {
+const PLAN_LABEL: Record<string, string> = {
   monthly: "Monthly",
   three_months: "3-Month",
   six_months: "6-Month",
   twelve_months: "12-Month",
   free_trial: "Trial",
 };
+
+/** Friendly label for a plan key, humanizing unknown/custom keys. */
+function planLabel(key: string): string {
+  return PLAN_LABEL[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 const SUB_STATUS_TONE: Record<BackendSubscriptionStatus, string> = {
   active: "bg-success/10 text-success",
@@ -153,6 +159,7 @@ type TabId = (typeof TABS)[number]["id"];
 function UserDetail() {
   const { userId } = Route.useParams();
   const navigate = useNavigate();
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   const { data: detail, isLoading, isError, error } = useAdminUserDetail(userId);
 
@@ -218,6 +225,8 @@ function UserDetail() {
   const user = detail.user;
   const suspended = user.status === "suspended";
   const banned = user.status === "banned";
+  // You cannot moderate your own account (no self-suspend/ban/delete/role-change).
+  const isSelf = currentUserId === user.id;
   const daysMember = Math.max(
     1,
     Math.floor((Date.now() - new Date(user.createdAt).getTime()) / 86_400_000),
@@ -259,17 +268,19 @@ function UserDetail() {
         {/* Side panel */}
         <aside className="flex-shrink-0 space-y-4 lg:w-80">
           <div className="rounded-2xl border border-border bg-surface p-6 text-center shadow-[var(--shadow-card)]">
-            <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-3xl font-bold text-white">
-              {user.initials}
-            </span>
+            {user.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="mx-auto h-24 w-24 rounded-2xl object-cover"
+              />
+            ) : (
+              <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-3xl font-bold text-white">
+                {user.initials}
+              </span>
+            )}
             <h2 className="mt-4 text-xl font-bold text-foreground">{user.name}</h2>
             <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
-            <p
-              className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-0.5 font-mono text-[11px] font-semibold text-muted-foreground"
-              title="Account ID"
-            >
-              {user.id}
-            </p>
 
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <RolePill role={user.role} />
@@ -288,7 +299,7 @@ function UserDetail() {
             <div className="mt-4">
               {detail.activeSubscription ? (
                 <span className="inline-flex rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">
-                  {PLAN_LABEL[detail.activeSubscription.plan]} plan
+                  {planLabel(detail.activeSubscription.plan)} plan
                 </span>
               ) : (
                 <span className="inline-flex rounded-full border border-border bg-surface-alt px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -330,44 +341,54 @@ function UserDetail() {
             <ActionBtn icon={Mail} onClick={() => setActionModal("email")}>
               Send email
             </ActionBtn>
-            <ActionBtn
-              icon={Shield}
-              onClick={() => handleRoleChange(user.role === "SUPER_ADMIN" ? "USER" : "SUPER_ADMIN")}
-            >
-              {user.role === "SUPER_ADMIN" ? "Demote to user" : "Promote to admin"}
-            </ActionBtn>
-            <ActionBtn
-              icon={Flag}
-              tone={user.isFlagged ? "warning" : "default"}
-              onClick={() => setActionModal("flag")}
-            >
-              {user.isFlagged ? "Flagged ✓" : "Flag account"}
-            </ActionBtn>
-            <ActionBtn
-              icon={suspended ? UserCheck : Ban}
-              tone="warning"
-              onClick={() => {
-                if (suspended || banned) {
-                  reactivateUser.mutate(userId, {
-                    onSuccess: () => toast.success("Account reactivated"),
-                    onError: (e) =>
-                      toast.error(e instanceof Error ? e.message : "Reactivation failed"),
-                  });
-                } else {
-                  setConfirmSuspend(true);
-                }
-              }}
-            >
-              {suspended || banned ? "Reactivate account" : "Suspend account"}
-            </ActionBtn>
-            {!banned && (
-              <ActionBtn icon={ShieldAlert} tone="error" onClick={() => setConfirmBan(true)}>
-                Ban account
-              </ActionBtn>
+            {isSelf ? (
+              <p className="rounded-lg bg-surface-alt px-3 py-2.5 text-center text-xs text-muted-foreground">
+                This is your own account — moderation actions are disabled.
+              </p>
+            ) : (
+              <>
+                <ActionBtn
+                  icon={Shield}
+                  onClick={() =>
+                    handleRoleChange(user.role === "SUPER_ADMIN" ? "USER" : "SUPER_ADMIN")
+                  }
+                >
+                  {user.role === "SUPER_ADMIN" ? "Demote to user" : "Promote to admin"}
+                </ActionBtn>
+                <ActionBtn
+                  icon={Flag}
+                  tone={user.isFlagged ? "warning" : "default"}
+                  onClick={() => setActionModal("flag")}
+                >
+                  {user.isFlagged ? "Flagged ✓" : "Flag account"}
+                </ActionBtn>
+                <ActionBtn
+                  icon={suspended ? UserCheck : Ban}
+                  tone="warning"
+                  onClick={() => {
+                    if (suspended || banned) {
+                      reactivateUser.mutate(userId, {
+                        onSuccess: () => toast.success("Account reactivated"),
+                        onError: (e) =>
+                          toast.error(e instanceof Error ? e.message : "Reactivation failed"),
+                      });
+                    } else {
+                      setConfirmSuspend(true);
+                    }
+                  }}
+                >
+                  {suspended || banned ? "Reactivate account" : "Suspend account"}
+                </ActionBtn>
+                {!banned && (
+                  <ActionBtn icon={ShieldAlert} tone="error" onClick={() => setConfirmBan(true)}>
+                    Ban account
+                  </ActionBtn>
+                )}
+                <ActionBtn icon={Trash2} tone="error" onClick={() => setConfirmDelete(true)}>
+                  Delete account
+                </ActionBtn>
+              </>
             )}
-            <ActionBtn icon={Trash2} tone="error" onClick={() => setConfirmDelete(true)}>
-              Delete account
-            </ActionBtn>
           </div>
 
           {/* Account standing */}
@@ -577,7 +598,7 @@ function OverviewTab({ detail, daysMember }: { detail: AdminUserDetailVM; daysMe
           <h3 className="text-base font-bold text-foreground">Subscription</h3>
           {detail.activeSubscription ? (
             <div className="mt-4 space-y-3">
-              <Row label="Plan" value={PLAN_LABEL[detail.activeSubscription.plan]} bold />
+              <Row label="Plan" value={planLabel(detail.activeSubscription.plan)} bold />
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Status</span>
                 <span
@@ -685,7 +706,7 @@ function BillingTab({ detail, userId }: { detail: AdminUserDetailVM; userId: str
             Current plan
           </p>
           <p className="mt-2 text-2xl font-bold text-foreground">
-            {active ? PLAN_LABEL[active.plan] : "None"}
+            {active ? planLabel(active.plan) : "None"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {active ? `Ends ${fmtDate(active.endDate)}` : "No active subscription"}
@@ -719,7 +740,7 @@ function BillingTab({ detail, userId }: { detail: AdminUserDetailVM; userId: str
               .sort((a, b) => +new Date(b.startDate) - +new Date(a.startDate))
               .map((s: BackendSubscriptionSummary) => (
                 <tr key={s.id} className="hover:bg-surface-alt/40">
-                  <td className="px-5 py-4 font-semibold text-foreground">{PLAN_LABEL[s.plan]}</td>
+                  <td className="px-5 py-4 font-semibold text-foreground">{planLabel(s.plan)}</td>
                   <td className="px-5 py-4 text-sm tabular-nums text-foreground">
                     {s.currency} {Number(s.amountPaid).toLocaleString()}
                   </td>

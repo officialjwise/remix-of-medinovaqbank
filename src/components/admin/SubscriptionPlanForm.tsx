@@ -92,22 +92,36 @@ export function SubscriptionPlanForm({
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Plan key">
               <div className="relative">
-                <select
+                <input
                   value={v.planKey}
                   disabled={mode === "edit"}
-                  onChange={(e) => set("planKey", e.target.value as Plan["planKey"])}
+                  list="plan-key-suggestions"
+                  placeholder="e.g. pro_annual_2026"
+                  onChange={(e) =>
+                    set(
+                      "planKey",
+                      e.target.value
+                        .toLowerCase()
+                        .replace(/[\s-]+/g, "_")
+                        .replace(/[^a-z0-9_]/g, ""),
+                    )
+                  }
                   className={`${inputCls} font-mono disabled:cursor-not-allowed disabled:opacity-60`}
-                >
+                />
+                <datalist id="plan-key-suggestions">
                   {PLAN_KEY_OPTIONS.map((k) => (
-                    <option key={k.value} value={k.value}>
-                      {k.value}
-                    </option>
+                    <option key={k.value} value={k.value} />
                   ))}
-                </select>
+                </datalist>
                 {mode === "edit" && (
                   <Lock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 )}
               </div>
+              {mode === "create" && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  A unique key (lowercase, digits, underscores). Immutable once created.
+                </p>
+              )}
             </Field>
             <Field label="Display name">
               <input
@@ -121,8 +135,9 @@ export function SubscriptionPlanForm({
               <input
                 type="number"
                 min={0}
-                value={v.price}
-                onChange={(e) => set("price", Number(e.target.value))}
+                value={v.price === 0 ? "" : v.price}
+                placeholder="0"
+                onChange={(e) => set("price", e.target.value === "" ? 0 : Number(e.target.value))}
                 className={`${inputCls} font-mono`}
               />
             </Field>
@@ -130,8 +145,11 @@ export function SubscriptionPlanForm({
               <input
                 type="number"
                 min={1}
-                value={v.durationDays}
-                onChange={(e) => set("durationDays", Number(e.target.value))}
+                value={v.durationDays === 0 ? "" : v.durationDays}
+                placeholder="30"
+                onChange={(e) =>
+                  set("durationDays", e.target.value === "" ? 0 : Number(e.target.value))
+                }
                 className={`${inputCls} font-mono`}
               />
             </Field>
@@ -154,8 +172,11 @@ export function SubscriptionPlanForm({
             <Field label="Sort order">
               <input
                 type="number"
-                value={v.sortOrder}
-                onChange={(e) => set("sortOrder", Number(e.target.value))}
+                value={v.sortOrder === 0 ? "" : v.sortOrder}
+                placeholder="0"
+                onChange={(e) =>
+                  set("sortOrder", e.target.value === "" ? 0 : Number(e.target.value))
+                }
                 className={`${inputCls} font-mono`}
               />
             </Field>
@@ -182,8 +203,11 @@ export function SubscriptionPlanForm({
                 <input
                   type="number"
                   min={1}
-                  value={v.trialDays ?? 7}
-                  onChange={(e) => set("trialDays", Number(e.target.value))}
+                  value={v.trialDays ? v.trialDays : ""}
+                  placeholder="7"
+                  onChange={(e) =>
+                    set("trialDays", e.target.value === "" ? 0 : Number(e.target.value))
+                  }
                   className={`${inputCls} font-mono`}
                 />
               </Field>
@@ -191,8 +215,11 @@ export function SubscriptionPlanForm({
                 <input
                   type="number"
                   min={0}
-                  value={v.questionCap ?? 10}
-                  onChange={(e) => set("questionCap", Number(e.target.value))}
+                  value={v.questionCap ? v.questionCap : ""}
+                  placeholder="10"
+                  onChange={(e) =>
+                    set("questionCap", e.target.value === "" ? 0 : Number(e.target.value))
+                  }
                   className={`${inputCls} font-mono`}
                 />
               </Field>

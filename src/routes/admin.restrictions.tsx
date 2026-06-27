@@ -9,10 +9,8 @@ import {
   LockOpen,
   Search,
   ShieldAlert,
-  ShieldOff,
   Timer,
 } from "lucide-react";
-import { useAuthStore } from "@/stores/authStore";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
   useRestrictions,
@@ -120,27 +118,9 @@ function SummaryCard({
 /* ------------------------------------------------------------------ */
 
 function RestrictionsPage() {
-  const isSuper = useAuthStore((s) => s.user?.role) === "SUPER_ADMIN";
-
-  if (!isSuper) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="max-w-md rounded-2xl border border-border bg-surface p-8 text-center shadow-[var(--shadow-card)]">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-error/10 text-error">
-            <ShieldOff className="h-6 w-6" />
-          </span>
-          <h2 className="mt-4 text-lg font-bold tracking-tight text-foreground">
-            Super Admin only
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Restriction management is limited to super administrators. Contact a super admin if you
-            need access.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  // Access is enforced by the parent `/admin` route guard (SUPER_ADMIN only,
+  // after auth-store hydration). A render-time role check here would flash a
+  // "Super Admin only" panel during hydration, so we don't repeat it.
   return <RestrictionsContent />;
 }
 

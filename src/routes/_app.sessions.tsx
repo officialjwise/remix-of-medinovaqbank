@@ -16,6 +16,7 @@ import {
   type DeviceLock,
   type DeviceSession,
 } from "@/api/sessions.api";
+import { useSubscriptionStatus } from "@/api/payments.api";
 
 export const Route = createFileRoute("/_app/sessions")({
   head: () => ({
@@ -26,8 +27,11 @@ export const Route = createFileRoute("/_app/sessions")({
 
 function SessionsPage() {
   const { data, isLoading, isError } = useActiveSessions();
+  const { data: subStatus } = useSubscriptionStatus();
   const sessions = data?.sessions ?? [];
-  const deviceLock = data?.deviceLock ?? null;
+  // The single-device lock only applies to trial users. Paid subscribers get
+  // multi-device access, so never show them the trial lock banner.
+  const deviceLock = subStatus?.hasActiveSubscription ? null : (data?.deviceLock ?? null);
 
   return (
     <div className="mx-auto max-w-4xl">

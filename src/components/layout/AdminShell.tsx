@@ -193,7 +193,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <div
         className={`flex h-16 items-center border-b border-border ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}
       >
-        <Logo size={30} markOnly={collapsed} />
+        <Link to="/" onClick={() => setMobileOpen(false)} aria-label="Medinovaqbank home">
+          <Logo size={30} markOnly={collapsed} />
+        </Link>
         <button
           type="button"
           onClick={() => setMobileOpen(false)}

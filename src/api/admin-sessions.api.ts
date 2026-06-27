@@ -20,6 +20,8 @@ import { apiClient } from "@/api/client";
 export interface BackendDeviceSession {
   id: string;
   userId: string;
+  userName: string | null;
+  userEmail: string | null;
   deviceFingerprint: string;
   userAgent: string | null;
   ipAddress: string | null;
@@ -42,6 +44,8 @@ export interface BackendDeviceSession {
 export interface DeviceSession {
   id: string;
   userId: string;
+  userName: string | null;
+  userEmail: string | null;
   deviceFingerprint: string;
   userAgent: string | null;
   ipAddress: string | null;
@@ -60,6 +64,8 @@ export interface DeviceSession {
   isSuspicious: boolean;
   suspiciousReasons: string[];
   // ── Derived display helpers ──
+  /** Best human label for the user: name → email → "Unknown user" (never the UUID). */
+  userLabel: string;
   /** "City, Country" (or whichever parts are present). */
   locationLabel: string;
   /** Minutes since lastPingAt — drives "active N min ago". */
@@ -82,6 +88,7 @@ export function mapSession(s: BackendDeviceSession): DeviceSession {
   return {
     ...s,
     suspiciousReasons: s.suspiciousReasons ?? [],
+    userLabel: s.userName?.trim() || s.userEmail?.trim() || "Unknown user",
     locationLabel: locationLabel(s.city, s.country),
     lastActivityMinAgo: minutesSince(s.lastPingAt),
     durationMin: minutesSince(s.loginAt),

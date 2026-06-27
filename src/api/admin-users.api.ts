@@ -38,12 +38,8 @@ export type BackendUserStatus = "active" | "suspended" | "banned";
 export type BackendAuthProvider = "google" | "local";
 export type BackendSessionMode = "tutor" | "quiz";
 export type BackendSessionStatus = "in_progress" | "completed" | "abandoned";
-export type BackendSubscriptionPlan =
-  | "monthly"
-  | "three_months"
-  | "six_months"
-  | "twelve_months"
-  | "free_trial";
+/** Free-text plan key (e.g. "monthly", "pro_annual_2026"). */
+export type BackendSubscriptionPlan = string;
 export type BackendSubscriptionStatus = "active" | "expired" | "cancelled" | "trial";
 
 // ── Frontend display unions. ──

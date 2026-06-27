@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Check, Clock, Layers, Lock, Pencil, Plus, Users, X } from "lucide-react";
+import { Check, Clock, Layers, Pencil, Plus, Users, X } from "lucide-react";
 import { toast } from "sonner";
-import { useAuthStore } from "@/stores/authStore";
 import { useAdminPlans, useTogglePlan, type Plan } from "@/api/plans.api";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
@@ -16,24 +15,9 @@ export const Route = createFileRoute("/admin/subscriptions/plans/")({
 });
 
 function SubscriptionPlansPage() {
-  const isSuper = useAuthStore((s) => s.user?.role) === "SUPER_ADMIN";
   const navigate = useNavigate();
   const { data: plans = [] } = useAdminPlans();
   const togglePlan = useTogglePlan();
-
-  if (!isSuper) {
-    return (
-      <div className="rounded-2xl border border-border bg-surface p-10 text-center">
-        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-warning/10 text-warning">
-          <Lock className="h-6 w-6" />
-        </span>
-        <h2 className="mt-4 text-lg font-bold text-foreground">Super Admin only</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Plan configuration is restricted to super admins.
-        </p>
-      </div>
-    );
-  }
 
   const trial = plans.find((p) => p.isTrial);
   const paid = plans.filter((p) => !p.isTrial).sort((a, b) => a.sortOrder - b.sortOrder);

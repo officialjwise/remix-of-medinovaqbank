@@ -2305,17 +2305,22 @@ function NumberInput({
   value,
   onChange,
   step,
+  placeholder,
 }: {
   value: number;
   onChange: (v: number) => void;
   step?: string;
+  placeholder?: string;
 }) {
   return (
     <input
       type="number"
       step={step}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
+      // Show an empty field (with a hint) instead of a baked-in "0" the user
+      // has to clear before typing. 0 is the "unset" sentinel here.
+      value={value === 0 ? "" : value}
+      placeholder={placeholder ?? "0"}
+      onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))}
       className="h-10 w-full rounded-lg border border-border bg-surface px-3 font-mono text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
     />
   );
