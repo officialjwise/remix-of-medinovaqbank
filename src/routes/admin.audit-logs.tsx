@@ -25,6 +25,19 @@ import {
   type BackendProtectionContext,
 } from "@/api/protection.api";
 
+// Deterministic, locale + timezone-stable timestamp so the SSR HTML and the
+// hydrated client render byte-identical strings (otherwise toLocaleString uses
+// the runtime's default locale/TZ — UTC/en-US on the server vs the user's
+// locale in the browser — and React reports a hydration mismatch). Ghana-based.
+const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Africa/Accra",
+});
+function formatTimestamp(value: string | number | Date): string {
+  return DATE_FMT.format(new Date(value));
+}
+
 export const Route = createFileRoute("/admin/audit-logs")({
   head: () => ({
     meta: [{ title: "Admin · Audit Logs — Medinovaqbank" }, { name: "robots", content: "noindex" }],
@@ -223,7 +236,7 @@ function ActivityLogTab() {
               {filtered.map((e) => (
                 <tr key={e.id} className="hover:bg-surface-alt/50">
                   <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {new Date(e.at).toLocaleString()}
+                    {formatTimestamp(e.at)}
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-semibold text-foreground">{e.actor}</p>
@@ -332,7 +345,7 @@ function ProtectionViolationsTab() {
       : type;
 
   const eventsQuery = useProtectionEvents({
-    limit: 200,
+    limit: 100,
     eventType: effectiveType,
     context: context === "all" ? undefined : context,
   });
@@ -671,9 +684,7 @@ function ViolationRow({ e, onClick }: { e: ProtectionEvent; onClick: () => void 
       </td>
       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{e.ip}</td>
       <td className="px-4 py-3 font-mono text-xs text-foreground">{shortId(e.device)}</td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">
-        {new Date(e.createdAt).toLocaleString()}
-      </td>
+      <td className="px-4 py-3 text-xs text-muted-foreground">{formatTimestamp(e.createdAt)}</td>
     </tr>
   );
 }

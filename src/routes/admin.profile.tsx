@@ -211,8 +211,9 @@ function AdminProfilePage() {
             </div>
             <div className="min-w-0 flex-1 sm:pb-1">
               <h1 className="truncate text-2xl font-bold tracking-tight text-foreground">{name}</h1>
-              <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Mail className="h-3.5 w-3.5" /> {email}
+              <p className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+                <Mail className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">{email}</span>
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
@@ -340,8 +341,9 @@ function AdminProfilePage() {
           <Card title="Account" desc="Read-only account summary.">
             <dl className="space-y-3">
               <Row label="Email">
-                <span className="inline-flex items-center gap-1.5 text-foreground">
-                  <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {email}
+                <span className="flex min-w-0 items-center gap-1.5 text-foreground">
+                  <Mail className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                  <span className="truncate">{email}</span>
                 </span>
               </Row>
               <Row label="Role">

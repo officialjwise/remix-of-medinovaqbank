@@ -4,7 +4,7 @@ import { Plus, Search, Tag, Trash2, Edit3, ChevronDown, X, Check, FolderTree } f
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useSubcategoriesStore } from "@/stores/categoriesStore";
+import { useSubcategoriesStore, type Subcategory } from "@/stores/categoriesStore";
 import {
   useAdminCategories,
   useCreateCategory,
@@ -13,6 +13,11 @@ import {
   slugify,
   type Category,
 } from "@/api/categories.api";
+
+// Stable reference for "no subcategories" — returning a fresh [] from the
+// Zustand selector each render makes useSyncExternalStore think the store
+// changed every render → "Maximum update depth exceeded". Reuse one array.
+const EMPTY_SUBS: Subcategory[] = [];
 
 export const Route = createFileRoute("/admin/categories")({
   head: () => ({
@@ -180,7 +185,7 @@ function CategoryCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const subcategories = useSubcategoriesStore((s) => s.byCategory[category.id] ?? []);
+  const subcategories = useSubcategoriesStore((s) => s.byCategory[category.id] ?? EMPTY_SUBS);
   const addSubcategory = useSubcategoriesStore((s) => s.addSubcategory);
   const updateSubcategory = useSubcategoriesStore((s) => s.updateSubcategory);
   const removeSubcategory = useSubcategoriesStore((s) => s.removeSubcategory);

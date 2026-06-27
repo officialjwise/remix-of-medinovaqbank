@@ -146,7 +146,7 @@ function RestrictionsPage() {
 
 function RestrictionsContent() {
   const navigate = useNavigate();
-  const { data, isLoading, isError, error } = useRestrictions({ limit: 200 });
+  const { data, isLoading, isError, error } = useRestrictions({ limit: 100 });
   const liftMut = useLiftRestriction();
 
   const restrictions = useMemo(() => data?.restrictions ?? [], [data]);

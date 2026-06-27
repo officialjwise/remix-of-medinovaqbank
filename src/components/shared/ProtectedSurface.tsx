@@ -1,16 +1,16 @@
 import type { ReactNode } from "react";
 import { ShieldCheck } from "lucide-react";
-import { useAuthStore } from "@/stores/authStore";
 import { useContentProtection } from "@/hooks/useContentProtection";
-import { Watermark } from "@/components/shared/Watermark";
 import { AccessRestricted } from "@/components/shared/AccessRestricted";
 import type { ProtectionContext } from "@/stores/protectionStore";
 
 /**
  * Wraps protected content (notes reader, quiz session). Applies the content
- * protection hook, overlays a per-user watermark, blurs on focus-loss /
- * PrintScreen, and swaps in the restriction screen if the user is locked out.
- * Honest by design — this is deterrence + detection, not guaranteed prevention.
+ * protection hook, blurs on focus-loss / PrintScreen, and swaps in the
+ * restriction screen if the user is locked out. Honest by design — this is
+ * deterrence + detection, not guaranteed prevention. (Per client request the
+ * diagonal per-user watermark overlay was removed; the subtle "Protected"
+ * badge sits bottom-left so it never covers the flag/bookmark controls.)
  */
 export function ProtectedSurface({
   context,
@@ -27,12 +27,9 @@ export function ProtectedSurface({
   className?: string;
   showBadge?: boolean;
 }) {
-  const user = useAuthStore((s) => s.user);
   const { ref, blurred, restriction } = useContentProtection({ context, contextId, page });
 
   if (restriction) return <AccessRestricted restriction={restriction} />;
-
-  const label = user?.email ?? user?.publicId ?? "Medinovaqbank";
 
   return (
     <div
@@ -48,9 +45,6 @@ export function ProtectedSurface({
         {children}
       </div>
 
-      {/* Per-user watermark */}
-      <Watermark label={label} />
-
       {/* Capture-blur shield message */}
       {blurred && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/40 backdrop-blur-sm">
@@ -64,7 +58,7 @@ export function ProtectedSurface({
       )}
 
       {showBadge && (
-        <div className="pointer-events-none absolute right-2 top-2 z-40 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground backdrop-blur">
+        <div className="pointer-events-none absolute bottom-2 left-2 z-20 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground backdrop-blur">
           <ShieldCheck className="h-3 w-3 text-accent" /> Protected · logged
         </div>
       )}

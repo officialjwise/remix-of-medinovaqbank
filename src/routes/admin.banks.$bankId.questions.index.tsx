@@ -58,7 +58,7 @@ function AdminBankQuestions() {
   const { data: banks } = useQuestionBanksLite();
   const bank = banks?.find((b) => b.id === bankId);
 
-  const { data: questionsData } = useAdminQuestions({ bankId, limit: 200 });
+  const { data: questionsData } = useAdminQuestions({ bankId, limit: 100 });
   const toggleActive = useToggleQuestionActive();
   const deleteQuestion = useDeleteQuestion();
 

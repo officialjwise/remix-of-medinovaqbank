@@ -45,7 +45,7 @@ function AdminQuestions() {
   const [topicFilter, setTopicFilter] = useState("All");
 
   const { data: banks } = useQuestionBanksLite();
-  const { data: questionsData } = useAdminQuestions({ limit: 500 });
+  const { data: questionsData } = useAdminQuestions({ limit: 100 });
   const toggleActive = useToggleQuestionActive();
   const deleteQuestion = useDeleteQuestion();
 

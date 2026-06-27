@@ -50,7 +50,7 @@ function EditQuestionPage() {
   const update = useUpdateQuestion();
 
   // No single-question admin endpoint exists; pull the bank's questions and find by id.
-  const { data, isLoading } = useAdminQuestions({ bankId, limit: 200 });
+  const { data, isLoading } = useAdminQuestions({ bankId, limit: 100 });
   const q = data?.data.find((x) => x.id === questionId);
 
   const back = () => navigate({ to: "/admin/banks/$bankId/questions", params: { bankId } });
