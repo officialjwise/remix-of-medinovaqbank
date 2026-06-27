@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
 import {
   ArrowLeft,
   Loader2,
@@ -24,8 +23,8 @@ import {
   type NoteStatus,
   type NoteTopic,
 } from "@/stores/notesStore";
-import { useExamTypesStore } from "@/stores/examTypesStore";
-import { useCategoriesStore } from "@/stores/categoriesStore";
+import { useExamTypes } from "@/api/exam-types.api";
+import { useCategories } from "@/api/categories.api";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cn } from "@/lib/utils";
@@ -586,8 +585,8 @@ function EditMetadataModal({
     tier: NoteTier;
   }) => void;
 }) {
-  const categories = useCategoriesStore((s) => s.categories);
-  const examTypes = useExamTypesStore(useShallow((s) => s.examTypes.filter((e) => e.active)));
+  const { data: categories = [] } = useCategories();
+  const { data: examTypes = [] } = useExamTypes();
 
   const [title, setTitle] = useState(note.title);
   const [description, setDescription] = useState(note.description);

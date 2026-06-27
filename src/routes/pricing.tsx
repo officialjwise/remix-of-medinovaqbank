@@ -3,11 +3,27 @@ import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
-import { durationPlans, type DurationPlan } from "@/data/plans";
+import { type DurationPlan } from "@/data/plans";
 import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
 import { useAuthStore } from "@/stores/authStore";
-import { usePaidPlans, useTrialPlan, type Plan } from "@/stores/plansStore";
+import { usePaidPlans, useTrialPlan, type Plan } from "@/api/plans.api";
 import { useCmsStore } from "@/stores/cmsStore";
+
+/** Adapt a backend-driven Plan to the DurationPlan the Paystack modal needs. */
+function toDurationPlan(p: Plan): DurationPlan {
+  const months = Math.max(1, Math.round(p.durationDays / 30));
+  return {
+    id: p.planKey as unknown as DurationPlan["id"],
+    name: p.name,
+    durationLabel: p.durationLabel,
+    months,
+    price: p.price,
+    currency: "GHS",
+    perMonth: Math.round(p.price / months),
+    features: p.bullets.filter((b) => b.included).map((b) => b.text),
+    cta: "Subscribe",
+  };
+}
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -30,16 +46,15 @@ export const Route = createFileRoute("/pricing")({
 
 function PricingPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const paid = usePaidPlans();
-  const trial = useTrialPlan();
+  const { data: paid = [] } = usePaidPlans();
+  const { data: trial } = useTrialPlan();
   const { cms } = useCmsStore();
   const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
 
-  // The checkout modal/payment flow needs the rich DurationPlan (months, currency,
-  // perMonth). Store plan ids mirror durationPlans, so look it up by id.
+  // The checkout modal/payment flow needs the rich DurationPlan (months,
+  // currency, perMonth) — derive it from the backend plan.
   function startCheckout(plan: Plan) {
-    const match = durationPlans.find((d) => d.id === plan.id);
-    if (match) setCheckoutPlan(match);
+    setCheckoutPlan(toDurationPlan(plan));
   }
 
   const gridCols =
@@ -135,7 +150,7 @@ function PlanCard({
   isAuthenticated: boolean;
   onSubscribe: () => void;
 }) {
-  const isPopular = plan.id === "q3";
+  const isPopular = !!plan.badgeLabel;
   const includedBullets = plan.bullets.filter((b) => b.included);
   const perMonth =
     plan.durationDays > 0 ? Math.round(plan.price / (plan.durationDays / 30)) : plan.price;

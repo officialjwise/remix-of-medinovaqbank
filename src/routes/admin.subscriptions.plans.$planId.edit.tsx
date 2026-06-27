@@ -2,7 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
-import { usePlansStore } from "@/stores/plansStore";
+import { useAdminPlan, useUpdatePlan, toPlanWritePayload } from "@/api/plans.api";
+import { useFeatureIdByKey } from "@/api/features.api";
 import { SubscriptionPlanForm } from "@/components/admin/SubscriptionPlanForm";
 
 export const Route = createFileRoute("/admin/subscriptions/plans/$planId/edit")({
@@ -16,8 +17,9 @@ function EditPlan() {
   const { planId } = Route.useParams();
   const navigate = useNavigate();
   const isSuper = useAuthStore((s) => s.user?.role) === "SUPER_ADMIN";
-  const plan = usePlansStore((s) => s.plans.find((p) => p.id === planId));
-  const upsert = usePlansStore((s) => s.upsert);
+  const featureIdByKey = useFeatureIdByKey();
+  const { data: plan, isLoading } = useAdminPlan(planId, featureIdByKey);
+  const updatePlan = useUpdatePlan();
 
   if (!isSuper) {
     return (
@@ -29,6 +31,14 @@ function EditPlan() {
         <p className="mt-1 text-sm text-muted-foreground">
           Plan configuration is restricted to super admins.
         </p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface p-10 text-center">
+        <p className="text-sm text-muted-foreground">Loading plan…</p>
       </div>
     );
   }
@@ -65,9 +75,30 @@ function EditPlan() {
         mode="edit"
         initial={plan}
         onSubmit={(next) => {
-          upsert(next);
-          toast.success(`Plan "${next.name}" updated`);
-          navigate({ to: "/admin/subscriptions/plans" });
+          const payload = toPlanWritePayload(next);
+          updatePlan.mutate(
+            {
+              id: next.id,
+              input: {
+                name: payload.name,
+                durationDays: payload.durationDays,
+                price: payload.price,
+                currency: payload.currency,
+                badge: payload.badge,
+                sortOrder: payload.sortOrder,
+                isActive: payload.isActive,
+                features: payload.features,
+                featureMappings: payload.featureMappings,
+              },
+            },
+            {
+              onSuccess: () => {
+                toast.success(`Plan "${next.name}" updated`);
+                navigate({ to: "/admin/subscriptions/plans" });
+              },
+              onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+            },
+          );
         }}
       />
     </div>

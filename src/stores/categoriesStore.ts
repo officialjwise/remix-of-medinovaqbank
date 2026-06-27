@@ -108,6 +108,58 @@ interface CategoriesState {
   removeSubcategory: (categoryId: string, subId: string) => void;
 }
 
+/**
+ * TEMPORARY: subcategories have no backend support yet. While categories
+ * themselves now come from the real API (see @/api/categories.api), the admin
+ * UI still offers subcategory CRUD. This slim store keeps subcategories keyed
+ * by the (backend) category id until a backend subcategory endpoint exists.
+ * GAP: subcategories are local-only and not persisted server-side.
+ */
+interface SubcategoriesState {
+  /** categoryId -> subcategories */
+  byCategory: Record<string, Subcategory[]>;
+  getSubcategories: (categoryId: string) => Subcategory[];
+  addSubcategory: (categoryId: string, name: string) => void;
+  updateSubcategory: (categoryId: string, subId: string, name: string) => void;
+  removeSubcategory: (categoryId: string, subId: string) => void;
+}
+
+export const useSubcategoriesStore = create<SubcategoriesState>()(
+  persist(
+    (set, get) => ({
+      byCategory: {},
+      getSubcategories: (categoryId) => get().byCategory[categoryId] ?? [],
+      addSubcategory: (categoryId, name) =>
+        set((s) => ({
+          byCategory: {
+            ...s.byCategory,
+            [categoryId]: [
+              ...(s.byCategory[categoryId] ?? []),
+              { id: `sc-${Date.now()}`, name, slug: slugify(name) },
+            ],
+          },
+        })),
+      updateSubcategory: (categoryId, subId, name) =>
+        set((s) => ({
+          byCategory: {
+            ...s.byCategory,
+            [categoryId]: (s.byCategory[categoryId] ?? []).map((x) =>
+              x.id === subId ? { ...x, name, slug: slugify(name) } : x,
+            ),
+          },
+        })),
+      removeSubcategory: (categoryId, subId) =>
+        set((s) => ({
+          byCategory: {
+            ...s.byCategory,
+            [categoryId]: (s.byCategory[categoryId] ?? []).filter((x) => x.id !== subId),
+          },
+        })),
+    }),
+    { name: "medinova-subcategories", version: 1 },
+  ),
+);
+
 export const useCategoriesStore = create<CategoriesState>()(
   persist(
     (set) => ({

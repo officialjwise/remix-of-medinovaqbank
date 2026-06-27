@@ -31,7 +31,7 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 import { adminUsers } from "@/data/adminData";
-import { usePlansStore } from "@/stores/plansStore";
+import { useAdminPlans } from "@/api/plans.api";
 import { useNotesStore } from "@/stores/notesStore";
 import { useProtectionStore } from "@/stores/protectionStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -161,7 +161,7 @@ const tooltipStyle = {
 function AdminDashboard() {
   const loading = useInitialLoad();
   const user = useAuthStore((s) => s.user);
-  const plans = usePlansStore(useShallow((s) => s.plans));
+  const { data: plans = [] } = useAdminPlans();
   const notes = useNotesStore(useShallow((s) => s.notes));
   const protectionEvents = useProtectionStore(useShallow((s) => s.events));
 

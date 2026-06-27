@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   FileUp,
@@ -14,8 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNotesStore, TIER_LABELS, type NoteTier } from "@/stores/notesStore";
-import { useExamTypesStore } from "@/stores/examTypesStore";
-import { useCategoriesStore } from "@/stores/categoriesStore";
+import { useExamTypes } from "@/api/exam-types.api";
+import { useCategories } from "@/api/categories.api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/notes/upload")({
@@ -76,8 +75,8 @@ function formatBytes(bytes: number): string {
 function UploadNotePage() {
   const navigate = useNavigate();
   const add = useNotesStore((s) => s.add);
-  const categories = useCategoriesStore((s) => s.categories);
-  const examTypes = useExamTypesStore(useShallow((s) => s.examTypes.filter((e) => e.active)));
+  const { data: categories = [] } = useCategories();
+  const { data: examTypes = [] } = useExamTypes();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -86,8 +85,17 @@ function UploadNotePage() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState(categories[0]?.name ?? "");
-  const [examType, setExamType] = useState(examTypes[0]?.name ?? "");
+  const [category, setCategory] = useState("");
+  const [examType, setExamType] = useState("");
+
+  // Categories load async; default to the first once available.
+  useEffect(() => {
+    if (!category && categories.length > 0) setCategory(categories[0].name);
+  }, [categories, category]);
+  // Exam types load async; default to the first once available.
+  useEffect(() => {
+    if (!examType && examTypes.length > 0) setExamType(examTypes[0].name);
+  }, [examTypes, examType]);
   const [coverColor, setCoverColor] = useState(COVER_COLORS[0]);
   const [tier, setTier] = useState<NoteTier>("trial_paid");
 

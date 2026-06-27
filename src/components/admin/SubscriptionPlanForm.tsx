@@ -11,11 +11,20 @@ import {
   Clock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useFeatureCatalogStore } from "@/stores/featureCatalogStore";
-import type { Plan, PlanBullet } from "@/stores/plansStore";
+import { useFeatures } from "@/api/features.api";
+import type { Plan, PlanBullet } from "@/api/plans.api";
 
 let bid = 1000;
 const newId = () => `b${bid++}`;
+
+/** Backend SubscriptionPlan enum values. */
+const PLAN_KEY_OPTIONS: { value: Plan["planKey"] }[] = [
+  { value: "monthly" },
+  { value: "three_months" },
+  { value: "six_months" },
+  { value: "twelve_months" },
+  { value: "free_trial" },
+];
 
 const inputCls =
   "h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
@@ -29,17 +38,26 @@ export function SubscriptionPlanForm({
   initial: Plan;
   onSubmit: (plan: Plan) => void;
 }) {
-  const catalog = useFeatureCatalogStore((s) => s.features);
+  const { data: catalog = [] } = useFeatures();
   const [v, setV] = useState<Plan>(initial);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const set = <K extends keyof Plan>(k: K, val: Plan[K]) => setV((p) => ({ ...p, [k]: val }));
 
-  function setCatalog(key: string, patch: Partial<{ included: boolean; limit?: number }>) {
+  function setCatalog(
+    key: string,
+    patch: Partial<{ included: boolean; limit?: number }>,
+    featureId?: string,
+  ) {
     setV((p) => ({
       ...p,
       catalogFeatures: {
         ...p.catalogFeatures,
-        [key]: { ...(p.catalogFeatures[key] ?? { included: false }), ...patch },
+        [key]: {
+          ...(p.catalogFeatures[key] ?? { included: false }),
+          ...patch,
+          featureKey: key,
+          featureId: p.catalogFeatures[key]?.featureId ?? featureId,
+        },
       },
     }));
   }
@@ -59,7 +77,7 @@ export function SubscriptionPlanForm({
 
   function submit(active: boolean) {
     if (!v.name.trim()) return toast.error("Plan name is required");
-    if (!v.id.trim()) return toast.error("Plan key is required");
+    if (!v.planKey.trim()) return toast.error("Plan key is required");
     if (v.price < 0) return toast.error("Price must be ≥ 0");
     if (v.bullets.some((b) => !b.text.trim()))
       return toast.error("Remove or fill in empty bullet lines");
@@ -74,15 +92,18 @@ export function SubscriptionPlanForm({
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Plan key">
               <div className="relative">
-                <input
-                  value={v.id}
+                <select
+                  value={v.planKey}
                   disabled={mode === "edit"}
-                  onChange={(e) =>
-                    set("id", e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))
-                  }
-                  placeholder="e.g. q3"
+                  onChange={(e) => set("planKey", e.target.value as Plan["planKey"])}
                   className={`${inputCls} font-mono disabled:cursor-not-allowed disabled:opacity-60`}
-                />
+                >
+                  {PLAN_KEY_OPTIONS.map((k) => (
+                    <option key={k.value} value={k.value}>
+                      {k.value}
+                    </option>
+                  ))}
+                </select>
                 {mode === "edit" && (
                   <Lock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 )}
@@ -204,7 +225,7 @@ export function SubscriptionPlanForm({
                 >
                   <button
                     type="button"
-                    onClick={() => setCatalog(f.key, { included: !sel.included })}
+                    onClick={() => setCatalog(f.key, { included: !sel.included }, f.id)}
                     className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ${sel.included ? "bg-success/10 text-success" : "bg-error/10 text-error"}`}
                   >
                     {sel.included ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}

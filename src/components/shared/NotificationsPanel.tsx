@@ -3,11 +3,13 @@ import { useNavigate } from "@tanstack/react-router";
 import { Bell, Check, CheckCheck, Trash2, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import {
-  useNotificationsStore,
-  useNotificationsByAudience,
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+  useRemoveNotification,
   type NotifAudience,
   type NotifType,
-} from "@/stores/notificationsStore";
+} from "@/api/notifications.api";
 
 const TYPE_META: Record<NotifType, { label: string; dot: string; chip: string }> = {
   signup: { label: "Signups", dot: "bg-success", chip: "bg-success/10 text-success" },
@@ -32,19 +34,26 @@ function timeAgo(iso: string) {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
-export function NotificationsPanel({ audience }: { audience: NotifAudience }) {
-  const items = useNotificationsByAudience(audience);
-  const markRead = useNotificationsStore((s) => s.markRead);
-  const markAllRead = useNotificationsStore((s) => s.markAllRead);
-  const remove = useNotificationsStore((s) => s.remove);
+export function NotificationsPanel({ audience: _audience }: { audience: NotifAudience }) {
+  // `audience` is informational only: the backend already scopes rows to the
+  // current user (admins receive admin-audience rows, users receive user rows).
+  const { data, isLoading } = useNotifications({ limit: 50 });
+  const markReadMut = useMarkNotificationRead();
+  const markAllReadMut = useMarkAllNotificationsRead();
+  const removeMut = useRemoveNotification();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<"all" | "unread" | NotifType>("all");
+
+  const items = useMemo(() => data?.items ?? [], [data]);
+  const markRead = (id: string) => markReadMut.mutate(id);
+  const markAllRead = () => markAllReadMut.mutate();
+  const remove = (id: string) => removeMut.mutate(id);
 
   const types = useMemo(() => [...new Set(items.map((i) => i.type))], [items]);
   const filtered = items.filter((n) =>
     filter === "all" ? true : filter === "unread" ? !n.read : n.type === filter,
   );
-  const unread = items.filter((n) => !n.read).length;
+  const unread = data?.unreadCount ?? items.filter((n) => !n.read).length;
 
   return (
     <div className="space-y-6">
@@ -58,7 +67,7 @@ export function NotificationsPanel({ audience }: { audience: NotifAudience }) {
         {unread > 0 && (
           <button
             onClick={() => {
-              markAllRead(audience);
+              markAllRead();
               toast.success("All marked as read");
             }}
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt"
@@ -81,7 +90,12 @@ export function NotificationsPanel({ audience }: { audience: NotifAudience }) {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="px-6 py-16 text-center">
+            <Bell className="mx-auto h-8 w-8 animate-pulse text-muted-foreground" />
+            <p className="mt-3 text-sm font-semibold text-foreground">Loading…</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="px-6 py-16 text-center">
             <Bell className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className="mt-3 text-sm font-semibold text-foreground">Nothing here</p>

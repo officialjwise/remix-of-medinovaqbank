@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Check, Clock, Layers, Lock, Pencil, Plus, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
-import { usePlansStore, type Plan } from "@/stores/plansStore";
+import { useAdminPlans, useTogglePlan, type Plan } from "@/api/plans.api";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
 export const Route = createFileRoute("/admin/subscriptions/plans/")({
@@ -18,8 +18,8 @@ export const Route = createFileRoute("/admin/subscriptions/plans/")({
 function SubscriptionPlansPage() {
   const isSuper = useAuthStore((s) => s.user?.role) === "SUPER_ADMIN";
   const navigate = useNavigate();
-  const plans = usePlansStore((s) => s.plans);
-  const toggleActive = usePlansStore((s) => s.toggleActive);
+  const { data: plans = [] } = useAdminPlans();
+  const togglePlan = useTogglePlan();
 
   if (!isSuper) {
     return (
@@ -40,8 +40,13 @@ function SubscriptionPlansPage() {
   const totalSubs = plans.reduce((s, p) => s + p.subscribers, 0);
 
   function onToggle(p: Plan) {
-    toggleActive(p.id);
-    toast.success(`"${p.name}" ${p.active ? "deactivated" : "activated"}`);
+    togglePlan.mutate(
+      { id: p.id, isActive: !p.active },
+      {
+        onSuccess: () => toast.success(`"${p.name}" ${p.active ? "deactivated" : "activated"}`),
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+      },
+    );
   }
 
   return (
@@ -134,7 +139,7 @@ function SubscriptionPlansPage() {
             )}
             <p className="text-sm font-bold text-foreground">{p.name}</p>
             <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
-              {p.id}
+              {p.planKey}
             </p>
             <div className="mt-3 flex items-end gap-1">
               <span className="text-2xl font-extrabold tracking-tight text-foreground">

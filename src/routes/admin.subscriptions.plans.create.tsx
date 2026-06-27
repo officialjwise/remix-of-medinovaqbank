@@ -2,8 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
-import { usePlansStore, type Plan } from "@/stores/plansStore";
-import { useFeatureCatalogStore } from "@/stores/featureCatalogStore";
+import { useAdminPlans, useCreatePlan, toPlanWritePayload, type Plan } from "@/api/plans.api";
+import { useFeatures } from "@/api/features.api";
 import { SubscriptionPlanForm } from "@/components/admin/SubscriptionPlanForm";
 
 export const Route = createFileRoute("/admin/subscriptions/plans/create")({
@@ -16,9 +16,9 @@ export const Route = createFileRoute("/admin/subscriptions/plans/create")({
 function CreatePlan() {
   const navigate = useNavigate();
   const isSuper = useAuthStore((s) => s.user?.role) === "SUPER_ADMIN";
-  const upsert = usePlansStore((s) => s.upsert);
-  const plans = usePlansStore((s) => s.plans);
-  const catalog = useFeatureCatalogStore((s) => s.features);
+  const createPlan = useCreatePlan();
+  const { data: plans = [] } = useAdminPlans();
+  const { data: catalog = [] } = useFeatures();
 
   if (!isSuper) {
     return (
@@ -36,8 +36,10 @@ function CreatePlan() {
 
   const blank: Plan = {
     id: "",
+    planKey: "monthly",
     name: "",
     price: 0,
+    currency: "GHS",
     durationDays: 30,
     durationLabel: "/month",
     badgeLabel: "",
@@ -53,6 +55,8 @@ function CreatePlan() {
       catalog.map((f) => [
         f.key,
         {
+          featureKey: f.key,
+          featureId: f.id,
           included: f.type === "boolean",
           limit: f.type === "limit" ? (f.defaultLimit ?? -1) : undefined,
         },
@@ -79,11 +83,30 @@ function CreatePlan() {
         mode="create"
         initial={blank}
         onSubmit={(plan) => {
-          if (plans.some((p) => p.id === plan.id))
-            return toast.error(`Plan key "${plan.id}" already exists`);
-          upsert(plan);
-          toast.success(`Plan "${plan.name}" created`);
-          navigate({ to: "/admin/subscriptions/plans" });
+          if (plans.some((p) => p.planKey === plan.planKey))
+            return toast.error(`A "${plan.planKey}" plan already exists`);
+          const payload = toPlanWritePayload(plan);
+          createPlan.mutate(
+            {
+              plan: plan.planKey,
+              isTrial: plan.planKey === "free_trial",
+              name: payload.name,
+              durationDays: payload.durationDays,
+              price: payload.price,
+              currency: payload.currency,
+              badge: payload.badge,
+              sortOrder: payload.sortOrder,
+              features: payload.features,
+              featureMappings: payload.featureMappings,
+            },
+            {
+              onSuccess: () => {
+                toast.success(`Plan "${plan.name}" created`);
+                navigate({ to: "/admin/subscriptions/plans" });
+              },
+              onError: (e) => toast.error(e instanceof Error ? e.message : "Create failed"),
+            },
+          );
         }}
       />
     </div>

@@ -3,11 +3,13 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import {
-  useNotificationsStore,
-  useNotificationsByAudience,
+  useNotifications,
+  useUnreadCount,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
   type NotifAudience,
   type NotifType,
-} from "@/stores/notificationsStore";
+} from "@/api/notifications.api";
 
 const toneDot: Record<NotifType, string> = {
   signup: "bg-success",
@@ -33,10 +35,11 @@ function timeAgo(iso: string) {
 }
 
 export function NotificationsBell({
-  audience,
+  audience: _audience,
   viewAllHref,
   tone = "default",
 }: {
+  // `audience` is informational only; the backend scopes rows to the user.
   audience: NotifAudience;
   viewAllHref: string;
   tone?: "default" | "dark";
@@ -44,11 +47,16 @@ export function NotificationsBell({
   const [open, setOpen] = useState(false);
   const ref = useClickOutside<HTMLDivElement>(() => setOpen(false));
   const navigate = useNavigate();
-  const items = useNotificationsByAudience(audience);
-  const markRead = useNotificationsStore((s) => s.markRead);
-  const markAllRead = useNotificationsStore((s) => s.markAllRead);
-  const unread = items.filter((n) => !n.read).length;
-  const recent = items.slice(0, 6);
+  // Badge count polls on a short interval (realtime push lands later).
+  const { data: unreadCount } = useUnreadCount();
+  // Only fetch the recent list while the dropdown is open.
+  const { data } = useNotifications({ limit: 6 }, { enabled: open });
+  const markReadMut = useMarkNotificationRead();
+  const markAllReadMut = useMarkAllNotificationsRead();
+  const markRead = (id: string) => markReadMut.mutate(id);
+  const markAllRead = () => markAllReadMut.mutate();
+  const unread = unreadCount ?? 0;
+  const recent = data?.items.slice(0, 6) ?? [];
 
   const btnClass =
     tone === "dark"
@@ -81,7 +89,7 @@ export function NotificationsBell({
             {unread > 0 && (
               <button
                 type="button"
-                onClick={() => markAllRead(audience)}
+                onClick={() => markAllRead()}
                 className="text-xs font-semibold text-accent hover:underline"
               >
                 Mark all read

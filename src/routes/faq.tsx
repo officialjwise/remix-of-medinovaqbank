@@ -5,6 +5,7 @@ import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { useCmsStore } from "@/stores/cmsStore";
 import type { FaqEntry } from "@/stores/cmsStore";
+import { useCmsFaq } from "@/api/cms.api";
 
 export const Route = createFileRoute("/faq")({
   head: () => ({
@@ -20,16 +21,31 @@ export const Route = createFileRoute("/faq")({
 
 function Faq() {
   const { cms } = useCmsStore();
+  // Live FAQ from the CMS (help articles in the `FAQ` category). Fall back to
+  // the local seed while loading or if the backend returns nothing.
+  const { data: liveFaq } = useCmsFaq();
+
+  const entries: FaqEntry[] = useMemo(() => {
+    if (liveFaq && liveFaq.length > 0) {
+      return liveFaq.map((f) => ({
+        id: f.id,
+        category: f.category,
+        question: f.question,
+        answer: f.answer,
+      }));
+    }
+    return cms.faqs;
+  }, [liveFaq, cms.faqs]);
 
   const groups = useMemo(() => {
     const map = new Map<string, FaqEntry[]>();
-    for (const f of cms.faqs) {
+    for (const f of entries) {
       const list = map.get(f.category) ?? [];
       list.push(f);
       map.set(f.category, list);
     }
     return Array.from(map.entries());
-  }, [cms.faqs]);
+  }, [entries]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,7 +98,12 @@ function FaqItem({ q, a }: { q: string; a: string }) {
           className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
-      {open && <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{a}</p>}
+      {open && (
+        <div
+          className="prose prose-sm dark:prose-invert max-w-none px-5 pb-5 text-sm leading-relaxed text-muted-foreground [&_a]:text-accent [&_a]:underline [&_li]:my-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+          dangerouslySetInnerHTML={{ __html: a }}
+        />
+      )}
     </div>
   );
 }

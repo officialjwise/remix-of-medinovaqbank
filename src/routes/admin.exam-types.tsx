@@ -21,7 +21,14 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useExamTypesStore, type ExamTypeRecord } from "@/stores/examTypesStore";
+import {
+  useAdminExamTypes,
+  useCreateExamType,
+  useUpdateExamType,
+  useToggleExamType,
+  useDeleteExamType,
+  type ExamType as ExamTypeRecord,
+} from "@/api/exam-types.api";
 
 export const Route = createFileRoute("/admin/exam-types")({
   head: () => ({
@@ -56,7 +63,11 @@ const COLOR_OPTIONS = [
 ];
 
 function ExamTypesPage() {
-  const { examTypes, add, update, remove, toggle } = useExamTypesStore();
+  const { data: examTypes = [], isLoading } = useAdminExamTypes();
+  const createMutation = useCreateExamType();
+  const updateMutation = useUpdateExamType();
+  const toggleMutation = useToggleExamType();
+  const deleteMutation = useDeleteExamType();
   const [query, setQuery] = useState("");
   const debounced = useDebounce(query, 250);
   const [editing, setEditing] = useState<ExamTypeRecord | null>(null);
@@ -70,7 +81,7 @@ function ExamTypesPage() {
     );
   }, [examTypes, debounced]);
 
-  const activeCount = examTypes.filter((e) => e.active).length;
+  const activeCount = examTypes.filter((e) => e.isActive).length;
   const totalBanks = examTypes.reduce((acc, e) => acc + e.bankCount, 0);
 
   return (
@@ -102,7 +113,12 @@ function ExamTypesPage() {
         </div>
       </header>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
+          <GraduationCap className="mx-auto h-8 w-8 animate-pulse text-muted-foreground" />
+          <p className="mt-3 text-sm font-semibold text-foreground">Loading exam types…</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
           <GraduationCap className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 text-sm font-semibold text-foreground">No exam types found</p>
@@ -118,7 +134,7 @@ function ExamTypesPage() {
               <article
                 key={et.id}
                 className={`group overflow-hidden rounded-2xl border bg-surface shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] ${
-                  et.active ? "border-border" : "border-dashed border-border opacity-75"
+                  et.isActive ? "border-border" : "border-dashed border-border opacity-75"
                 }`}
               >
                 <div className="h-1.5" style={{ background: et.color }} />
@@ -132,12 +148,12 @@ function ExamTypesPage() {
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                        et.active
+                        et.isActive
                           ? "bg-success/10 text-success border border-success/20"
                           : "bg-surface-alt text-muted-foreground border border-border"
                       }`}
                     >
-                      {et.active ? "Active" : "Inactive"}
+                      {et.isActive ? "Active" : "Inactive"}
                     </span>
                   </div>
                   <h3 className="mt-3 text-base font-bold text-foreground">{et.name}</h3>
@@ -158,16 +174,27 @@ function ExamTypesPage() {
                     <span
                       className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5"
                       title={
-                        et.active ? "Active — click to deactivate" : "Inactive — click to activate"
+                        et.isActive
+                          ? "Active — click to deactivate"
+                          : "Inactive — click to activate"
                       }
                     >
                       <ToggleSwitch
                         size="sm"
-                        checked={et.active}
+                        checked={et.isActive}
                         ariaLabel={`Toggle ${et.name}`}
                         onChange={() => {
-                          toggle(et.id);
-                          toast.success(`${et.name} ${et.active ? "deactivated" : "activated"}`);
+                          toggleMutation.mutate(
+                            { id: et.id, isActive: !et.isActive },
+                            {
+                              onSuccess: () =>
+                                toast.success(
+                                  `${et.name} ${et.isActive ? "deactivated" : "activated"}`,
+                                ),
+                              onError: (e) =>
+                                toast.error(e instanceof Error ? e.message : "Update failed"),
+                            },
+                          );
                         }}
                       />
                     </span>
@@ -206,15 +233,39 @@ function ExamTypesPage() {
             setCreating(false);
           }}
           onSave={(values) => {
-            if (editing) {
-              update(editing.id, values);
-              toast.success("Exam type updated");
+            const editingId = editing?.id;
+            const onDone = (verb: string) => {
+              toast.success(`Exam type ${verb}`);
+              setEditing(null);
+              setCreating(false);
+            };
+            const onError = (e: unknown) =>
+              toast.error(e instanceof Error ? e.message : "Save failed");
+            if (editingId) {
+              updateMutation.mutate(
+                {
+                  id: editingId,
+                  input: {
+                    name: values.name,
+                    description: values.description,
+                    colorScheme: values.color,
+                    icon: values.icon,
+                    isActive: values.active,
+                  },
+                },
+                { onSuccess: () => onDone("updated"), onError },
+              );
             } else {
-              add(values);
-              toast.success("Exam type created");
+              createMutation.mutate(
+                {
+                  name: values.name,
+                  description: values.description,
+                  colorScheme: values.color,
+                  icon: values.icon,
+                },
+                { onSuccess: () => onDone("created"), onError },
+              );
             }
-            setEditing(null);
-            setCreating(false);
           }}
         />
       )}
@@ -227,9 +278,13 @@ function ExamTypesPage() {
         confirmLabel="Delete exam type"
         onCancel={() => setDeleting(null)}
         onConfirm={() => {
-          if (deleting) remove(deleting.id);
+          const target = deleting;
           setDeleting(null);
-          toast.success("Exam type deleted");
+          if (!target) return;
+          deleteMutation.mutate(target.id, {
+            onSuccess: () => toast.success("Exam type deleted"),
+            onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
+          });
         }}
       />
     </div>
@@ -255,7 +310,7 @@ function ExamTypeEditor({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [color, setColor] = useState(initial?.color ?? COLOR_OPTIONS[0]);
   const [icon, setIcon] = useState(initial?.icon ?? ICON_OPTIONS[0]);
-  const [active, setActive] = useState(initial?.active ?? true);
+  const [active, setActive] = useState(initial?.isActive ?? true);
 
   return (
     <div

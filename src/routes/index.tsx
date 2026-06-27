@@ -18,9 +18,9 @@ import {
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { RotatingHero } from "@/components/brand/RotatingHero";
-import { usePaidPlans, useTrialPlan } from "@/stores/plansStore";
+import { usePaidPlans, useTrialPlan } from "@/api/plans.api";
 import { useCmsStore } from "@/stores/cmsStore";
-import { useExamTypesStore } from "@/stores/examTypesStore";
+import { useExamTypes } from "@/api/exam-types.api";
 import { questionBanks } from "@/data/banks";
 
 const institutions = [
@@ -87,11 +87,10 @@ const howItWorks = [
 ];
 
 function LandingPage() {
-  const paid = usePaidPlans();
-  const trial = useTrialPlan();
+  const { data: paid = [] } = usePaidPlans();
+  const { data: trial } = useTrialPlan();
   const { cms } = useCmsStore();
-  const examTypes = useExamTypesStore((s) => s.examTypes);
-  const activeExams = examTypes.filter((e) => e.active);
+  const { data: activeExams = [] } = useExamTypes();
 
   return (
     <div className="min-h-screen bg-background">

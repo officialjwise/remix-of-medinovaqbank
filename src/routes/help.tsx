@@ -5,6 +5,7 @@ import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { useCmsStore } from "@/stores/cmsStore";
 import type { HelpArticle } from "@/stores/cmsStore";
+import { useCmsHelp } from "@/api/cms.api";
 
 export const Route = createFileRoute("/help")({
   head: () => ({
@@ -31,17 +32,34 @@ function stripHtml(html: string) {
 function Help() {
   const { cms } = useCmsStore();
   const [query, setQuery] = useState("");
+  // Live help articles from the CMS (grouped by category). Fall back to the
+  // local seed while loading or if the backend returns nothing.
+  const { data: liveGroups } = useCmsHelp();
+
+  const articles: HelpArticle[] = useMemo(() => {
+    if (liveGroups && liveGroups.length > 0) {
+      return liveGroups.flatMap((g) =>
+        g.articles.map((a) => ({
+          id: a.id,
+          category: a.category,
+          title: a.title,
+          body: a.body,
+        })),
+      );
+    }
+    return cms.helpArticles;
+  }, [liveGroups, cms.helpArticles]);
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = q
-      ? cms.helpArticles.filter(
+      ? articles.filter(
           (a) =>
             a.title.toLowerCase().includes(q) ||
             a.category.toLowerCase().includes(q) ||
             stripHtml(a.body).toLowerCase().includes(q),
         )
-      : cms.helpArticles;
+      : articles;
 
     const map = new Map<string, HelpArticle[]>();
     for (const a of filtered) {
@@ -50,7 +68,7 @@ function Help() {
       map.set(a.category, list);
     }
     return Array.from(map.entries());
-  }, [cms.helpArticles, query]);
+  }, [articles, query]);
 
   return (
     <div className="min-h-screen bg-background">

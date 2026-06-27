@@ -3,8 +3,14 @@ import { useState } from "react";
 import { ArrowLeft, Plus, Pencil, Trash2, ToggleRight, Hash, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { useFeatureCatalogStore } from "@/stores/featureCatalogStore";
-import type { FeatureType, PlatformFeature } from "@/data/features";
+import {
+  useFeatures,
+  useCreateFeature,
+  useUpdateFeature,
+  useDeleteFeature,
+  type FeatureType,
+  type PlatformFeature,
+} from "@/api/features.api";
 
 export const Route = createFileRoute("/admin/settings/features")({
   head: () => ({
@@ -17,7 +23,10 @@ export const Route = createFileRoute("/admin/settings/features")({
 });
 
 function FeatureCatalogPage() {
-  const { features, add, update, remove } = useFeatureCatalogStore();
+  const { data: features = [] } = useFeatures();
+  const createFeature = useCreateFeature();
+  const updateFeature = useUpdateFeature();
+  const deleteFeature = useDeleteFeature();
   const [editing, setEditing] = useState<PlatformFeature | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<PlatformFeature | null>(null);
@@ -117,11 +126,24 @@ function FeatureCatalogPage() {
           }}
           onSave={(f) => {
             if (editing) {
-              update(editing.key, f);
-              toast.success("Feature updated");
+              updateFeature.mutate(
+                {
+                  id: editing.id,
+                  input: { name: f.name, description: f.description, type: f.type },
+                },
+                {
+                  onSuccess: () => toast.success("Feature updated"),
+                  onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+                },
+              );
             } else {
-              add(f);
-              toast.success("Feature added");
+              createFeature.mutate(
+                { key: f.key, name: f.name, description: f.description, type: f.type },
+                {
+                  onSuccess: () => toast.success("Feature added"),
+                  onError: (e) => toast.error(e instanceof Error ? e.message : "Create failed"),
+                },
+              );
             }
             setEditing(null);
             setCreating(false);
@@ -137,14 +159,26 @@ function FeatureCatalogPage() {
         confirmLabel="Delete feature"
         onCancel={() => setDeleting(null)}
         onConfirm={() => {
-          if (deleting) remove(deleting.key);
+          if (deleting)
+            deleteFeature.mutate(deleting.id, {
+              onSuccess: () => toast.success("Feature deleted"),
+              onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
+            });
           setDeleting(null);
-          toast.success("Feature deleted");
         }}
       />
     </div>
   );
 }
+
+/** Editor output — only the user-editable fields (id/active are server-managed). */
+type FeatureDraft = {
+  key: string;
+  name: string;
+  description: string;
+  type: FeatureType;
+  defaultLimit?: number;
+};
 
 function FeatureEditor({
   initial,
@@ -153,7 +187,7 @@ function FeatureEditor({
 }: {
   initial: PlatformFeature | null;
   onClose: () => void;
-  onSave: (f: PlatformFeature) => void;
+  onSave: (f: FeatureDraft) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [key, setKey] = useState(initial?.key ?? "");

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { useCmsStore } from "@/stores/cmsStore";
+import { useCmsPage } from "@/api/cms.api";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -27,7 +28,15 @@ function formatDate(value: string) {
 
 function Privacy() {
   const { cms } = useCmsStore();
-  const doc = cms.legal.privacy;
+  // Live content from the CMS; fall back to the local seed while loading or if
+  // the page is missing (graceful fallback — never blank).
+  const { data: page } = useCmsPage("privacy");
+  const fallback = cms.legal.privacy;
+  const doc = {
+    title: page?.title ?? fallback.title,
+    body: page?.body ?? fallback.body,
+    updatedAt: page?.updatedAt ?? fallback.updatedAt,
+  };
 
   return (
     <div className="min-h-screen bg-background">

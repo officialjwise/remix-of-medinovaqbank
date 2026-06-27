@@ -45,8 +45,8 @@ import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 import { UserDashboardSkeleton } from "@/components/shared/DashboardSkeletons";
 import { useInitialLoad } from "@/hooks/useInitialLoad";
 import { questionBanks, recentSessions } from "@/data/banks";
-import { useNotificationsStore } from "@/stores/notificationsStore";
-import { usePlansStore } from "@/stores/plansStore";
+import { useUnreadCount } from "@/api/notifications.api";
+import { usePaidPlans } from "@/api/plans.api";
 import type { QuizMode } from "@/types";
 
 export const Route = createFileRoute("/_app/dashboard")({
@@ -129,20 +129,12 @@ function DashboardPage() {
   const createSession = useSessionStore((s) => s.createSession);
   const { isTrial, daysLeft, questionsLeft, questionsTotal, expired } = useTrial();
 
-  const userNotifs = useNotificationsStore(
-    useShallow((s) =>
-      s.items
-        .filter((n) => n.audience === "user" && !n.read)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .slice(0, 3),
-    ),
-  );
+  // Unread badge on the dashboard header bell (capped at 3 for display parity).
+  const { data: unreadCount } = useUnreadCount();
+  const userNotifsCount = Math.min(unreadCount ?? 0, 3);
 
-  const activePlan = usePlansStore(
-    useShallow((s) =>
-      subscription?.status === "ACTIVE" ? s.plans.find((p) => !p.isTrial && p.active) : undefined,
-    ),
-  );
+  const { data: paidPlans = [] } = usePaidPlans();
+  const activePlan = subscription?.status === "ACTIVE" ? paidPlans[0] : undefined;
 
   if (loading) return <UserDashboardSkeleton />;
 
@@ -260,7 +252,7 @@ function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3 self-start sm:self-center">
-            {userNotifs.length > 0 && (
+            {userNotifsCount > 0 && (
               <Link
                 to="/notifications"
                 className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-muted-foreground transition-colors hover:bg-surface-alt"
@@ -270,7 +262,7 @@ function DashboardPage() {
                   className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
                   style={{ background: "var(--color-primary)" }}
                 >
-                  {userNotifs.length}
+                  {userNotifsCount}
                 </span>
               </Link>
             )}

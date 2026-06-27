@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Check, Sparkles, Clock } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useTrial } from "@/hooks/useTrial";
-import { durationPlans, type DurationPlan } from "@/data/plans";
-import { usePaidPlans, type Plan } from "@/stores/plansStore";
+import { type DurationPlan } from "@/data/plans";
+import { usePaidPlans, type Plan } from "@/api/plans.api";
 import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
 
 export const Route = createFileRoute("/_app/subscription")({
@@ -26,33 +26,28 @@ const paymentHistory = [
   { date: "2025-08-15", plan: "Monthly", amount: 129, ref: "PSK-5D1F22", status: "Successful" },
 ];
 
-/** Map a store Plan to the DurationPlan shape the Paystack modal expects. */
+/** Map a backend Plan to the DurationPlan shape the Paystack modal expects. */
 function toDurationPlan(p: Plan): DurationPlan {
-  const match = durationPlans.find((d) => d.id === p.id);
   const months = Math.max(1, Math.round(p.durationDays / 30));
   const features = p.bullets.filter((b) => b.included).map((b) => b.text);
   return {
-    ...(match ?? {
-      id: p.id as DurationPlan["id"],
-      perMonth: Math.round(p.price / months),
-      currency: "GHS",
-      cta: "Subscribe",
-    }),
-    id: p.id as DurationPlan["id"],
+    id: p.planKey as unknown as DurationPlan["id"],
     name: p.name,
     durationLabel: p.durationLabel,
     months,
     price: p.price,
     currency: "GHS",
+    perMonth: Math.round(p.price / months),
     features,
-  } as DurationPlan;
+    cta: "Subscribe",
+  };
 }
 
 function SubscriptionPage() {
   const subscription = useAuthStore((s) => s.subscription);
   const isActive = subscription?.status === "ACTIVE";
   const { isTrial, daysLeft, questionsLeft, questionsTotal } = useTrial();
-  const paidPlans = usePaidPlans();
+  const { data: paidPlans = [] } = usePaidPlans();
   const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
 
   const renewsLabel = subscription?.renewsAt

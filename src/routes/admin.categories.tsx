@@ -4,7 +4,15 @@ import { Plus, Search, Tag, Trash2, Edit3, ChevronDown, X, Check, FolderTree } f
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useCategoriesStore, type Category } from "@/stores/categoriesStore";
+import { useSubcategoriesStore } from "@/stores/categoriesStore";
+import {
+  useAdminCategories,
+  useCreateCategory,
+  useUpdateCategory,
+  useDeleteCategory,
+  slugify,
+  type Category,
+} from "@/api/categories.api";
 
 export const Route = createFileRoute("/admin/categories")({
   head: () => ({
@@ -14,7 +22,12 @@ export const Route = createFileRoute("/admin/categories")({
 });
 
 function CategoriesPage() {
-  const { categories, addCategory, updateCategory, removeCategory } = useCategoriesStore();
+  const { data: categories = [], isLoading, isError } = useAdminCategories();
+  const createMut = useCreateCategory();
+  const updateMut = useUpdateCategory();
+  const deleteMut = useDeleteCategory();
+  const subsByCategory = useSubcategoriesStore((s) => s.byCategory);
+
   const [query, setQuery] = useState("");
   const debounced = useDebounce(query, 250);
   const [editing, setEditing] = useState<Category | null>(null);
@@ -27,11 +40,11 @@ function CategoriesPage() {
       (c) =>
         !q ||
         c.name.toLowerCase().includes(q) ||
-        c.subcategories.some((s) => s.name.toLowerCase().includes(q)),
+        (subsByCategory[c.id] ?? []).some((s) => s.name.toLowerCase().includes(q)),
     );
-  }, [categories, debounced]);
+  }, [categories, subsByCategory, debounced]);
 
-  const totalSubs = categories.reduce((acc, c) => acc + c.subcategories.length, 0);
+  const totalSubs = categories.reduce((acc, c) => acc + (subsByCategory[c.id]?.length ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -64,7 +77,16 @@ function CategoriesPage() {
         </div>
       </header>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
+          <p className="text-sm text-muted-foreground">Loading categories…</p>
+        </div>
+      ) : isError ? (
+        <div className="rounded-2xl border border-dashed border-error/40 bg-error/5 p-12 text-center">
+          <p className="text-sm font-semibold text-error">Failed to load categories</p>
+          <p className="mt-1 text-xs text-muted-foreground">Please try again.</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
           <Tag className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 text-sm font-semibold text-foreground">No categories found</p>
@@ -93,12 +115,25 @@ function CategoriesPage() {
             setCreating(false);
           }}
           onSave={(values) => {
+            // slug is derived client-side from name; the backend has no slug field.
             if (editing) {
-              updateCategory(editing.id, values);
-              toast.success("Category updated");
+              updateMut.mutate(
+                { id: editing.id, body: { name: values.name, colorScheme: values.color } },
+                {
+                  onSuccess: () => toast.success("Category updated"),
+                  onError: (e) =>
+                    toast.error(e instanceof Error ? e.message : "Failed to update category"),
+                },
+              );
             } else {
-              addCategory(values);
-              toast.success("Category created");
+              createMut.mutate(
+                { name: values.name, colorScheme: values.color },
+                {
+                  onSuccess: () => toast.success("Category created"),
+                  onError: (e) =>
+                    toast.error(e instanceof Error ? e.message : "Failed to create category"),
+                },
+              );
             }
             setEditing(null);
             setCreating(false);
@@ -113,8 +148,8 @@ function CategoriesPage() {
           <span>
             This category has <strong>{deleting?.bankCount}</strong> banks,{" "}
             <strong>{deleting?.questionCount.toLocaleString()}</strong> questions and{" "}
-            <strong>{deleting?.subcategories.length}</strong> subcategories. They will become
-            uncategorised.
+            <strong>{deleting ? (subsByCategory[deleting.id]?.length ?? 0) : 0}</strong>{" "}
+            subcategories. They will become uncategorised.
           </span>
         }
         variant="destructive"
@@ -122,9 +157,14 @@ function CategoriesPage() {
         confirmLabel="Delete category"
         onCancel={() => setDeleting(null)}
         onConfirm={() => {
-          if (deleting) removeCategory(deleting.id);
+          if (deleting) {
+            deleteMut.mutate(deleting.id, {
+              onSuccess: () => toast.success("Category deleted"),
+              onError: (e) =>
+                toast.error(e instanceof Error ? e.message : "Failed to delete category"),
+            });
+          }
           setDeleting(null);
-          toast.success("Category deleted");
         }}
       />
     </div>
@@ -140,7 +180,10 @@ function CategoryCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { addSubcategory, updateSubcategory, removeSubcategory } = useCategoriesStore();
+  const subcategories = useSubcategoriesStore((s) => s.byCategory[category.id] ?? []);
+  const addSubcategory = useSubcategoriesStore((s) => s.addSubcategory);
+  const updateSubcategory = useSubcategoriesStore((s) => s.updateSubcategory);
+  const removeSubcategory = useSubcategoriesStore((s) => s.removeSubcategory);
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
@@ -191,7 +234,7 @@ function CategoryCard({
         <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
           <Stat label="Banks" value={category.bankCount} />
           <Stat label="Questions" value={category.questionCount} />
-          <Stat label="Subcategories" value={category.subcategories.length} />
+          <Stat label="Subcategories" value={subcategories.length} />
         </div>
 
         <div className="mt-4 border-t border-border pt-3">
@@ -199,19 +242,19 @@ function CategoryCard({
             onClick={() => setOpen((o) => !o)}
             className="flex w-full items-center justify-between text-xs font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground"
           >
-            Subcategories ({category.subcategories.length})
+            Subcategories ({subcategories.length})
             <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
           </button>
 
           {open && (
             <div className="mt-3 space-y-2">
-              {category.subcategories.length === 0 && !adding && (
+              {subcategories.length === 0 && !adding && (
                 <p className="rounded-lg border border-dashed border-border py-3 text-center text-xs text-muted-foreground">
                   No subcategories yet.
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
-                {category.subcategories.map((s) =>
+                {subcategories.map((s) =>
                   editId === s.id ? (
                     <span
                       key={s.id}

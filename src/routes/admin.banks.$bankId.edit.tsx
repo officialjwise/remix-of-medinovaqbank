@@ -4,7 +4,8 @@ import { ArrowLeft, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { questionBanks } from "@/data/banks";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import type { Difficulty, ExamType } from "@/types";
+import type { Difficulty } from "@/types";
+import { useExamTypes } from "@/api/exam-types.api";
 
 export const Route = createFileRoute("/admin/banks/$bankId/edit")({
   head: () => ({
@@ -37,18 +38,18 @@ const SUBJECTS = [
   "Psychiatry",
   "Anatomy",
 ];
-const EXAM_TYPES: ExamType[] = ["USMLE", "PLAB", "MDCN", "MEDICAL COUNCIL", "GENERAL"];
 const DIFFICULTIES: Difficulty[] = ["Beginner", "Intermediate", "Advanced"];
 
 function EditBankPage() {
   const { bankId } = useParams({ from: "/admin/banks/$bankId/edit" });
   const navigate = useNavigate();
   const bank = questionBanks.find((b) => b.id === bankId)!;
+  const { data: examTypes = [] } = useExamTypes();
 
   const [form, setForm] = useState({
     name: bank.name,
     subject: bank.subject,
-    examType: bank.examType,
+    examType: bank.examType as string,
     description: bank.description,
     difficulty: bank.difficulty,
     isActive: true,
@@ -112,11 +113,17 @@ function EditBankPage() {
           <Field label="Exam Type">
             <select
               value={form.examType}
-              onChange={(e) => setForm({ ...form, examType: e.target.value as ExamType })}
+              onChange={(e) => setForm({ ...form, examType: e.target.value })}
               className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             >
-              {EXAM_TYPES.map((s) => (
-                <option key={s}>{s}</option>
+              {/* Preserve the bank's current value even if it isn't in the dynamic list. */}
+              {form.examType && !examTypes.some((et) => et.name === form.examType) && (
+                <option value={form.examType}>{form.examType}</option>
+              )}
+              {examTypes.map((et) => (
+                <option key={et.id} value={et.name}>
+                  {et.name}
+                </option>
               ))}
             </select>
           </Field>

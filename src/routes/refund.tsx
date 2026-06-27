@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { useCmsStore } from "@/stores/cmsStore";
+import { useCmsPage } from "@/api/cms.api";
 
 export const Route = createFileRoute("/refund")({
   head: () => ({
@@ -24,7 +25,15 @@ function formatDate(value: string) {
 
 function Refund() {
   const { cms } = useCmsStore();
-  const doc = cms.legal.refund;
+  // Live content from the CMS (backend slug `refund_policy`); fall back to the
+  // local seed while loading or if the page is missing (never blank).
+  const { data: page } = useCmsPage("refund");
+  const fallback = cms.legal.refund;
+  const doc = {
+    title: page?.title ?? fallback.title,
+    body: page?.body ?? fallback.body,
+    updatedAt: page?.updatedAt ?? fallback.updatedAt,
+  };
 
   return (
     <div className="min-h-screen bg-background">
