@@ -48,8 +48,10 @@ function classifyHeader(
   const s = h.toLowerCase().trim();
   if (s.includes("number") || s === "#" || s === "no") return "num";
   if (s.includes("stem") || (s.includes("question") && !s.includes("number"))) return "stem";
-  if (s.includes("option")) return "options";
+  // Check "right/correct/answer" BEFORE "option" — otherwise the header
+  // "Right Option" matches `option` and the correct-answer column is lost.
   if (s.includes("right") || s.includes("correct") || s.includes("answer")) return "correct";
+  if (s.includes("option")) return "options";
   if (s.includes("difficulty")) return "difficulty";
   if (s.includes("topic")) return "topic";
   return null;
