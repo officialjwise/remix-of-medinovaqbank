@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Brain, Eye, EyeOff, Loader2, Sparkles, TestTube2 } from "lucide-react";
+import { Brain, Eye, EyeOff, Loader2, Sparkles, TestTube2, Radio } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
-import { ApiError } from "@/api/client";
+import { ApiError, BASE_URL } from "@/api/client";
 import {
   useSettingsMap,
   useUpdateSettings,
@@ -62,6 +62,8 @@ function AISettingsPage() {
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [editingKey, setEditingKey] = useState(false);
   const [result, setResult] = useState<AiTestPromptResult | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const [streamText, setStreamText] = useState("");
 
   // Hydrate the model select from the resolved settings once loaded.
   useEffect(() => {
@@ -112,6 +114,33 @@ function AISettingsPage() {
       },
       onError: (err) => toast.error(err instanceof ApiError ? err.message : "Test prompt failed"),
     });
+  }
+
+  /** Stream a live Gemini completion and render it token-by-token as it arrives. */
+  async function runStreamTest() {
+    setStreaming(true);
+    setStreamText("");
+    try {
+      const token = useAuthStore.getState().accessToken;
+      const res = await fetch(`${BASE_URL}/admin/settings/ai/test-stream`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok || !res.body) {
+        throw new Error(`Stream failed (${res.status})`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setStreamText((prev) => prev + decoder.decode(value, { stream: true }));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not stream from Gemini");
+    } finally {
+      setStreaming(false);
+    }
   }
 
   // The visible value: a freshly-typed key, the revealed secret, or the mask.
@@ -222,23 +251,51 @@ function AISettingsPage() {
             <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
               Test prompt
             </h3>
-            <button
-              onClick={runTest}
-              disabled={testPrompt.isPending}
-              className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-60"
-            >
-              {testPrompt.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <TestTube2 className="h-3.5 w-3.5" />
-              )}
-              Run test prompt
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={runStreamTest}
+                disabled={streaming}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-60"
+              >
+                {streaming ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Radio className="h-3.5 w-3.5" />
+                )}
+                Watch it type
+              </button>
+              <button
+                onClick={runTest}
+                disabled={testPrompt.isPending}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-60"
+              >
+                {testPrompt.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <TestTube2 className="h-3.5 w-3.5" />
+                )}
+                Run test prompt
+              </button>
+            </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Runs Gemini against a representative sample MCQ end-to-end and shows the generated
-            clinical breakdown — proving the key + model actually answer.
+            "Watch it type" streams a live answer token-by-token so you can see the model respond in
+            real-time. "Run test prompt" runs Gemini against a sample MCQ end-to-end and shows the
+            structured clinical breakdown — proving the key + model actually answer.
           </p>
+
+          {(streaming || streamText) && (
+            <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Radio className="h-3.5 w-3.5 text-primary" /> Live Gemini output
+                {streaming && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+              </p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                {streamText}
+                {streaming && <span className="ml-0.5 animate-pulse">▋</span>}
+              </p>
+            </div>
+          )}
 
           {result && (
             <div
