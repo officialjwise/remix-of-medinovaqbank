@@ -19,6 +19,7 @@ import {
   TestTube2,
   Trash2,
   Upload,
+  Loader2,
   UserCog,
   Wallet,
   ChevronDown,
@@ -55,6 +56,8 @@ import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
 import { renderBrandedEmail, fillVars } from "@/lib/emailRender";
 import { DEFAULT_EMAIL_TEMPLATES } from "@/lib/emailTemplateDefaults";
+import { emailTemplatesApi } from "@/api/email-templates.api";
+import { useAuthStore } from "@/stores/authStore";
 import { ApiError } from "@/api/client";
 import {
   useSettingsMap,
@@ -68,7 +71,12 @@ import {
   type ResolvedSetting,
   type SettingUpdate,
 } from "@/api/settings.api";
-import { useAdminBranding, useUpdateBranding, type Branding } from "@/api/branding.api";
+import {
+  useAdminBranding,
+  useUpdateBranding,
+  brandingApi,
+  type Branding,
+} from "@/api/branding.api";
 
 export const Route = createFileRoute("/admin/settings/system")({
   head: () => ({
@@ -765,10 +773,30 @@ function EmailTemplatesTab() {
   const templates = useSettingsStore((s) => s.settings.templates);
   const setTemplates = useSettingsStore((s) => s.setTemplates);
   const branding = useSettingsStore((s) => s.settings.branding);
+  const adminEmail = useAuthStore((s) => s.user?.email);
   const [selectedKey, setSelectedKey] = useState(templates[0]?.key ?? "");
   const [editing, setEditing] = useState<EmailTemplate | null>(null);
+  const [sendingTest, setSendingTest] = useState(false);
 
   const selected = templates.find((t) => t.key === selectedKey) ?? templates[0];
+
+  /** Send a real test email of this template to the logged-in super admin. */
+  async function sendTest(key: string) {
+    if (!adminEmail) {
+      toast.error("No email address on your account to send the test to");
+      return;
+    }
+    setSendingTest(true);
+    try {
+      const { delivered } = await emailTemplatesApi.testSend(key, { to: adminEmail });
+      if (delivered) toast.success(`Test email sent to ${adminEmail}`);
+      else toast.error("The email provider did not accept the message");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send test email");
+    } finally {
+      setSendingTest(false);
+    }
+  }
 
   function patch(next: EmailTemplate) {
     setTemplates(templates.map((x) => (x.key === next.key ? next : x)));
@@ -865,10 +893,11 @@ function EmailTemplatesTab() {
               <div className="flex flex-shrink-0 gap-2">
                 <button
                   type="button"
-                  onClick={() => toast.success(`Test "${selected.name}" sent to you`)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"
+                  disabled={sendingTest}
+                  onClick={() => sendTest(selected.key)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-60"
                 >
-                  <Send className="h-3.5 w-3.5" /> Test send
+                  <Send className="h-3.5 w-3.5" /> {sendingTest ? "Sending…" : "Test send"}
                 </button>
                 <button
                   type="button"
@@ -904,6 +933,8 @@ function EmailTemplatesTab() {
             toast.success(`${next.name} template saved`);
           }}
           onReset={() => resetOne(editing.key)}
+          onTestSend={() => sendTest(editing.key)}
+          testing={sendingTest}
         />
       )}
     </div>
@@ -917,6 +948,8 @@ function TemplateEditor({
   onChange,
   onSave,
   onReset,
+  onTestSend,
+  testing,
 }: {
   template: EmailTemplate;
   branding: BrandingSettings;
@@ -924,6 +957,8 @@ function TemplateEditor({
   onChange: (t: EmailTemplate) => void;
   onSave: (t: EmailTemplate) => void;
   onReset: () => void;
+  onTestSend: () => void;
+  testing: boolean;
 }) {
   const draft = template;
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -1026,10 +1061,11 @@ function TemplateEditor({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => toast.success("Test email sent to you")}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"
+              disabled={testing}
+              onClick={onTestSend}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt disabled:opacity-60"
             >
-              <Send className="h-4 w-4" /> Test send
+              <Send className="h-4 w-4" /> {testing ? "Sending…" : "Test send"}
             </button>
             <button
               type="button"
@@ -2523,6 +2559,7 @@ function FileUpload({
   label: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
   return (
     <div className="flex items-center gap-3">
       {value ? (
@@ -2539,20 +2576,34 @@ function FileUpload({
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => {
+        onChange={async (e) => {
           const file = e.target.files?.[0];
           if (!file) return;
-          const reader = new FileReader();
-          reader.onload = () => onChange(reader.result as string);
-          reader.readAsDataURL(file);
+          // Upload to storage and keep the URL — never store base64 in settings.
+          setUploading(true);
+          try {
+            const url = await brandingApi.uploadAsset(file);
+            onChange(url);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Upload failed");
+          } finally {
+            setUploading(false);
+            if (inputRef.current) inputRef.current.value = "";
+          }
         }}
       />
       <button
         type="button"
+        disabled={uploading}
         onClick={() => inputRef.current?.click()}
-        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-60"
       >
-        <Upload className="h-3.5 w-3.5" /> {label}
+        {uploading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Upload className="h-3.5 w-3.5" />
+        )}{" "}
+        {uploading ? "Uploading…" : label}
       </button>
       {value && (
         <button

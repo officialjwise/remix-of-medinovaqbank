@@ -26,6 +26,7 @@ interface Options {
  */
 const TO_BACKEND_EVENT: Record<ProtectionEventType, BackendProtectionEventType> = {
   screenshot_key: "screenshot_attempt",
+  screen_recording: "screen_recording_suspected",
   clipboard_copy: "copy_attempt",
   print_attempt: "print_attempt",
   devtools_open: "devtools_open",
@@ -49,6 +50,7 @@ export function useContentProtection({ context, contextId, page }: Options) {
   const ref = useRef<HTMLDivElement>(null);
   const user = useAuthStore((s) => s.user);
   const enabled = useProtectionStore((s) => s.settings.enabled);
+  const countedEvents = useProtectionStore((s) => s.settings.countedEvents);
 
   const report = useReportProtectionEvent();
   const { data: status } = useMyRestrictionStatus(!!user);
@@ -65,6 +67,9 @@ export function useContentProtection({ context, contextId, page }: Options) {
   const fire = useCallback(
     (type: ProtectionEventType) => {
       if (!user) return;
+      // Respect the admin "counted events" config: a disabled event is neither
+      // logged nor counted toward strikes.
+      if (!countedEvents.includes(type)) return;
       const now = Date.now();
       if (now - (lastByType.current[type] ?? 0) < 2500) return; // throttle identical events
       lastByType.current[type] = now;
@@ -83,18 +88,22 @@ export function useContentProtection({ context, contextId, page }: Options) {
         });
       }
     },
-    [user, reportMutate, context, contextId, page],
+    [user, reportMutate, context, contextId, page, countedEvents],
   );
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
     const el = ref.current;
 
+    // Only intercept events that are enabled in the admin "counted events"
+    // config — a disabled event behaves normally and is never logged.
     const onContext = (e: Event) => {
+      if (!countedEvents.includes("context_menu")) return;
       e.preventDefault();
       fire("context_menu");
     };
     const onCopy = (e: Event) => {
+      if (!countedEvents.includes("clipboard_copy")) return;
       e.preventDefault();
       fire("clipboard_copy");
     };
@@ -108,6 +117,17 @@ export function useContentProtection({ context, contextId, page }: Options) {
       if (e.key === "PrintScreen") {
         blurBriefly();
         fire("screenshot_key");
+      }
+      // macOS screenshot/recording shortcuts: ⌘⇧3 (full), ⌘⇧4 (region),
+      // ⌘⇧5 (screen recording). The OS may grab these, but keydown usually
+      // still fires first — best-effort detection.
+      if (e.metaKey && e.shiftKey && (e.key === "3" || e.key === "4")) {
+        blurBriefly();
+        fire("screenshot_key");
+      }
+      if (e.metaKey && e.shiftKey && e.key === "5") {
+        blurBriefly();
+        fire("screen_recording");
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
         e.preventDefault();
@@ -167,7 +187,7 @@ export function useContentProtection({ context, contextId, page }: Options) {
       window.removeEventListener("focus", onWinFocus);
       window.clearInterval(dt);
     };
-  }, [enabled, fire]);
+  }, [enabled, fire, countedEvents]);
 
   return { ref, blurred, restriction };
 }

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Loader2,
@@ -32,6 +32,7 @@ import {
   type NoteStatus,
   type TopicInput,
 } from "@/api/admin-notes.api";
+import { notesApi } from "@/api/notes.api";
 import { useExamTypes } from "@/api/exam-types.api";
 import { useCategories } from "@/api/categories.api";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
@@ -484,16 +485,13 @@ function PagePreview({
                     </span>
                     {busy && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
                   </div>
-                  <div className="mt-2 flex aspect-[3/4] items-center justify-center rounded-lg border border-dashed border-border bg-surface-alt/40 text-[11px] font-semibold text-muted-foreground">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider",
-                        STATUS_PILL[note.status],
-                      )}
-                    >
-                      {note.status === "ready" ? "Protected image" : STATUS_LABELS[note.status]}
-                    </span>
-                  </div>
+                  <AdminPagePreview
+                    noteId={note.id}
+                    pageNumber={p.pageNumber}
+                    ready={note.status === "ready"}
+                    statusLabel={STATUS_LABELS[note.status]}
+                    statusClass={STATUS_PILL[note.status]}
+                  />
                   <label className="mt-2 block">
                     <select
                       value={p.topicId ?? ""}
@@ -528,6 +526,65 @@ function PagePreview({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Renders the actual watermarked page image for the admin so they can verify the
+ * upload converted correctly. Fetches a short-lived signed URL on mount.
+ */
+function AdminPagePreview({
+  noteId,
+  pageNumber,
+  ready,
+  statusLabel,
+  statusClass,
+}: {
+  noteId: string;
+  pageNumber: number;
+  ready: boolean;
+  statusLabel: string;
+  statusClass: string;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!ready) return;
+    let alive = true;
+    notesApi.getPageUrl(noteId, pageNumber).then(
+      (r) => alive && setUrl(r.url),
+      () => alive && setFailed(true),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [noteId, pageNumber, ready]);
+
+  return (
+    <div className="mt-2 flex aspect-[3/4] items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-surface-alt/40 text-[11px] font-semibold text-muted-foreground">
+      {!ready ? (
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+            statusClass,
+          )}
+        >
+          {statusLabel}
+        </span>
+      ) : failed ? (
+        <span>Preview unavailable</span>
+      ) : url ? (
+        <img
+          src={url}
+          alt={`Page ${pageNumber}`}
+          className="h-full w-full object-contain"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <Loader2 className="h-5 w-5 animate-spin" />
+      )}
     </div>
   );
 }

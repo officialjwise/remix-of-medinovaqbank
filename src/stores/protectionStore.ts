@@ -12,7 +12,8 @@ import { persist } from "zustand/middleware";
  * strike algorithm lives here anymore.
  */
 export type ProtectionEventType =
-  | "screenshot_key" // PrintScreen pressed
+  | "screenshot_key" // PrintScreen / Mac ⌘⇧3 / ⌘⇧4
+  | "screen_recording" // Mac ⌘⇧5 (screen recording)
   | "clipboard_copy" // copy/cut intercepted
   | "print_attempt" // Ctrl/Cmd+P or beforeprint
   | "devtools_open" // devtools heuristic
@@ -30,7 +31,8 @@ export interface ProtectionSettings {
 }
 
 export const EVENT_LABELS: Record<ProtectionEventType, string> = {
-  screenshot_key: "Screenshot key (PrintScreen)",
+  screenshot_key: "Screenshot key (PrintScreen / ⌘⇧3 / ⌘⇧4)",
+  screen_recording: "Screen recording (⌘⇧5)",
   clipboard_copy: "Copy / cut attempt",
   print_attempt: "Print attempt",
   devtools_open: "DevTools opened",
@@ -69,6 +71,17 @@ export const useProtectionStore = create<ProtectionState>()(
       settings: DEFAULT_SETTINGS,
       updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
     }),
-    { name: "medinova-protection", version: 2 },
+    {
+      name: "medinova-protection",
+      version: 2,
+      // Merge persisted settings over defaults so newly-added fields (e.g. new
+      // event types) always have a value and old versions hydrate cleanly.
+      migrate: (persisted) => {
+        const prev = (persisted as Partial<ProtectionState> | null)?.settings;
+        return {
+          settings: { ...DEFAULT_SETTINGS, ...(prev ?? {}) },
+        } as ProtectionState;
+      },
+    },
   ),
 );

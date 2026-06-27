@@ -128,6 +128,14 @@ export const brandingApi = {
     });
     return mapBranding(data);
   },
+
+  /** Upload a branding image (multipart 'file') and return its public URL. */
+  async uploadAsset(file: File | Blob): Promise<string> {
+    const form = new FormData();
+    form.append("file", file, "branding-asset");
+    const data = await apiClient.post<{ url: string }>("/admin/branding/upload", form);
+    return data.url;
+  },
 };
 
 // ── Query keys ──
