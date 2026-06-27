@@ -12,34 +12,25 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  Activity,
-  Globe2,
-  Map as MapIcon,
-  MapPin,
-  TrendingDown,
-  TrendingUp,
-  UserPlus,
-  Users,
-} from "lucide-react";
-import {
-  browserBreakdown,
-  countryTraffic,
-  deviceBreakdown,
-  ghanaCities,
-  liveActivity,
-  liveUserCount,
-  osBreakdown,
-  signupsByLocation,
-  trafficSources,
-  usageHeatmap,
-} from "@/data/traffic";
+import { Activity, Globe2, Map as MapIcon, MapPin, Users } from "lucide-react";
 import { GeoBubbleMap } from "@/components/admin/GeoBubbleMap";
 import { UsageHeatmap } from "@/components/admin/UsageHeatmap";
-import { flagForCountry, countryFlag } from "@/lib/flags";
+import { countryFlag } from "@/lib/flags";
 import type { GlobeMarker } from "@/components/admin/TrafficGlobe";
+import {
+  useTrafficDevices,
+  useTrafficGeography,
+  useTrafficLive,
+  useTrafficOverview,
+  useTrafficPoints,
+  useTrafficTimeline,
+  useTrafficHeatmap,
+  type TrafficRange,
+  type TrafficGeoPoint,
+  type TrafficSplitRow,
+} from "@/api/admin-traffic.api";
 
-// Lazy-load the WebGL globe so cobe never blocks initial paint.
+// Lazy-load the WebGL globe so cobe never blocks initial paint (client-only).
 const TrafficGlobe = lazy(() =>
   import("@/components/admin/TrafficGlobe").then((m) => ({
     default: m.TrafficGlobe,
@@ -78,6 +69,17 @@ const palette = {
   slate: "#94A3B8",
 } as const;
 
+// Stable colour ramp for donut/source slices.
+const SLICE_COLORS = [
+  palette.teal,
+  palette.blue,
+  palette.amber,
+  palette.violet,
+  palette.emerald,
+  palette.rose,
+  palette.slate,
+] as const;
+
 const cardClass = "rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]";
 
 const gradients: Record<string, string> = {
@@ -90,60 +92,27 @@ const gradients: Record<string, string> = {
 };
 
 /* ------------------------------------------------------------------ */
-/* Module-level derived data                                           */
+/* Range → ISO date window                                            */
 /* ------------------------------------------------------------------ */
 
-const geoPoints = countryTraffic.map((c) => ({
-  lat: c.lat,
-  lng: c.lng,
-  label: c.country,
-  value: c.users,
-  code: c.code,
-}));
+const RANGES = ["7d", "30d", "90d"] as const;
+type Range = (typeof RANGES)[number];
 
-const geoMax = Math.max(...countryTraffic.map((c) => c.users));
+function rangeToWindow(range: Range): TrafficRange {
+  const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
+  const end = new Date();
+  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+  return { startDate: start.toISOString(), endDate: end.toISOString() };
+}
 
-const totalVisitors = countryTraffic.reduce((acc, c) => acc + c.users, 0);
-const totalSessions = countryTraffic.reduce((acc, c) => acc + c.sessions, 0);
-const topCountry = [...countryTraffic].sort((a, b) => b.users - a.users)[0];
-const avgSessionsPerVisitor = (totalSessions / totalVisitors).toFixed(1);
-const signupsToday = signupsByLocation[signupsByLocation.length - 1];
-const newSignupsToday = signupsToday.Ghana + signupsToday.Nigeria + signupsToday.Other;
-
-const cityMaxPct = Math.max(...ghanaCities.map((c) => c.pct));
-const trafficTotal = trafficSources.reduce((acc, s) => acc + s.value, 0);
-
-const usersMax = Math.max(...countryTraffic.map((c) => c.users));
-
-// Globe markers sized by traffic volume (computed once at module scope).
-const globeMarkers: GlobeMarker[] = countryTraffic.map((c) => ({
-  location: [c.lat, c.lng] as [number, number],
-  size: 0.04 + (c.users / usersMax) * 0.12,
-}));
-
-// Synthesized 30-day visits trend (seeded LCG → deterministic across renders).
-const trafficOverTime = (() => {
-  let seed = 20260626;
-  const rand = () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
-  const today = new Date(2026, 5, 26);
-  return Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (29 - i));
-    const dow = d.getDay();
-    const weekend = dow === 0 || dow === 6 ? 0.78 : 1;
-    const trend = 1 + i * 0.012; // gentle upward growth
-    const wave = 1 + Math.sin(i / 3.2) * 0.12;
-    const visits = Math.round(1850 * weekend * trend * wave + rand() * 220);
-    return {
-      label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      visits,
-      sessions: Math.round(visits * (1.35 + rand() * 0.25)),
-    };
-  });
-})();
+function timeAgo(iso: string): string {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
 
 /* ------------------------------------------------------------------ */
 /* Small components                                                    */
@@ -181,7 +150,7 @@ function KpiCard({
 }: {
   label: string;
   value: string;
-  hint?: { text: string; up?: boolean };
+  hint?: { text: string };
   icon: React.ComponentType<{ className?: string }>;
   tone: keyof typeof gradients;
   live?: boolean;
@@ -208,77 +177,68 @@ function KpiCard({
         )}
         <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
       </div>
-      {hint && (
-        <p
-          className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${
-            hint.up === undefined
-              ? "text-muted-foreground"
-              : hint.up
-                ? "text-[#1FA968]"
-                : "text-[#E11D48]"
-          }`}
-        >
-          {hint.up === true && <TrendingUp className="h-3.5 w-3.5" />}
-          {hint.up === false && <TrendingDown className="h-3.5 w-3.5" />}
-          {hint.text}
-        </p>
+      {hint && <p className="mt-1 text-xs font-medium text-muted-foreground">{hint.text}</p>}
+    </div>
+  );
+}
+
+/** Donut from a name→count split. */
+function Donut({ title, data }: { title: string; data: TrafficSplitRow[] }) {
+  const total = useMemo(() => data.reduce((acc, d) => acc + d.count, 0), [data]);
+  const sliced = useMemo(
+    () => data.map((d, i) => ({ ...d, fill: SLICE_COLORS[i % SLICE_COLORS.length] })),
+    [data],
+  );
+  return (
+    <div className={cardClass}>
+      <h3 className="text-sm font-bold tracking-tight text-foreground">{title}</h3>
+      {data.length === 0 ? (
+        <p className="mt-6 text-center text-sm text-muted-foreground">No data yet</p>
+      ) : (
+        <>
+          <div className="mt-3 h-44 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={sliced}
+                  dataKey="count"
+                  nameKey="name"
+                  innerRadius={42}
+                  outerRadius={68}
+                  paddingAngle={3}
+                  stroke="var(--color-surface)"
+                  strokeWidth={2}
+                >
+                  {sliced.map((d) => (
+                    <Cell key={d.name} fill={d.fill} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(v: number) => v.toLocaleString()}
+                  contentStyle={tooltipStyle}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {sliced.map((d) => (
+              <div key={d.name} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: d.fill }}
+                />
+                {d.name}
+                <span className="ml-auto font-semibold tabular-nums text-foreground">
+                  {total ? Math.round((d.count / total) * 100) : 0}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
 }
-
-function Donut({
-  title,
-  data,
-}: {
-  title: string;
-  data: { name: string; value: number; fill: string }[];
-}) {
-  const total = useMemo(() => data.reduce((acc, d) => acc + d.value, 0), [data]);
-  return (
-    <div className={cardClass}>
-      <h3 className="text-sm font-bold tracking-tight text-foreground">{title}</h3>
-      <div className="mt-3 h-44 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={42}
-              outerRadius={68}
-              paddingAngle={3}
-              stroke="var(--color-surface)"
-              strokeWidth={2}
-            >
-              {data.map((d) => (
-                <Cell key={d.name} fill={d.fill} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(v: number) => v.toLocaleString()} contentStyle={tooltipStyle} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="mt-2 space-y-1.5">
-        {data.map((d) => (
-          <div key={d.name} className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: d.fill }}
-            />
-            {d.name}
-            <span className="ml-auto font-semibold tabular-nums text-foreground">
-              {Math.round((d.value / total) * 100)}%
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const RANGES = ["7d", "30d", "90d"] as const;
-type Range = (typeof RANGES)[number];
 
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
@@ -288,6 +248,16 @@ function TrafficPage() {
   const [range, setRange] = useState<Range>("30d");
   const [mapMode, setMapMode] = useState<"flat" | "globe">("flat");
   const [dark, setDark] = useState(false);
+
+  const window = useMemo(() => rangeToWindow(range), [range]);
+
+  const overviewQ = useTrafficOverview(window);
+  const geographyQ = useTrafficGeography(window);
+  const pointsQ = useTrafficPoints(window);
+  const devicesQ = useTrafficDevices(window);
+  const timelineQ = useTrafficTimeline(window);
+  const heatmapQ = useTrafficHeatmap(window);
+  const liveQ = useTrafficLive();
 
   // Track dark mode so the globe's palette matches the theme.
   useEffect(() => {
@@ -299,10 +269,73 @@ function TrafficPage() {
     return () => observer.disconnect();
   }, []);
 
-  const sortedCountries = useMemo(() => [...countryTraffic].sort((a, b) => b.users - a.users), []);
-  const countryPctMax = useMemo(() => Math.max(...countryTraffic.map((c) => c.pct)), []);
-  // Memoize the markers array so the globe effect doesn't re-init each render.
-  const markers = useMemo(() => globeMarkers, []);
+  const overview = overviewQ.data;
+  const countries = geographyQ.data?.countries ?? [];
+  const sortedCountries = useMemo(
+    () => [...countries].sort((a, b) => b.users - a.users),
+    [countries],
+  );
+  const countryPctMax = useMemo(() => Math.max(1, ...countries.map((c) => c.pct)), [countries]);
+
+  // Globe points (lat/lng + volume) from /points; fall back to geography points.
+  const geoPoints: TrafficGeoPoint[] = pointsQ.data?.length
+    ? pointsQ.data
+    : (geographyQ.data?.points ?? []);
+  const geoMax = useMemo(() => Math.max(1, ...geoPoints.map((p) => p.value)), [geoPoints]);
+
+  const flatPoints = useMemo(
+    () =>
+      geoPoints.map((p) => ({
+        lat: p.lat,
+        lng: p.lng,
+        label: p.label,
+        value: p.value,
+        code: p.code,
+      })),
+    [geoPoints],
+  );
+
+  // Globe markers sized by volume.
+  const markers: GlobeMarker[] = useMemo(
+    () =>
+      geoPoints.map((p) => ({
+        location: [p.lat, p.lng] as [number, number],
+        size: 0.04 + (p.value / geoMax) * 0.12,
+      })),
+    [geoPoints, geoMax],
+  );
+
+  // Daily timeline → area-chart points.
+  const trafficOverTime = useMemo(
+    () =>
+      (timelineQ.data?.daily ?? []).map((d) => ({
+        label: new Date(d.day).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        visits: d.count,
+      })),
+    [timelineQ.data],
+  );
+
+  // Peak hours → bar-ish list.
+  const peakHours = timelineQ.data?.peakHours ?? [];
+  const peakHoursMax = useMemo(() => Math.max(1, ...peakHours.map((h) => h.count)), [peakHours]);
+
+  // Traffic sources (referrers) from overview, coloured.
+  const sources = useMemo(
+    () =>
+      (overview?.sources ?? []).map((s, i) => ({
+        name: s.source,
+        value: s.count,
+        fill: SLICE_COLORS[i % SLICE_COLORS.length],
+      })),
+    [overview],
+  );
+  const trafficTotal = useMemo(() => sources.reduce((a, s) => a + s.value, 0), [sources]);
+
+  const liveCount = liveQ.data?.activeNow ?? 0;
+  const recent = liveQ.data?.recent ?? [];
+
+  const totalVisitors = overview?.uniqueUsers ?? 0;
+  const topCountry = sortedCountries[0];
 
   return (
     <div className="space-y-6">
@@ -334,18 +367,31 @@ function TrafficPage() {
         </div>
       </div>
 
+      {overviewQ.isError && (
+        <div className="rounded-xl border border-error/20 bg-error/[0.06] px-4 py-3 text-sm text-error">
+          Failed to load traffic analytics. {(overviewQ.error as Error)?.message}
+        </div>
+      )}
+
       {/* KPI row */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
-          label="Total Visitors"
+          label="Unique Visitors"
           value={totalVisitors.toLocaleString()}
-          hint={{ text: "+9.1% vs prev", up: true }}
+          hint={{ text: `over ${range}` }}
           icon={Users}
           tone="teal"
         />
         <KpiCard
+          label="Total Events"
+          value={(overview?.totalEvents ?? 0).toLocaleString()}
+          hint={{ text: "page + action events" }}
+          icon={Activity}
+          tone="blue"
+        />
+        <KpiCard
           label="Live Users Now"
-          value={liveUserCount.toLocaleString()}
+          value={liveCount.toLocaleString()}
           hint={{ text: "active this minute" }}
           icon={Activity}
           tone="emerald"
@@ -353,24 +399,10 @@ function TrafficPage() {
         />
         <KpiCard
           label="Top Country"
-          value={`${topCountry.country} ${topCountry.pct}%`}
-          hint={{ text: `${topCountry.trend}% growth`, up: topCountry.trend >= 0 }}
+          value={topCountry ? `${topCountry.country} ${topCountry.pct}%` : "—"}
+          hint={{ text: topCountry ? `${topCountry.users.toLocaleString()} users` : "no data" }}
           icon={Globe2}
-          tone="blue"
-        />
-        <KpiCard
-          label="New Signups Today"
-          value={newSignupsToday.toLocaleString()}
-          hint={{ text: "across all regions", up: true }}
-          icon={UserPlus}
           tone="violet"
-        />
-        <KpiCard
-          label="Avg Sessions / Visitor"
-          value={avgSessionsPerVisitor}
-          hint={{ text: "engagement depth" }}
-          icon={MapPin}
-          tone="amber"
         />
       </div>
 
@@ -383,7 +415,7 @@ function TrafficPage() {
                 Where your users are
               </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Geographic distribution — marker size = users
+                Geographic distribution — marker size = volume
               </p>
             </div>
             {/* Flat map | 3D globe toggle */}
@@ -417,9 +449,15 @@ function TrafficPage() {
             </div>
           </div>
 
-          {mapMode === "flat" ? (
+          {geoPoints.length === 0 ? (
+            <div className="mt-4 flex h-64 items-center justify-center rounded-xl border border-border text-sm text-muted-foreground">
+              {geographyQ.isLoading || pointsQ.isLoading
+                ? "Loading map…"
+                : "No geo-located traffic in this range."}
+            </div>
+          ) : mapMode === "flat" ? (
             <div className="mt-4 overflow-hidden rounded-xl border border-border">
-              <GeoBubbleMap points={geoPoints} max={geoMax} />
+              <GeoBubbleMap points={flatPoints} max={geoMax} />
             </div>
           ) : (
             <div className="mt-4 flex flex-col items-center">
@@ -439,8 +477,8 @@ function TrafficPage() {
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             {sortedCountries.slice(0, 5).map((c) => (
-              <span key={c.code} className="inline-flex items-center gap-1.5">
-                <span aria-hidden>{countryFlag(c.code)}</span>
+              <span key={c.code || c.country} className="inline-flex items-center gap-1.5">
+                {c.code && <span aria-hidden>{countryFlag(c.code)}</span>}
                 {c.country}
                 <span className="font-semibold tabular-nums text-foreground">
                   {c.users.toLocaleString()}
@@ -453,7 +491,7 @@ function TrafficPage() {
         {/* Active users right now */}
         <Panel
           title="Active users right now"
-          subtitle="Real-time activity feed"
+          subtitle="Real-time activity feed (15s refresh)"
           className="flex flex-col"
         >
           <div className="mt-3 flex items-center gap-3">
@@ -461,37 +499,45 @@ function TrafficPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#1FA968] opacity-75" />
               <span className="relative inline-flex h-3 w-3 rounded-full bg-[#1FA968]" />
             </span>
-            <span className="text-4xl font-bold tracking-tight text-foreground">
-              {liveUserCount}
-            </span>
+            <span className="text-4xl font-bold tracking-tight text-foreground">{liveCount}</span>
             <span className="text-xs text-muted-foreground">online now</span>
           </div>
           <div className="mt-4 flex-1 min-h-0 space-y-2 overflow-y-auto pr-1">
-            {liveActivity.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-start gap-2.5 rounded-lg border border-border bg-surface-alt px-3 py-2"
-              >
-                <span
-                  className="mt-0.5 shrink-0 text-base leading-none"
-                  aria-label={a.country}
-                  title={a.country}
+            {recent.length === 0 ? (
+              <p className="py-8 text-center text-xs text-muted-foreground">
+                No recent activity in the last 15 minutes.
+              </p>
+            ) : (
+              recent.map((a) => (
+                <div
+                  key={`${a.userId}-${a.createdAt}`}
+                  className="flex items-start gap-2.5 rounded-lg border border-border bg-surface-alt px-3 py-2"
                 >
-                  {countryFlag(a.country)}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-xs text-foreground">
-                    <span className="font-semibold">{a.city}</span> — {a.action}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">{a.ago}</p>
+                  <span
+                    className="mt-0.5 shrink-0 text-base leading-none"
+                    aria-label={a.country ?? "Unknown"}
+                    title={a.country ?? "Unknown"}
+                  >
+                    {a.countryCode ? countryFlag(a.countryCode) : "🌐"}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs text-foreground">
+                      <span className="font-semibold">{a.name ?? a.email ?? "User"}</span> —{" "}
+                      {a.currentAction}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {[a.city, a.country].filter(Boolean).join(", ") || "Unknown"} ·{" "}
+                      {timeAgo(a.createdAt)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </Panel>
       </div>
 
-      {/* Countries table + Cities */}
+      {/* Countries table + Peak hours */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel title="Top countries / regions" subtitle="Traffic share by country">
           <div className="mt-4 overflow-x-auto">
@@ -501,290 +547,222 @@ function TrafficPage() {
                   <th className="pb-2 pr-4 font-medium">Country</th>
                   <th className="pb-2 pr-4 text-right font-medium">Users</th>
                   <th className="pb-2 pr-4 text-right font-medium">Sessions</th>
-                  <th className="pb-2 pr-4 font-medium">% of traffic</th>
-                  <th className="pb-2 text-right font-medium">Trend</th>
+                  <th className="pb-2 font-medium">% of traffic</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedCountries.map((c) => (
-                  <tr key={c.code} className="border-b border-border/60 last:border-0">
-                    <td className="py-2.5 pr-4">
-                      <span className="inline-flex items-center gap-2">
-                        <span className="text-base leading-none" aria-hidden title={c.country}>
-                          {flagForCountry(c.country)}
-                        </span>
-                        <span className="font-medium text-foreground">{c.country}</span>
-                        <span className="rounded bg-surface-alt px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                          {c.code}
-                        </span>
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-4 text-right tabular-nums text-foreground">
-                      {c.users.toLocaleString()}
-                    </td>
-                    <td className="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">
-                      {c.sessions.toLocaleString()}
-                    </td>
-                    <td className="py-2.5 pr-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-alt">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F]"
-                            style={{
-                              width: `${(c.pct / countryPctMax) * 100}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="tabular-nums text-xs text-muted-foreground">{c.pct}%</span>
-                      </div>
-                    </td>
-                    <td className="py-2.5 text-right">
-                      <span
-                        className={`inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums ${
-                          c.trend >= 0 ? "text-[#1FA968]" : "text-[#E11D48]"
-                        }`}
-                      >
-                        {c.trend >= 0 ? "▲" : "▼"}
-                        {Math.abs(c.trend)}%
-                      </span>
+                {sortedCountries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-muted-foreground">
+                      No country data in this range.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  sortedCountries.map((c) => (
+                    <tr
+                      key={c.code || c.country}
+                      className="border-b border-border/60 last:border-0"
+                    >
+                      <td className="py-2.5 pr-4">
+                        <span className="inline-flex items-center gap-2">
+                          {c.code && (
+                            <span className="text-base leading-none" aria-hidden title={c.country}>
+                              {countryFlag(c.code)}
+                            </span>
+                          )}
+                          <span className="font-medium text-foreground">{c.country}</span>
+                          {c.code && (
+                            <span className="rounded bg-surface-alt px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                              {c.code}
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-4 text-right tabular-nums text-foreground">
+                        {c.users.toLocaleString()}
+                      </td>
+                      <td className="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">
+                        {c.sessions.toLocaleString()}
+                      </td>
+                      <td className="py-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-alt">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F]"
+                              style={{ width: `${(c.pct / countryPctMax) * 100}%` }}
+                            />
+                          </div>
+                          <span className="tabular-nums text-xs text-muted-foreground">
+                            {c.pct}%
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </Panel>
 
-        <Panel title="Top cities (Ghana)" subtitle="Where Ghanaian users study">
-          <div className="mt-4 space-y-3">
-            {ghanaCities.map((c) => (
-              <div key={c.city}>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-3.5 w-3.5 text-[#0E7C7B]" />
-                    <span className="font-medium text-foreground">{c.city}</span>
-                    <span className="text-xs text-muted-foreground">{c.region}</span>
+        <Panel title="Peak hours" subtitle="Events by hour of day (server time)">
+          <div className="mt-4 space-y-2">
+            {peakHours.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No data yet.</p>
+            ) : (
+              peakHours.map((h) => (
+                <div key={h.hour} className="flex items-center gap-3">
+                  <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                    {String(h.hour).padStart(2, "0")}:00
+                  </span>
+                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-alt">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F]"
+                      style={{ width: `${(h.count / peakHoursMax) * 100}%` }}
+                    />
                   </div>
-                  <span className="tabular-nums text-foreground">
-                    {c.users.toLocaleString()}{" "}
-                    <span className="text-xs text-muted-foreground">users</span>
+                  <span className="w-12 text-right text-xs tabular-nums text-foreground">
+                    {h.count.toLocaleString()}
                   </span>
                 </div>
-                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-alt">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F]"
-                    style={{ width: `${(c.pct / cityMaxPct) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </Panel>
       </div>
 
-      {/* Traffic sources + signups by location */}
+      {/* Traffic sources + traffic over time */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Panel title="Traffic sources" subtitle="How visitors arrive">
-          <div className="mt-3 h-52 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={trafficSources}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  stroke="var(--color-surface)"
-                  strokeWidth={2}
-                >
-                  {trafficSources.map((s) => (
-                    <Cell key={s.name} fill={s.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(v: number) => v.toLocaleString()}
-                  contentStyle={tooltipStyle}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-2 space-y-1.5">
-            {trafficSources.map((s) => (
-              <div key={s.name} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: s.fill }}
-                />
-                {s.name}
-                <span className="ml-auto tabular-nums text-foreground">
-                  {s.value.toLocaleString()}
-                </span>
-                <span className="w-9 text-right font-semibold tabular-nums text-muted-foreground">
-                  {Math.round((s.value / trafficTotal) * 100)}%
-                </span>
+        <Panel title="Traffic sources" subtitle="How visitors arrive (referrer)">
+          {sources.length === 0 ? (
+            <p className="mt-8 text-center text-sm text-muted-foreground">No source data yet.</p>
+          ) : (
+            <>
+              <div className="mt-3 h-52 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={sources}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      stroke="var(--color-surface)"
+                      strokeWidth={2}
+                    >
+                      {sources.map((s) => (
+                        <Cell key={s.name} fill={s.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v: number) => v.toLocaleString()}
+                      contentStyle={tooltipStyle}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
+              <div className="mt-2 space-y-1.5">
+                {sources.map((s) => (
+                  <div
+                    key={s.name}
+                    className="flex items-center gap-2 text-xs text-muted-foreground"
+                  >
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: s.fill }}
+                    />
+                    {s.name}
+                    <span className="ml-auto tabular-nums text-foreground">
+                      {s.value.toLocaleString()}
+                    </span>
+                    <span className="w-9 text-right font-semibold tabular-nums text-muted-foreground">
+                      {trafficTotal ? Math.round((s.value / trafficTotal) * 100) : 0}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </Panel>
 
         <Panel
-          title="New signups by location"
-          subtitle="Last 14 days, by region"
+          title="Traffic over time"
+          subtitle="Daily event volume across the selected range"
           className="lg:col-span-2"
         >
-          <div className="mt-4 h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={signupsByLocation}>
-                <defs>
-                  <linearGradient id="gGh" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={palette.teal} stopOpacity={0.5} />
-                    <stop offset="100%" stopColor={palette.teal} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gNg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={palette.blue} stopOpacity={0.5} />
-                    <stop offset="100%" stopColor={palette.blue} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gOther" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={palette.amber} stopOpacity={0.5} />
-                    <stop offset="100%" stopColor={palette.amber} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  stroke={axisStroke}
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={1}
-                />
-                <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: gridStroke }} />
-                <Area
-                  type="monotone"
-                  dataKey="Ghana"
-                  stackId="1"
-                  stroke={palette.teal}
-                  strokeWidth={2}
-                  fill="url(#gGh)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="Nigeria"
-                  stackId="1"
-                  stroke={palette.blue}
-                  strokeWidth={2}
-                  fill="url(#gNg)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="Other"
-                  stackId="1"
-                  stroke={palette.amber}
-                  strokeWidth={2}
-                  fill="url(#gOther)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-            {[
-              { name: "Ghana", color: palette.teal },
-              { name: "Nigeria", color: palette.blue },
-              { name: "Other", color: palette.amber },
-            ].map((s) => (
-              <span key={s.name} className="inline-flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-                {s.name}
-              </span>
-            ))}
-          </div>
+          {trafficOverTime.length === 0 ? (
+            <p className="mt-12 text-center text-sm text-muted-foreground">
+              {timelineQ.isLoading ? "Loading…" : "No daily traffic in this range."}
+            </p>
+          ) : (
+            <div className="mt-4 h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trafficOverTime}>
+                  <defs>
+                    <linearGradient id="gVisits" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={palette.teal} stopOpacity={0.45} />
+                      <stop offset="100%" stopColor={palette.teal} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    stroke={axisStroke}
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={28}
+                  />
+                  <YAxis
+                    stroke={axisStroke}
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    width={42}
+                    tickFormatter={(v: number) =>
+                      v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`
+                    }
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={{ stroke: gridStroke }}
+                    formatter={(v: number) => v.toLocaleString()}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="visits"
+                    name="Events"
+                    stroke={palette.teal}
+                    strokeWidth={2.5}
+                    fill="url(#gVisits)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Panel>
       </div>
 
-      {/* Traffic over time */}
-      <Panel title="Traffic over time" subtitle="Visits &amp; sessions across the last 30 days">
-        <div className="mt-4 h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={trafficOverTime}>
-              <defs>
-                <linearGradient id="gVisits" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={palette.teal} stopOpacity={0.45} />
-                  <stop offset="100%" stopColor={palette.teal} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gSessions" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={palette.emerald} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={palette.emerald} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis
-                dataKey="label"
-                stroke={axisStroke}
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                minTickGap={28}
-              />
-              <YAxis
-                stroke={axisStroke}
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                width={42}
-                tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`)}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                cursor={{ stroke: gridStroke }}
-                formatter={(v: number) => v.toLocaleString()}
-              />
-              <Area
-                type="monotone"
-                dataKey="sessions"
-                name="Sessions"
-                stroke={palette.emerald}
-                strokeWidth={2}
-                fill="url(#gSessions)"
-              />
-              <Area
-                type="monotone"
-                dataKey="visits"
-                name="Visits"
-                stroke={palette.teal}
-                strokeWidth={2.5}
-                fill="url(#gVisits)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-          {[
-            { name: "Visits", color: palette.teal },
-            { name: "Sessions", color: palette.emerald },
-          ].map((s) => (
-            <span key={s.name} className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-              {s.name}
-            </span>
-          ))}
-        </div>
-      </Panel>
-
       {/* Device / browser / OS donuts */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Donut title="Device" data={deviceBreakdown} />
-        <Donut title="Browser" data={browserBreakdown} />
-        <Donut title="Operating System" data={osBreakdown} />
+        <Donut title="Device" data={devicesQ.data?.deviceType ?? []} />
+        <Donut title="Browser" data={devicesQ.data?.browser ?? []} />
+        <Donut title="Operating System" data={devicesQ.data?.os ?? []} />
       </div>
 
       {/* Peak usage heatmap */}
       <Panel
         title="Peak usage times"
-        subtitle="Relative activity by day &amp; hour (local time) — hover a cell for detail"
+        subtitle="Relative activity by day &amp; hour (server time) — hover a cell for detail"
       >
-        <UsageHeatmap data={usageHeatmap} />
+        {heatmapQ.data && heatmapQ.data.length > 0 ? (
+          <UsageHeatmap data={heatmapQ.data} />
+        ) : (
+          <p className="py-12 text-center text-sm text-muted-foreground">
+            {heatmapQ.isLoading ? "Loading heatmap…" : "No activity recorded in this range."}
+          </p>
+        )}
       </Panel>
     </div>
   );

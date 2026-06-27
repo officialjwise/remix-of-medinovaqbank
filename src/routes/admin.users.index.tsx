@@ -12,8 +12,6 @@ import {
   MoreHorizontal,
   Eye,
   Pencil,
-  ToggleLeft,
-  Smartphone,
   Mail,
   Ban,
   Trash2,
@@ -23,17 +21,34 @@ import {
   Square,
   Flag,
   X,
+  UserCheck,
+  ShieldBan,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { VirtualRows } from "@/components/shared/VirtualRows";
 import { useDebounce } from "@/hooks/useDebounce";
-import { adminUsers, type AdminUser } from "@/data/adminData";
 import {
   EditUserModal,
   ComposeEmailModal,
   FlagAccountModal,
 } from "@/components/admin/UserActionModals";
+import {
+  useAdminUsers,
+  useAdminUserStats,
+  useUpdateAdminUser,
+  useDeleteAdminUser,
+  useSuspendUser,
+  useReactivateUser,
+  useBanUser,
+  useFlagUser,
+  useBulkUserAction,
+  exportUsersCsv,
+  type AdminUserVM,
+  type AdminUserStatus,
+  type DisplayRole,
+  type BackendUserRole,
+  type AdminUserListParams,
+} from "@/api/admin-users.api";
 
 export const Route = createFileRoute("/admin/users/")({
   head: () => ({
@@ -46,17 +61,8 @@ export const Route = createFileRoute("/admin/users/")({
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-const ROW_HEIGHT = 76;
-const GRID =
-  "grid-cols-[40px_minmax(220px,2fr)_140px_120px_110px_130px_minmax(140px,1fr)_120px_120px_90px_56px]";
-
-function deviceType(device: string): "Desktop" | "Mobile" | "Tablet" {
-  if (/ipad/i.test(device)) return "Tablet";
-  if (/ios|iphone|android/i.test(device)) return "Mobile";
-  return "Desktop";
-}
-
-function fmtDate(iso: string) {
+function fmtDate(iso: string | null) {
+  if (!iso) return "—";
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
@@ -64,7 +70,8 @@ function fmtDate(iso: string) {
   });
 }
 
-function relTime(iso: string) {
+function relTime(iso: string | null) {
+  if (!iso) return "Never";
   const diff = Date.now() - new Date(iso).getTime();
   const d = Math.floor(diff / 86_400_000);
   if (d <= 0) return "Today";
@@ -74,37 +81,26 @@ function relTime(iso: string) {
   return `${Math.floor(d / 30)}mo ago`;
 }
 
-const DAY = 86_400_000;
+type SortKey = "name" | "specialty" | "role" | "status" | "country" | "createdAt" | "lastActiveAt";
 
-type SortKey =
-  | "name"
-  | "specialty"
-  | "role"
-  | "status"
-  | "city"
-  | "registeredAt"
-  | "lastActiveAt"
-  | "lifetimeQuestions";
+const STATUS_TONE: Record<AdminUserStatus, string> = {
+  active: "bg-success/10 text-success border border-success/20",
+  flagged: "bg-warning/10 text-warning border border-warning/20",
+  suspended: "bg-error/10 text-error border border-error/20",
+  banned: "bg-error/10 text-error border border-error/20",
+};
 
-function StatusPill({ status }: { status: AdminUser["status"] }) {
-  const tone =
-    status === "active"
-      ? "bg-success/10 text-success border border-success/20"
-      : status === "trial"
-        ? "bg-warning/10 text-warning border border-warning/20"
-        : status === "expired" || status === "suspended"
-          ? "bg-error/10 text-error border border-error/20"
-          : "bg-surface-alt text-muted-foreground border border-border";
+function StatusPill({ status }: { status: AdminUserStatus }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_TONE[status]}`}
     >
       {status}
     </span>
   );
 }
 
-function RolePill({ role }: { role: AdminUser["role"] }) {
+function RolePill({ role }: { role: DisplayRole }) {
   const tone =
     role === "SUPER_ADMIN"
       ? "bg-primary/10 text-primary border border-primary/20"
@@ -118,6 +114,9 @@ function RolePill({ role }: { role: AdminUser["role"] }) {
   );
 }
 
+const GRID =
+  "grid-cols-[40px_minmax(220px,2fr)_140px_120px_110px_minmax(120px,1fr)_120px_120px_56px]";
+
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
@@ -128,85 +127,35 @@ function AdminUsers() {
   const [rawSearch, setRawSearch] = useState("");
   const search = useDebounce(rawSearch, 250);
 
-  const [role, setRole] = useState<"All" | AdminUser["role"]>("All");
-  const [status, setStatus] = useState<"All" | AdminUser["status"]>("All");
-  const [specialty, setSpecialty] = useState("All");
-  const [country, setCountry] = useState("All");
-  const [device, setDevice] = useState<"All" | "Desktop" | "Mobile" | "Tablet">("All");
+  const [role, setRole] = useState<"All" | DisplayRole>("All");
+  const [active, setActive] = useState<"All" | "active" | "inactive">("All");
 
-  const [sortKey, setSortKey] = useState<SortKey>("registeredAt");
+  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUserVM | null>(null);
+  const [exporting, setExporting] = useState(false);
 
-  /* ---- summary metrics ---- */
-  const summary = useMemo(() => {
-    const now = Date.now();
+  const listParams = useMemo<AdminUserListParams>(() => {
+    const roleFilter: BackendUserRole | undefined =
+      role === "All" ? undefined : role === "SUPER_ADMIN" ? "super_admin" : "user";
     return {
-      total: adminUsers.length,
-      activeToday: adminUsers.filter((u) => now - new Date(u.lastActiveAt).getTime() < DAY).length,
-      newThisWeek: adminUsers.filter((u) => now - new Date(u.registeredAt).getTime() < 7 * DAY)
-        .length,
-      trial: adminUsers.filter((u) => u.status === "trial").length,
-      paid: adminUsers.filter((u) => u.status === "active").length,
-      churned: adminUsers.filter((u) => u.status === "expired").length,
+      search: search || undefined,
+      role: roleFilter,
+      isActive: active === "All" ? undefined : active === "active",
+      sortBy: sortKey,
+      sortOrder: sortDir,
+      limit: 100,
     };
-  }, []);
+  }, [search, role, active, sortKey, sortDir]);
 
-  const specialties = useMemo(
-    () => Array.from(new Set(adminUsers.map((u) => u.specialty))).sort(),
-    [],
-  );
-  const countries = useMemo(() => Array.from(new Set(adminUsers.map((u) => u.country))).sort(), []);
+  const { data, isLoading, isError, error } = useAdminUsers(listParams);
+  const { data: stats } = useAdminUserStats();
+  const users = data?.users ?? [];
 
-  /* ---- filter + sort ---- */
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let rows = adminUsers.filter((u) => {
-      if (role !== "All" && u.role !== role) return false;
-      if (status !== "All" && u.status !== status) return false;
-      if (specialty !== "All" && u.specialty !== specialty) return false;
-      if (country !== "All" && u.country !== country) return false;
-      if (device !== "All" && deviceType(u.device) !== device) return false;
-      if (q) {
-        return (
-          u.name.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q) ||
-          u.institution.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-
-    rows = [...rows].sort((a, b) => {
-      let av: string | number;
-      let bv: string | number;
-      switch (sortKey) {
-        case "city":
-          av = a.city;
-          bv = b.city;
-          break;
-        case "lifetimeQuestions":
-          av = a.lifetimeQuestions;
-          bv = b.lifetimeQuestions;
-          break;
-        case "registeredAt":
-        case "lastActiveAt":
-          av = new Date(a[sortKey]).getTime();
-          bv = new Date(b[sortKey]).getTime();
-          break;
-        default:
-          av = a[sortKey];
-          bv = b[sortKey];
-      }
-      if (av < bv) return sortDir === "asc" ? -1 : 1;
-      if (av > bv) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return rows;
-  }, [search, role, status, specialty, country, device, sortKey, sortDir]);
+  const deleteMutation = useDeleteAdminUser();
+  const bulkMutation = useBulkUserAction();
 
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -216,11 +165,11 @@ function AdminUsers() {
     }
   }
 
-  const allOnPageSelected = filtered.length > 0 && filtered.every((u) => selected.has(u.id));
+  const allOnPageSelected = users.length > 0 && users.every((u) => selected.has(u.id));
 
   function toggleAll() {
     if (allOnPageSelected) setSelected(new Set());
-    else setSelected(new Set(filtered.map((u) => u.id)));
+    else setSelected(new Set(users.map((u) => u.id)));
   }
 
   function toggleOne(id: string) {
@@ -232,61 +181,31 @@ function AdminUsers() {
     });
   }
 
-  function buildCsv(rows: AdminUser[]) {
-    const header = [
-      "name",
-      "email",
-      "role",
-      "status",
-      "plan",
-      "country",
-      "registeredAt",
-      "lastActiveAt",
-      "lifetimeQuestions",
-    ];
-    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-    const lines = rows.map((u) =>
-      [
-        u.name,
-        u.email,
-        u.role,
-        u.status,
-        u.plan,
-        u.country,
-        u.registeredAt,
-        u.lastActiveAt,
-        u.lifetimeQuestions,
-      ]
-        .map(esc)
-        .join(","),
+  function runBulk(action: "suspend" | "ban" | "reactivate" | "delete") {
+    const userIds = [...selected];
+    bulkMutation.mutate(
+      { action, userIds },
+      {
+        onSuccess: (res) => {
+          toast.success(`${res.affected} user${res.affected === 1 ? "" : "s"} ${action}d`);
+          setSelected(new Set());
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Bulk action failed"),
+      },
     );
-    return [header.join(","), ...lines].join("\n");
   }
 
-  function download(rows: AdminUser[], name: string) {
-    const blob = new Blob([buildCsv(rows)], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await exportUsersCsv(listParams);
+      toast.success("Users exported to CSV");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
   }
-
-  function handleExport() {
-    download(filtered, `medinova-users-${new Date().toISOString().slice(0, 10)}.csv`);
-    toast.success(`Exported ${filtered.length} user${filtered.length === 1 ? "" : "s"} to CSV`);
-  }
-
-  function handleExportSelected() {
-    const rows = filtered.filter((u) => selected.has(u.id));
-    download(rows, `medinova-users-selected-${new Date().toISOString().slice(0, 10)}.csv`);
-    toast.success(`Exported ${rows.length} selected user${rows.length === 1 ? "" : "s"}`);
-  }
-
-  const listHeight = Math.min(filtered.length * ROW_HEIGHT, 640);
 
   return (
     <div className="space-y-6">
@@ -294,28 +213,35 @@ function AdminUsers() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">User Management</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{filtered.length} matching accounts</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {data ? `${data.total.toLocaleString()} matching accounts` : "Loading…"}
+          </p>
         </div>
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards (from /admin/users/stats) */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard icon={Users} label="Total users" value={summary.total} />
+        <SummaryCard icon={Users} label="Total users" value={stats?.total ?? 0} />
+        <SummaryCard icon={Activity} label="Active" value={stats?.active ?? 0} tone="success" />
         <SummaryCard
-          icon={Activity}
-          label="Active today"
-          value={summary.activeToday}
+          icon={UserPlus}
+          label="New (30d)"
+          value={stats?.newLast30Days ?? 0}
+          tone="accent"
+        />
+        <SummaryCard icon={Hourglass} label="Trial" value={stats?.trial ?? 0} tone="warning" />
+        <SummaryCard
+          icon={CreditCard}
+          label="Subscribed"
+          value={stats?.subscribed ?? 0}
           tone="success"
         />
         <SummaryCard
-          icon={UserPlus}
-          label="New this week"
-          value={summary.newThisWeek}
-          tone="accent"
+          icon={UserMinus}
+          label="Suspended / banned"
+          value={(stats?.suspended ?? 0) + (stats?.banned ?? 0)}
+          tone="error"
         />
-        <SummaryCard icon={Hourglass} label="Trial users" value={summary.trial} tone="warning" />
-        <SummaryCard icon={CreditCard} label="Paid users" value={summary.paid} tone="success" />
-        <SummaryCard icon={UserMinus} label="Churned" value={summary.churned} tone="error" />
       </div>
 
       {/* Toolbar */}
@@ -332,13 +258,14 @@ function AdminUsers() {
         </div>
         <button
           onClick={handleExport}
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt transition-colors"
+          disabled={exporting}
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt transition-colors disabled:opacity-60"
         >
-          <Download className="h-4 w-4" /> Export CSV
+          <Download className="h-4 w-4" /> {exporting ? "Exporting…" : "Export CSV"}
         </button>
       </div>
 
-      {/* Advanced filters */}
+      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
         <FilterSelect
           label="Role"
@@ -347,28 +274,10 @@ function AdminUsers() {
           options={["All", "USER", "SUPER_ADMIN"]}
         />
         <FilterSelect
-          label="Status"
-          value={status}
-          onChange={(v) => setStatus(v as typeof status)}
-          options={["All", "active", "trial", "expired", "none"]}
-        />
-        <FilterSelect
-          label="Specialty"
-          value={specialty}
-          onChange={setSpecialty}
-          options={["All", ...specialties]}
-        />
-        <FilterSelect
-          label="Country"
-          value={country}
-          onChange={setCountry}
-          options={["All", ...countries]}
-        />
-        <FilterSelect
-          label="Device"
-          value={device}
-          onChange={(v) => setDevice(v as typeof device)}
-          options={["All", "Desktop", "Mobile", "Tablet"]}
+          label="Account"
+          value={active}
+          onChange={(v) => setActive(v as typeof active)}
+          options={["All", "active", "inactive"]}
         />
       </div>
 
@@ -377,32 +286,17 @@ function AdminUsers() {
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-accent/20 bg-accent/5 px-4 py-3 animate-in fade-in">
           <span className="text-sm font-bold text-accent">{selected.size} selected</span>
           <span className="flex-1" />
-          <BulkBtn
-            onClick={() => {
-              toast.success(`${selected.size} users activated`);
-              setSelected(new Set());
-            }}
-            tone="success"
-          >
-            Activate
+          <BulkBtn onClick={() => runBulk("reactivate")} tone="success">
+            Reactivate
           </BulkBtn>
-          <BulkBtn
-            onClick={() => {
-              toast.success(`${selected.size} users deactivated`);
-              setSelected(new Set());
-            }}
-            tone="warning"
-          >
-            Deactivate
+          <BulkBtn onClick={() => runBulk("suspend")} tone="warning">
+            Suspend
           </BulkBtn>
-          <BulkBtn onClick={handleExportSelected} tone="default">
-            Export selected
+          <BulkBtn onClick={() => runBulk("ban")} tone="error">
+            Ban
           </BulkBtn>
-          <BulkBtn
-            onClick={() => toast.success(`Email queued for ${selected.size} users`)}
-            tone="default"
-          >
-            Send email
+          <BulkBtn onClick={() => runBulk("delete")} tone="error">
+            Delete
           </BulkBtn>
           <button
             onClick={() => setSelected(new Set())}
@@ -417,7 +311,7 @@ function AdminUsers() {
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
         <div className="overflow-x-auto">
-          <div className="min-w-[1180px]">
+          <div className="min-w-[1020px]">
             {/* Header row */}
             <div
               className={`grid ${GRID} items-center gap-3 border-b border-border bg-surface-alt/40 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground`}
@@ -449,17 +343,16 @@ function AdminUsers() {
                 dir={sortDir}
                 onSort={handleSort}
               />
-              <span>Plan</span>
               <SortHead
-                label="Location"
-                k="city"
+                label="Country"
+                k="country"
                 sortKey={sortKey}
                 dir={sortDir}
                 onSort={handleSort}
               />
               <SortHead
                 label="Registered"
-                k="registeredAt"
+                k="createdAt"
                 sortKey={sortKey}
                 dir={sortDir}
                 onSort={handleSort}
@@ -471,19 +364,19 @@ function AdminUsers() {
                 dir={sortDir}
                 onSort={handleSort}
               />
-              <SortHead
-                label="Lifetime Qs"
-                k="lifetimeQuestions"
-                sortKey={sortKey}
-                dir={sortDir}
-                onSort={handleSort}
-                align="right"
-              />
               <span className="text-right">·</span>
             </div>
 
             {/* Body */}
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <div className="px-4 py-16 text-center text-sm text-muted-foreground">
+                Loading users…
+              </div>
+            ) : isError ? (
+              <div className="px-4 py-16 text-center text-sm text-error">
+                {error instanceof Error ? error.message : "Failed to load users."}
+              </div>
+            ) : users.length === 0 ? (
               <div className="px-4 py-16 text-center">
                 <p className="text-sm font-semibold text-foreground">No users found</p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -491,22 +384,16 @@ function AdminUsers() {
                 </p>
               </div>
             ) : (
-              <VirtualRows
-                items={filtered}
-                rowHeight={ROW_HEIGHT}
-                height={listHeight}
-                renderRow={(u) => (
-                  <UserRow
-                    user={u}
-                    selected={selected.has(u.id)}
-                    onToggle={() => toggleOne(u.id)}
-                    onView={() =>
-                      navigate({ to: "/admin/users/$userId", params: { userId: u.id } })
-                    }
-                    onDelete={() => setDeleteTarget(u)}
-                  />
-                )}
-              />
+              users.map((u) => (
+                <UserRow
+                  key={u.id}
+                  user={u}
+                  selected={selected.has(u.id)}
+                  onToggle={() => toggleOne(u.id)}
+                  onView={() => navigate({ to: "/admin/users/$userId", params: { userId: u.id } })}
+                  onDelete={() => setDeleteTarget(u)}
+                />
+              ))
             )}
           </div>
         </div>
@@ -528,7 +415,12 @@ function AdminUsers() {
         confirmLabel="Delete account"
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => {
-          toast.success(`${deleteTarget?.name} deleted`);
+          if (!deleteTarget) return;
+          const target = deleteTarget;
+          deleteMutation.mutate(target.id, {
+            onSuccess: () => toast.success(`${target.name} deleted`),
+            onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
+          });
           setDeleteTarget(null);
         }}
       />
@@ -547,7 +439,7 @@ function UserRow({
   onView,
   onDelete,
 }: {
-  user: AdminUser;
+  user: AdminUserVM;
   selected: boolean;
   onToggle: () => void;
   onView: () => void;
@@ -555,7 +447,7 @@ function UserRow({
 }) {
   return (
     <div
-      className={`grid ${GRID} h-16 items-center gap-3 border-b border-border px-4 transition-colors ${
+      className={`grid ${GRID} h-[76px] items-center gap-3 border-b border-border px-4 transition-colors ${
         selected ? "bg-accent/5" : "hover:bg-surface-alt/40"
       }`}
     >
@@ -583,28 +475,19 @@ function UserRow({
             {u.name}
           </button>
           <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-          <p className="truncate font-mono text-[10px] text-muted-foreground/70">{u.publicId}</p>
         </div>
       </div>
 
-      <span className="truncate text-sm text-muted-foreground">{u.specialty}</span>
+      <span className="truncate text-sm text-muted-foreground">{u.specialty || "—"}</span>
       <span>
         <RolePill role={u.role} />
       </span>
       <span>
-        <StatusPill status={u.status} />
+        <StatusPill status={u.displayStatus} />
       </span>
-      <span className="truncate text-xs font-semibold text-foreground">
-        {u.plan === "—" ? <span className="text-muted-foreground">—</span> : u.plan}
-      </span>
-      <span className="truncate text-sm text-muted-foreground">
-        {u.city}, {u.country}
-      </span>
-      <span className="text-xs text-muted-foreground">{fmtDate(u.registeredAt)}</span>
+      <span className="truncate text-sm text-muted-foreground">{u.country || "—"}</span>
+      <span className="text-xs text-muted-foreground">{fmtDate(u.createdAt)}</span>
       <span className="text-xs text-muted-foreground">{relTime(u.lastActiveAt)}</span>
-      <span className="text-right text-sm font-semibold tabular-nums text-foreground">
-        {u.lifetimeQuestions.toLocaleString()}
-      </span>
 
       <div className="flex justify-end">
         <RowActions user={u} onView={onView} onDelete={onDelete} />
@@ -618,13 +501,20 @@ function RowActions({
   onView,
   onDelete,
 }: {
-  user: AdminUser;
+  user: AdminUserVM;
   onView: () => void;
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [modal, setModal] = useState<null | "edit" | "email" | "flag" | "clearLock">(null);
-  const [flagged, setFlagged] = useState(false);
+  const [modal, setModal] = useState<null | "edit" | "email" | "flag">(null);
+
+  const updateMutation = useUpdateAdminUser();
+  const suspendMutation = useSuspendUser();
+  const reactivateMutation = useReactivateUser();
+  const banMutation = useBanUser();
+  const flagMutation = useFlagUser();
+
+  const isSuspended = user.status === "suspended" || user.status === "banned";
 
   function act(fn: () => void) {
     setOpen(false);
@@ -633,10 +523,10 @@ function RowActions({
 
   return (
     <div className="relative inline-flex items-center gap-1.5 text-left">
-      {flagged && (
+      {user.isFlagged && (
         <span
           className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning"
-          title="Flagged for review"
+          title={user.flagReason ?? "Flagged for review"}
         >
           <Flag className="h-3 w-3" /> Flagged
         </span>
@@ -658,15 +548,6 @@ function RowActions({
             <MenuItem icon={Pencil} onClick={() => act(() => setModal("edit"))}>
               Edit profile
             </MenuItem>
-            <MenuItem
-              icon={ToggleLeft}
-              onClick={() => act(() => toast("Override subscription panel opened"))}
-            >
-              Override subscription
-            </MenuItem>
-            <MenuItem icon={Smartphone} onClick={() => act(() => setModal("clearLock"))}>
-              Clear device lock
-            </MenuItem>
             <MenuItem icon={Mail} onClick={() => act(() => setModal("email"))}>
               Send email
             </MenuItem>
@@ -674,11 +555,54 @@ function RowActions({
               Flag account
             </MenuItem>
             <div className="my-1 border-t border-border" />
+            {isSuspended ? (
+              <MenuItem
+                icon={UserCheck}
+                onClick={() =>
+                  act(() =>
+                    reactivateMutation.mutate(user.id, {
+                      onSuccess: () => toast.success(`${user.name} reactivated`),
+                      onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
+                    }),
+                  )
+                }
+              >
+                Reactivate
+              </MenuItem>
+            ) : (
+              <MenuItem
+                icon={Ban}
+                onClick={() =>
+                  act(() =>
+                    suspendMutation.mutate(
+                      { id: user.id },
+                      {
+                        onSuccess: () => toast.success(`${user.name} suspended`),
+                        onError: (e) =>
+                          toast.error(e instanceof Error ? e.message : "Action failed"),
+                      },
+                    ),
+                  )
+                }
+              >
+                Suspend
+              </MenuItem>
+            )}
             <MenuItem
-              icon={Ban}
-              onClick={() => act(() => toast.success(`${user.name} deactivated`))}
+              icon={ShieldBan}
+              onClick={() =>
+                act(() =>
+                  banMutation.mutate(
+                    { id: user.id },
+                    {
+                      onSuccess: () => toast.success(`${user.name} banned`),
+                      onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
+                    },
+                  ),
+                )
+              }
             >
-              Deactivate
+              Ban
             </MenuItem>
             <MenuItem icon={Trash2} tone="error" onClick={() => act(onDelete)}>
               Delete
@@ -688,32 +612,43 @@ function RowActions({
       )}
 
       {modal === "edit" && (
-        <EditUserModal user={user} onClose={() => setModal(null)} onSave={() => {}} />
+        <EditUserModal
+          user={user}
+          onClose={() => setModal(null)}
+          onSave={(patch) =>
+            updateMutation.mutate(
+              {
+                id: user.id,
+                input: {
+                  name: patch.name,
+                  specialty: patch.specialty,
+                  institution: patch.institution,
+                },
+              },
+              {
+                onSuccess: () => toast.success("Profile updated"),
+                onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+              },
+            )
+          }
+        />
       )}
       {modal === "email" && <ComposeEmailModal user={user} onClose={() => setModal(null)} />}
       {modal === "flag" && (
         <FlagAccountModal
           user={user}
           onClose={() => setModal(null)}
-          onFlag={() => setFlagged(true)}
+          onFlag={(reason) =>
+            flagMutation.mutate(
+              { id: user.id, reason },
+              {
+                onSuccess: () => toast.success(`${user.name} flagged for review`),
+                onError: (e) => toast.error(e instanceof Error ? e.message : "Flag failed"),
+              },
+            )
+          }
         />
       )}
-      <ConfirmDialog
-        open={modal === "clearLock"}
-        title="Clear device lock?"
-        description={
-          <span>
-            This lets <strong>{user.name}</strong> sign in from a new device. Their current bound
-            device ({user.device}) will be released.
-          </span>
-        }
-        confirmLabel="Clear device lock"
-        onCancel={() => setModal(null)}
-        onConfirm={() => {
-          setModal(null);
-          toast.success("Device lock cleared — user can re-bind on next login");
-        }}
-      />
     </div>
   );
 }

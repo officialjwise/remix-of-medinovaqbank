@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BadgeCheck,
   CalendarDays,
@@ -18,6 +18,14 @@ import { useAuthStore } from "@/stores/authStore";
 import { deviceLabel } from "@/lib/trial";
 import { AvatarUploader } from "@/components/shared/AvatarUploader";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { ApiError } from "@/api/client";
+import {
+  useProfile,
+  useUpdateProfile,
+  useChangePassword,
+  useUploadAvatar,
+  useRemoveAvatar,
+} from "@/api/profile.api";
 
 export const Route = createFileRoute("/admin/profile")({
   head: () => ({
@@ -45,12 +53,36 @@ function initialsOf(name: string) {
     .join("");
 }
 
+/** Convert a data URL (from AvatarUploader) to a Blob for multipart upload. */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, body] = dataUrl.split(",");
+  const mime = /data:(.*?);base64/.exec(header)?.[1] ?? "image/jpeg";
+  const binary = atob(body);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
 function AdminProfilePage() {
   const { user, setUser } = useAuthStore();
 
-  const [name, setName] = useState(user?.name ?? "Administrator");
-  const email = user?.email ?? "admin@medinovaqbank.com";
-  const role = user?.role ?? "SUPER_ADMIN";
+  // Live profile is the source of truth; the auth store is a cached fallback
+  // (and is kept in sync so the rest of the shell reflects edits immediately).
+  const profileQuery = useProfile();
+  const profile = profileQuery.data;
+  const updateProfile = useUpdateProfile();
+  const changePassword = useChangePassword();
+  const uploadAvatar = useUploadAvatar();
+  const removeAvatar = useRemoveAvatar();
+
+  const [name, setName] = useState(profile?.name ?? user?.name ?? "Administrator");
+  const email = profile?.email ?? user?.email ?? "admin@medinovaqbank.com";
+  const role = profile?.role ?? user?.role ?? "SUPER_ADMIN";
+
+  // Hydrate the name field once the live profile resolves.
+  useEffect(() => {
+    if (profile?.name) setName(profile.name);
+  }, [profile?.name]);
 
   const [twoFA, setTwoFA] = useState(true);
   const [current, setCurrent] = useState("");
@@ -59,18 +91,62 @@ function AdminProfilePage() {
 
   const initials = initialsOf(name);
   const device = deviceLabel();
-  const joined = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString("en-GB", { year: "numeric", month: "long" })
+  const joinedSource = profile?.createdAt ?? user?.createdAt;
+  const joined = joinedSource
+    ? new Date(joinedSource).toLocaleDateString("en-GB", { year: "numeric", month: "long" })
     : "—";
+  const avatarUrl = profile?.avatarUrl ?? user?.avatarUrl;
+
+  /** Keep the auth store roughly in sync after a profile mutation. */
+  function syncAuthUser(patch: { name?: string; avatarUrl?: string }) {
+    if (!user) return;
+    setUser({
+      ...user,
+      name: patch.name ?? user.name,
+      avatarUrl: "avatarUrl" in patch ? patch.avatarUrl : user.avatarUrl,
+    });
+  }
 
   function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) {
-      toast.success("Profile saved");
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast.error("Name cannot be empty");
       return;
     }
-    setUser({ ...user, name: name.trim() || user.name });
-    toast.success("Profile saved");
+    updateProfile.mutate(
+      { name: trimmed },
+      {
+        onSuccess: (updated) => {
+          syncAuthUser({ name: updated.name });
+          toast.success("Profile saved");
+        },
+        onError: (err) =>
+          toast.error(err instanceof ApiError ? err.message : "Could not save profile"),
+      },
+    );
+  }
+
+  function handleAvatarSave(dataUrl: string) {
+    uploadAvatar.mutate(dataUrlToBlob(dataUrl), {
+      onSuccess: (updated) => {
+        syncAuthUser({ avatarUrl: updated.avatarUrl });
+        toast.success("Avatar updated");
+      },
+      onError: (err) =>
+        toast.error(err instanceof ApiError ? err.message : "Could not upload avatar"),
+    });
+  }
+
+  function handleAvatarRemove() {
+    removeAvatar.mutate(undefined, {
+      onSuccess: () => {
+        syncAuthUser({ avatarUrl: undefined });
+        toast.success("Avatar removed");
+      },
+      onError: (err) =>
+        toast.error(err instanceof ApiError ? err.message : "Could not remove avatar"),
+    });
   }
 
   function handleChangePassword(e: React.FormEvent) {
@@ -91,10 +167,19 @@ function AdminProfilePage() {
       toast.error("New password and confirmation don't match");
       return;
     }
-    setCurrent("");
-    setNext("");
-    setConfirm("");
-    toast.success("Password updated");
+    changePassword.mutate(
+      { currentPassword: current, newPassword: next },
+      {
+        onSuccess: () => {
+          setCurrent("");
+          setNext("");
+          setConfirm("");
+          toast.success("Password updated");
+        },
+        onError: (err) =>
+          toast.error(err instanceof ApiError ? err.message : "Could not update password"),
+      },
+    );
   }
 
   return (
@@ -116,11 +201,11 @@ function AdminProfilePage() {
             <div className="shrink-0">
               <div className="rounded-[1.25rem] bg-surface p-1 shadow-[var(--shadow-card)]">
                 <AvatarUploader
-                  value={user?.avatarUrl}
+                  value={avatarUrl}
                   initials={initials}
                   size={104}
-                  onSave={(dataUrl) => user && setUser({ ...user, avatarUrl: dataUrl })}
-                  onRemove={() => user && setUser({ ...user, avatarUrl: undefined })}
+                  onSave={handleAvatarSave}
+                  onRemove={handleAvatarRemove}
                 />
               </div>
             </div>
@@ -164,9 +249,11 @@ function AdminProfilePage() {
               <div className="flex justify-end sm:col-span-2">
                 <button
                   type="submit"
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90"
+                  disabled={updateProfile.isPending}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 disabled:opacity-60"
                 >
-                  <Save className="h-4 w-4" /> Save changes
+                  <Save className="h-4 w-4" />{" "}
+                  {updateProfile.isPending ? "Saving…" : "Save changes"}
                 </button>
               </div>
             </form>
@@ -213,9 +300,11 @@ function AdminProfilePage() {
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90"
+                  disabled={changePassword.isPending}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 disabled:opacity-60"
                 >
-                  <KeyRound className="h-4 w-4" /> Update password
+                  <KeyRound className="h-4 w-4" />{" "}
+                  {changePassword.isPending ? "Updating…" : "Update password"}
                 </button>
               </div>
             </form>

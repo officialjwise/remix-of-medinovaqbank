@@ -56,6 +56,24 @@ import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
 import { renderBrandedEmail, fillVars } from "@/lib/emailRender";
 import { DEFAULT_EMAIL_TEMPLATES } from "@/data/emailTemplates";
+import { ApiError } from "@/api/client";
+import {
+  useSettingsMap,
+  useUpdateSettings,
+  useIntegrationStatus,
+  useRevealSecret,
+  useTestIntegration,
+  settingValue,
+  settingBool,
+  type IntegrationName,
+  type ResolvedSetting,
+  type SettingUpdate,
+} from "@/api/settings.api";
+import {
+  useAdminBranding,
+  useUpdateBranding,
+  type Branding as ApiBranding,
+} from "@/api/branding.api";
 
 export const Route = createFileRoute("/admin/settings/system")({
   head: () => ({
@@ -135,13 +153,44 @@ function AdminSettings() {
   );
 }
 
+/* ───────────── Shared settings save helper ───────────── */
+function useSaveSettings() {
+  const update = useUpdateSettings();
+  return (settings: SettingUpdate[], successMsg: string) => {
+    update.mutate(settings, {
+      onSuccess: () => toast.success(successMsg),
+      onError: (err) =>
+        toast.error(err instanceof ApiError ? err.message : "Could not save settings"),
+    });
+  };
+}
+
 /* ───────────── Tab 1 — General ───────────── */
+// Backend-backed keys: general.platformName/supportEmail/maintenanceMode/
+// maintenanceMessage + trial.durationDays/questionLimit. Tagline/currency/
+// timezone/session limits have no backend catalog key (see gaps).
 function GeneralTab() {
-  const settings = useSettingsStore((s) => s.settings.general);
-  const branding = useSettingsStore((s) => s.settings.branding);
-  const update = useSettingsStore((s) => s.update);
-  const [form, setForm] = useState(settings);
-  const [logo, setLogo] = useState(branding.logoLight);
+  const { data: map, isLoading } = useSettingsMap();
+  const save = useSaveSettings();
+
+  const [platformName, setPlatformName] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState("");
+  const [trialDays, setTrialDays] = useState(0);
+  const [trialLimit, setTrialLimit] = useState(0);
+
+  useEffect(() => {
+    if (!map) return;
+    setPlatformName(settingValue(map, "general.platformName", "Medinovaqbank"));
+    setSupportEmail(settingValue(map, "general.supportEmail"));
+    setMaintenanceMode(settingBool(map, "general.maintenanceMode"));
+    setMaintenanceMessage(settingValue(map, "general.maintenanceMessage"));
+    setTrialDays(Number(settingValue(map, "trial.durationDays", "0")) || 0);
+    setTrialLimit(Number(settingValue(map, "trial.questionLimit", "0")) || 0);
+  }, [map]);
+
+  if (isLoading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-5">
@@ -149,80 +198,36 @@ function GeneralTab() {
         <Card title="Platform" desc="Core identity and contact details shown across the app.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Platform Name">
-              <Input
-                value={form.platformName}
-                onChange={(v) => setForm({ ...form, platformName: v })}
-              />
-            </Field>
-            <Field label="Tagline">
-              <Input value={form.tagline} onChange={(v) => setForm({ ...form, tagline: v })} />
+              <Input value={platformName} onChange={setPlatformName} />
             </Field>
             <Field label="Support Email">
-              <Input
-                value={form.supportEmail}
-                onChange={(v) => setForm({ ...form, supportEmail: v })}
-              />
-            </Field>
-            <Field label="Support Phone">
-              <Input
-                value={form.supportPhone}
-                onChange={(v) => setForm({ ...form, supportPhone: v })}
-              />
-            </Field>
-            <Field label="Default Currency">
-              <Input value={form.currency} onChange={(v) => setForm({ ...form, currency: v })} />
-            </Field>
-            <Field label="Timezone">
-              <Select
-                value={form.timezone}
-                onChange={(v) => setForm({ ...form, timezone: v })}
-                options={[
-                  "Africa/Accra",
-                  "Africa/Lagos",
-                  "Europe/London",
-                  "America/New_York",
-                  "UTC",
-                ]}
-              />
+              <Input value={supportEmail} onChange={setSupportEmail} />
             </Field>
           </div>
-          <Field label="Logo">
-            <FileUpload value={logo} onChange={setLogo} label="Upload logo (PNG/SVG)" />
+          <Field label="Maintenance Message">
+            <Input value={maintenanceMessage} onChange={setMaintenanceMessage} />
           </Field>
           <SaveBar
-            onSave={() => {
-              update("general", form);
-              update("branding", { logoLight: logo });
-              toast.success("General settings saved");
-            }}
+            onSave={() =>
+              save(
+                [
+                  { key: "general.platformName", value: platformName },
+                  { key: "general.supportEmail", value: supportEmail },
+                  { key: "general.maintenanceMessage", value: maintenanceMessage },
+                ],
+                "General settings saved",
+              )
+            }
           />
         </Card>
 
-        <Card title="Quiz & Trial Limits" desc="Defaults applied to new sessions and free trials.">
+        <Card title="Trial & Maintenance" desc="Free-trial limits and platform availability.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Free Trial Duration (days)">
-              <NumberInput
-                value={form.trialDays}
-                onChange={(v) => setForm({ ...form, trialDays: v })}
-              />
+              <NumberInput value={trialDays} onChange={setTrialDays} />
             </Field>
             <Field label="Free Trial Question Limit">
-              <NumberInput
-                value={form.trialQuestionLimit}
-                onChange={(v) => setForm({ ...form, trialQuestionLimit: v })}
-              />
-            </Field>
-            <Field label="Max Questions / Quiz Session">
-              <NumberInput
-                value={form.maxQuestionsPerSession}
-                onChange={(v) => setForm({ ...form, maxQuestionsPerSession: v })}
-              />
-            </Field>
-            <Field label="Default Session Time Limit (min)">
-              <NumberInput
-                value={form.defaultSessionTimeLimitMin}
-                onChange={(v) => setForm({ ...form, defaultSessionTimeLimitMin: v })}
-              />
+              <NumberInput value={trialLimit} onChange={setTrialLimit} />
             </Field>
           </div>
           <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-alt/40 px-4 py-3 text-sm font-medium text-foreground">
@@ -233,21 +238,38 @@ function GeneralTab() {
               </span>
             </span>
             <ToggleSwitch
-              checked={form.maintenanceMode}
-              onChange={(v) => setForm({ ...form, maintenanceMode: v })}
+              checked={maintenanceMode}
+              onChange={setMaintenanceMode}
               ariaLabel="Maintenance mode"
             />
           </div>
           <SaveBar
-            onSave={() => {
-              update("general", form);
-              toast.success(
-                form.maintenanceMode ? "Maintenance mode ON" : "Quiz & trial limits saved",
-              );
-            }}
+            onSave={() =>
+              save(
+                [
+                  { key: "trial.durationDays", value: String(trialDays) },
+                  { key: "trial.questionLimit", value: String(trialLimit) },
+                  { key: "general.maintenanceMode", value: String(maintenanceMode) },
+                ],
+                maintenanceMode ? "Maintenance mode ON" : "Trial & maintenance saved",
+              )
+            }
           />
         </Card>
       </div>
+    </div>
+  );
+}
+
+function SettingsSkeleton() {
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      {[0, 1].map((i) => (
+        <div
+          key={i}
+          className="h-64 animate-pulse rounded-2xl border border-border bg-surface-alt/40"
+        />
+      ))}
     </div>
   );
 }

@@ -30,13 +30,19 @@ import {
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
-import { adminUsers } from "@/data/adminData";
-import { useAdminPlans } from "@/api/plans.api";
-import { useNotesStore } from "@/stores/notesStore";
+import {
+  useAdminDashboard,
+  useNewUsersAnalytics,
+  usePlanDistributionAnalytics,
+  useSpecialtyAnalytics,
+  useStatusCountsAnalytics,
+  planLabel,
+  dayLabel,
+  CHART_PALETTE,
+} from "@/api/admin-analytics.api";
 import { useProtectionStore } from "@/stores/protectionStore";
 import { useAuthStore } from "@/stores/authStore";
 import { AdminDashboardSkeleton } from "@/components/shared/DashboardSkeletons";
-import { useInitialLoad } from "@/hooks/useInitialLoad";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({
@@ -47,89 +53,7 @@ export const Route = createFileRoute("/admin/dashboard")({
 
 // ─── Static / stable data ────────────────────────────────────────────────────
 
-const CHART_COLORS = ["#0E7C7B", "#2BC97F", "#0EA5E9", "#7C3AED", "#F97316"];
-
-const monthlyRevenue = [
-  { month: "Jan", revenue: 3200 },
-  { month: "Feb", revenue: 3800 },
-  { month: "Mar", revenue: 4100 },
-  { month: "Apr", revenue: 3900 },
-  { month: "May", revenue: 4600 },
-  { month: "Jun", revenue: 5200 },
-  { month: "Jul", revenue: 4800 },
-  { month: "Aug", revenue: 5600 },
-  { month: "Sep", revenue: 6100 },
-  { month: "Oct", revenue: 5800 },
-  { month: "Nov", revenue: 6400 },
-  { month: "Dec", revenue: 7200 },
-];
-
-const userGrowth = [
-  { month: "Jan", users: 41 },
-  { month: "Feb", users: 55 },
-  { month: "Mar", users: 48 },
-  { month: "Apr", users: 63 },
-  { month: "May", users: 72 },
-  { month: "Jun", users: 58 },
-  { month: "Jul", users: 81 },
-  { month: "Aug", users: 94 },
-  { month: "Sep", users: 87 },
-  { month: "Oct", users: 103 },
-  { month: "Nov", users: 116 },
-  { month: "Dec", users: 129 },
-];
-
-const planBreakdown = [
-  { name: "Monthly", value: 312, pct: "24.8%" },
-  { name: "3-Month", value: 248, pct: "19.7%" },
-  { name: "6-Month", value: 421, pct: "33.5%" },
-  { name: "12-Month", value: 273, pct: "21.7%" },
-];
-
-const activityFeed = [
-  {
-    icon: Users,
-    tone: "success" as const,
-    label: "New user registered",
-    detail: "Akua Mensah",
-    time: "2m ago",
-  },
-  {
-    icon: CreditCard,
-    tone: "success" as const,
-    label: "Subscription activated",
-    detail: "Kwame Boateng (12-Month)",
-    time: "15m ago",
-  },
-  {
-    icon: BookOpen,
-    tone: "info" as const,
-    label: "Bank published",
-    detail: "Cardiology Essentials",
-    time: "1h ago",
-  },
-  {
-    icon: Shield,
-    tone: "warn" as const,
-    label: "Protection event",
-    detail: "Screenshot attempt detected",
-    time: "2h ago",
-  },
-  {
-    icon: FileText,
-    tone: "info" as const,
-    label: "Note uploaded",
-    detail: "Acute Respiratory Failure",
-    time: "3h ago",
-  },
-  {
-    icon: AlertTriangle,
-    tone: "danger" as const,
-    label: "User flagged",
-    detail: "Repeated violation — account reviewed",
-    time: "4h ago",
-  },
-];
+const CHART_COLORS = CHART_PALETTE;
 
 const tonePill: Record<string, string> = {
   success: "bg-[color-mix(in_srgb,var(--color-accent)_12%,transparent)] text-[var(--color-accent)]",
@@ -145,6 +69,51 @@ const toneLabel: Record<string, string> = {
   danger: "Alert",
 };
 
+// ── Activity-feed derivation (from ActivityLog rows). ──
+
+type ActivityTone = "success" | "info" | "warn" | "danger";
+
+function activityTone(action: string): ActivityTone {
+  const a = action.toLowerCase();
+  if (/(delete|ban|suspend|flag|fail|revoke)/.test(a)) return "danger";
+  if (/(warn|expire|cancel)/.test(a)) return "warn";
+  if (/(create|register|activate|publish|subscribe|success|reactivate)/.test(a)) return "success";
+  return "info";
+}
+
+function activityIcon(entityType: string) {
+  const e = entityType.toLowerCase();
+  if (e.includes("user")) return Users;
+  if (e.includes("subscription") || e.includes("transaction") || e.includes("payment"))
+    return CreditCard;
+  if (e.includes("bank") || e.includes("question") || e.includes("note")) return BookOpen;
+  if (e.includes("flag")) return AlertTriangle;
+  return Activity;
+}
+
+/** `user.suspended` / `USER_CREATED` -> `User suspended` / `User created`. */
+function humanizeAction(action: string): string {
+  const words = action
+    .replace(/[._-]+/g, " ")
+    .trim()
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** Compact relative-time label from an ISO timestamp. */
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const diff = Math.max(0, Date.now() - then);
+  const m = Math.floor(diff / 60_000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const days = Math.floor(h / 24);
+  return `${days}d ago`;
+}
+
 const axisStroke = "var(--color-muted-foreground)";
 const gridStroke = "var(--color-border)";
 const tooltipStyle = {
@@ -159,43 +128,77 @@ const tooltipStyle = {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 function AdminDashboard() {
-  const loading = useInitialLoad();
   const user = useAuthStore((s) => s.user);
-  const { data: plans = [] } = useAdminPlans();
-  const notes = useNotesStore(useShallow((s) => s.notes));
   const protectionEvents = useProtectionStore(useShallow((s) => s.events));
 
-  if (loading) return <AdminDashboardSkeleton />;
+  const dashboardQ = useAdminDashboard();
+  const statusQ = useStatusCountsAnalytics();
+  const planDistQ = usePlanDistributionAnalytics();
+  const newUsersQ = useNewUsersAnalytics();
+  const specialtyQ = useSpecialtyAnalytics();
 
-  // Derived counts — adminUsers is a static import, not reactive
-  const totalUsers = adminUsers.length;
-  const activeCount = adminUsers.filter((u) => u.status === "active").length;
-  const trialCount = adminUsers.filter((u) => u.status === "trial").length;
-  const expiredCount = adminUsers.filter((u) => u.status === "expired").length;
-  const suspendedCount = adminUsers.filter((u) => u.status === "suspended").length;
-  const noneCount = adminUsers.filter((u) => u.status === "none").length;
+  const isLoading = dashboardQ.isLoading;
+  const error = dashboardQ.error;
 
-  const suspendedUsers = adminUsers.filter((u) => u.status === "suspended").slice(0, 3);
+  if (isLoading) return <AdminDashboardSkeleton />;
 
-  // Monthly revenue from plansStore (price × subscribers per plan)
-  const monthlyRevTotal = plans.reduce((acc, p) => acc + p.price * p.subscribers, 0);
+  if (error || !dashboardQ.data) {
+    return (
+      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-8 text-center">
+        <AlertTriangle className="mx-auto h-8 w-8 text-rose-500" />
+        <p className="mt-3 text-sm font-semibold text-foreground">Failed to load dashboard</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {error instanceof Error ? error.message : "Please try again."}
+        </p>
+        <button
+          type="button"
+          onClick={() => dashboardQ.refetch()}
+          className="mt-4 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-alt"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const d = dashboardQ.data;
+
+  // KPI values from the platform dashboard.
+  const totalUsers = d.totalUsers;
+  const activeCount = d.activeUsers;
+  const monthlyRevTotal = d.totalRevenue;
   const revDisplay =
     monthlyRevTotal >= 1000
       ? `GHS ${(monthlyRevTotal / 1000).toFixed(1)}k`
       : `GHS ${monthlyRevTotal}`;
 
-  // Notes that are active and ready
-  const notesPublished = notes.filter((n) => n.active && n.status === "ready").length;
+  // Status counts (analytics/status-counts) with dashboard fallbacks.
+  const sc = statusQ.data;
+  const trialCount = sc?.trialUsers ?? 0;
+  const subscribedCount = sc?.subscribedUsers ?? d.activeSubscriptions;
+  const inactiveCount = sc?.inactiveUsers ?? Math.max(0, totalUsers - activeCount);
+  const verifiedCount = sc?.emailVerifiedUsers ?? 0;
 
-  // Top 5 specialties by user count
-  const specialtyCounts: Record<string, number> = {};
-  for (const u of adminUsers) {
-    if (u.specialty) specialtyCounts[u.specialty] = (specialtyCounts[u.specialty] ?? 0) + 1;
-  }
-  const topSpecialties = Object.entries(specialtyCounts)
-    .sort((a, b) => b[1] - a[1])
+  // New-user daily series -> bar chart {month: day, users: count}.
+  const newUsersSeries = (newUsersQ.data?.series ?? []).map((p) => ({
+    month: dayLabel(p.day),
+    users: p.count,
+  }));
+
+  // Plan distribution (active subscriptions by plan) -> pie {name, value, pct}.
+  const totalActivePlans = planDistQ.data?.totalActive ?? 0;
+  const planBreakdown = (planDistQ.data?.activeByPlan ?? []).map((p) => ({
+    name: planLabel(p.key),
+    value: p.count,
+    pct: totalActivePlans > 0 ? `${((p.count / totalActivePlans) * 100).toFixed(1)}%` : "0%",
+  }));
+
+  // Top 5 specialties by user count -> horizontal bar.
+  const topSpecialties = (specialtyQ.data?.distribution ?? [])
+    .slice()
+    .sort((a, b) => b.count - a.count)
     .slice(0, 5)
-    .map(([specialty, count]) => ({ specialty, count }));
+    .map((s) => ({ specialty: s.key, count: s.count }));
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -211,7 +214,12 @@ function AdminDashboard() {
             </span>
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {user?.name ?? "Administrator"} · 26 Jun 2026
+            {user?.name ?? "Administrator"} ·{" "}
+            {new Date().toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-[var(--color-accent)]/30 bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--color-accent)] sm:self-auto">
@@ -225,30 +233,30 @@ function AdminDashboard() {
         <GradientKpiCard
           gradient="teal"
           label="Total Users"
-          value={String(totalUsers)}
+          value={totalUsers.toLocaleString()}
           icon={Users}
-          trend={{ value: "+12% this month", up: true }}
+          sub={`+${d.newUsersThisMonth} this month`}
         />
         <GradientKpiCard
           gradient="emerald"
-          label="Active Subscribers"
-          value={String(activeCount)}
+          label="Active Subscriptions"
+          value={d.activeSubscriptions.toLocaleString()}
           icon={CreditCard}
-          trend={{ value: "+8% this week", up: true }}
+          sub={`${activeCount.toLocaleString()} active users`}
         />
         <GradientKpiCard
           gradient="navy"
-          label="Monthly Revenue"
+          label="Total Revenue"
           value={revDisplay}
           icon={TrendingUp}
-          trend={{ value: "+18% vs last month", up: true }}
+          sub="all successful payments"
         />
         <GradientKpiCard
           gradient="indigo"
-          label="Notes Published"
-          value={String(notesPublished)}
+          label="Total Questions"
+          value={d.totalQuestions.toLocaleString()}
           icon={FileText}
-          trend={{ value: "+3 this week", up: true }}
+          sub={`${d.totalBanks} question banks`}
         />
       </section>
 
@@ -256,12 +264,12 @@ function AdminDashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ── Left column (2/3) ── */}
         <div className="space-y-6 lg:col-span-2">
-          {/* Revenue area chart */}
-          <Panel title="Revenue Overview" subtitle="Monthly revenue — Jan to Dec 2026">
+          {/* New users / day area chart */}
+          <Panel title="New Users / Day" subtitle="Daily sign-ups — last 30 days">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={monthlyRevenue}
+                  data={newUsersSeries}
                   margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
                 >
                   <defs>
@@ -277,22 +285,23 @@ function AdminDashboard() {
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
+                    interval={4}
                   />
                   <YAxis
                     stroke={axisStroke}
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v: number) => `${v / 1000}k`}
+                    allowDecimals={false}
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    formatter={(v: number) => [`GHS ${v.toLocaleString()}`, "Revenue"]}
+                    formatter={(v: number) => [v, "New users"]}
                     cursor={{ stroke: gridStroke, strokeDasharray: "4 4" }}
                   />
                   <Area
                     type="monotone"
-                    dataKey="revenue"
+                    dataKey="users"
                     stroke="var(--color-primary)"
                     strokeWidth={2.5}
                     fill="url(#revGrad)"
@@ -309,11 +318,11 @@ function AdminDashboard() {
             </div>
           </Panel>
 
-          {/* User growth bar chart */}
-          <Panel title="New User Registrations" subtitle="Monthly new sign-ups — 2026">
+          {/* New users bar chart (same daily series, complementary view) */}
+          <Panel title="New User Registrations" subtitle="Daily new sign-ups — last 30 days">
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={userGrowth} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                <BarChart data={newUsersSeries} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                   <CartesianGrid stroke={gridStroke} vertical={false} />
                   <XAxis
                     dataKey="month"
@@ -321,6 +330,7 @@ function AdminDashboard() {
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
+                    interval={4}
                   />
                   <YAxis stroke={axisStroke} fontSize={11} tickLine={false} axisLine={false} />
                   <Tooltip
@@ -381,49 +391,36 @@ function AdminDashboard() {
             </div>
           </Panel>
 
-          {/* Recent flagged users */}
+          {/* Platform session stats */}
           <Panel
-            title="Flagged Users"
-            subtitle="Accounts with suspended status"
+            title="Session Activity"
+            subtitle="Quiz sessions across the platform"
             right={
               <Link
                 to="/admin/users"
                 className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
               >
-                View all →
+                Manage →
               </Link>
             }
           >
-            {suspendedUsers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No suspended users.</p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {suspendedUsers.map((u) => (
-                  <li key={u.id} className="flex items-center justify-between gap-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-xs font-bold text-rose-500">
-                        {u.initials}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground">{u.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-semibold capitalize text-rose-500">
-                        {u.status}
-                      </span>
-                      <Link
-                        to="/admin/users"
-                        className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-[var(--color-primary)]/40 hover:text-foreground"
-                      >
-                        View
-                      </Link>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="grid grid-cols-3 gap-2">
+              <StatusPill
+                label="Total"
+                count={d.totalSessions}
+                color="bg-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] text-[var(--color-primary)]"
+              />
+              <StatusPill
+                label="Completed"
+                count={d.completedSessions}
+                color="bg-[color-mix(in_srgb,var(--color-accent)_15%,transparent)] text-[var(--color-accent)]"
+              />
+              <StatusPill
+                label="Pending Flags"
+                count={d.pendingFlags}
+                color="bg-rose-500/10 text-rose-500"
+              />
+            </div>
           </Panel>
         </div>
 
@@ -480,18 +477,18 @@ function AdminDashboard() {
               />
               <StatusPill label="Trial" count={trialCount} color="bg-amber-500/10 text-amber-500" />
               <StatusPill
-                label="Expired"
-                count={expiredCount}
+                label="Subscribed"
+                count={subscribedCount}
+                color="bg-[color-mix(in_srgb,var(--color-primary)_12%,transparent)] text-[var(--color-primary)]"
+              />
+              <StatusPill
+                label="Inactive"
+                count={inactiveCount}
                 color="bg-slate-500/10 text-slate-400"
               />
               <StatusPill
-                label="Suspended"
-                count={suspendedCount}
-                color="bg-rose-500/10 text-rose-500"
-              />
-              <StatusPill
-                label="None"
-                count={noneCount}
+                label="Verified"
+                count={verifiedCount}
                 color="bg-surface-alt text-muted-foreground"
               />
               <StatusPill
@@ -543,37 +540,44 @@ function AdminDashboard() {
               </Link>
             }
           >
-            <ul className="space-y-3">
-              {activityFeed.map((a, i) => {
-                const Icon = a.icon;
-                return (
-                  <li key={i} className="flex items-start gap-3">
-                    <span
-                      className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${tonePill[a.tone]}`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-1">
-                        <p className="text-xs font-semibold leading-snug text-foreground">
-                          {a.label}
+            {d.recentActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recent activity.</p>
+            ) : (
+              <ul className="space-y-3">
+                {d.recentActivity.slice(0, 6).map((a) => {
+                  const tone = activityTone(a.action);
+                  const Icon = activityIcon(a.entityType);
+                  return (
+                    <li key={a.id} className="flex items-start gap-3">
+                      <span
+                        className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${tonePill[tone]}`}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-1">
+                          <p className="text-xs font-semibold leading-snug text-foreground">
+                            {humanizeAction(a.action)}
+                          </p>
+                          <span
+                            className={`flex-shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${tonePill[tone]}`}
+                          >
+                            {toneLabel[tone]}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {a.actorName ?? a.entityType}
                         </p>
-                        <span
-                          className={`flex-shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${tonePill[a.tone]}`}
-                        >
-                          {toneLabel[a.tone]}
-                        </span>
+                        <p className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                          <Clock className="h-2.5 w-2.5" />
+                          {relativeTime(a.createdAt)}
+                        </p>
                       </div>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.detail}</p>
-                      <p className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground/60">
-                        <Clock className="h-2.5 w-2.5" />
-                        {a.time}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </Panel>
 
           {/* Quick actions */}

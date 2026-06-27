@@ -13,14 +13,17 @@ import {
   ShieldAlert,
   Users,
 } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
-  useProtectionStore,
-  EVENT_LABELS,
+  useProtectionEvents,
+  useProtectionSummary,
+  useTopOffenders,
+  EVENT_TYPE_LABELS,
   ALL_EVENT_TYPES,
   type ProtectionEvent,
-  type ProtectionEventType,
-} from "@/stores/protectionStore";
-import { useDebounce } from "@/hooks/useDebounce";
+  type BackendProtectionEventType,
+  type BackendProtectionContext,
+} from "@/api/protection.api";
 
 export const Route = createFileRoute("/admin/audit-logs")({
   head: () => ({
@@ -29,6 +32,10 @@ export const Route = createFileRoute("/admin/audit-logs")({
   component: AuditLogsPage,
 });
 
+/* GAP: there is no admin activity-log API assigned to this work item. The
+ * "Activity Log" tab below stays on a static seed until that endpoint is wired
+ * (the user activity-log lives at GET /admin/users/:id/activity, which is
+ * per-user, not a global feed). */
 interface AuditEntry {
   id: string;
   actor: string;
@@ -81,31 +88,25 @@ const sevStyle: Record<AuditEntry["severity"], string> = {
 /* Shared UI                                                           */
 /* ------------------------------------------------------------------ */
 
-function initialsFromName(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  );
-}
-
-const Avatar = React.memo(function Avatar({ name }: { name: string }) {
+const Avatar = React.memo(function Avatar({ id }: { id: string }) {
   return (
     <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-xs font-bold text-white">
-      {initialsFromName(name)}
+      {id.slice(0, 2).toUpperCase()}
     </span>
   );
 });
+
+function shortId(id: string) {
+  return id.length > 12 ? `${id.slice(0, 10)}…` : id;
+}
 
 const TABS = ["Activity Log", "Protection Violations"] as const;
 type Tab = (typeof TABS)[number];
 
 function AuditLogsPage() {
   const [tab, setTab] = useState<Tab>("Activity Log");
-  const violationCount = useProtectionStore((s) => s.events.length);
+  const summary = useProtectionSummary();
+  const violationCount = summary.data?.totalViolations ?? 0;
 
   return (
     <div>
@@ -155,7 +156,7 @@ function AuditLogsPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Tab 1 — Activity Log (existing content, unchanged)                  */
+/* Tab 1 — Activity Log (GAP: still on static seed, see note above)    */
 /* ------------------------------------------------------------------ */
 
 function ActivityLogTab() {
@@ -300,8 +301,8 @@ function SummaryCard({
   );
 }
 
-function EventPill({ type }: { type: ProtectionEventType }) {
-  const isShot = type === "screenshot_key";
+function EventPill({ type }: { type: BackendProtectionEventType }) {
+  const isShot = type === "screenshot_attempt";
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -309,72 +310,58 @@ function EventPill({ type }: { type: ProtectionEventType }) {
       }`}
     >
       {isShot && <Camera className="h-3 w-3" />}
-      {EVENT_LABELS[type]}
+      {EVENT_TYPE_LABELS[type]}
     </span>
   );
 }
 
 function ProtectionViolationsTab() {
   const navigate = useNavigate();
-  const events = useProtectionStore((s) => s.events);
-  const restrictions = useProtectionStore((s) => s.restrictions);
-  const violationCountOf = useProtectionStore((s) => s.violationCount);
 
   const [searchRaw, setSearchRaw] = useState("");
-  const [type, setType] = useState<"all" | ProtectionEventType>("all");
-  const [context, setContext] = useState<"all" | "quiz_session" | "high_yield_note">("all");
+  const [type, setType] = useState<"all" | BackendProtectionEventType>("all");
+  const [context, setContext] = useState<"all" | BackendProtectionContext>("all");
   const [shotOnly, setShotOnly] = useState(false);
   const [page, setPage] = useState(1);
   const search = useDebounce(searchRaw, 250);
 
+  const effectiveType: BackendProtectionEventType | undefined = shotOnly
+    ? "screenshot_attempt"
+    : type === "all"
+      ? undefined
+      : type;
+
+  const eventsQuery = useProtectionEvents({
+    limit: 200,
+    eventType: effectiveType,
+    context: context === "all" ? undefined : context,
+  });
+  const summaryQuery = useProtectionSummary();
+  const offendersQuery = useTopOffenders({ limit: 5 });
+
+  const events = useMemo(() => eventsQuery.data?.events ?? [], [eventsQuery.data]);
+
   const goToUser = (userId: string) => navigate({ to: "/admin/users/$userId", params: { userId } });
 
-  /* Summary metrics */
-  const totalViolations = events.length;
-  const screenshotAttempts = useMemo(
-    () => events.filter((e) => e.type === "screenshot_key").length,
-    [events],
-  );
-  const uniqueUsers = useMemo(() => new Set(events.map((e) => e.userId)).size, [events]);
-  const activeRestrictions = useMemo(
-    () => restrictions.filter((r) => r.status === "active").length,
-    [restrictions],
-  );
+  /* Summary metrics (from the aggregate endpoint) */
+  const totalViolations = summaryQuery.data?.totalViolations ?? 0;
+  const screenshotAttempts = summaryQuery.data?.screenshotAttempts ?? 0;
+  const uniqueUsers = summaryQuery.data?.uniqueOffendingUsers ?? 0;
+  const activeRestrictions = summaryQuery.data?.activeRestrictions ?? 0;
 
-  /* Top offenders (highest violation count first, top 5) */
-  const topOffenders = useMemo(() => {
-    const seen = new Map<
-      string,
-      { userId: string; userName: string; userEmail: string; count: number }
-    >();
-    for (const e of events) {
-      if (!seen.has(e.userId)) {
-        seen.set(e.userId, {
-          userId: e.userId,
-          userName: e.userName,
-          userEmail: e.userEmail,
-          count: violationCountOf(e.userId),
-        });
-      }
-    }
-    return Array.from(seen.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [events, violationCountOf]);
+  /* Top offenders from the dedicated endpoint */
+  const topOffenders = offendersQuery.data ?? [];
 
-  /* Filtering + newest-first sort */
+  /* Client-side search (userId) + newest-first sort; type/context are server-side */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return events
       .filter((e) => {
-        if (shotOnly && e.type !== "screenshot_key") return false;
-        if (type !== "all" && e.type !== type) return false;
-        if (context !== "all" && e.context !== context) return false;
         if (!q) return true;
-        return e.userName.toLowerCase().includes(q) || e.userEmail.toLowerCase().includes(q);
+        return e.userId.toLowerCase().includes(q);
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [events, search, type, context, shotOnly]);
+  }, [events, search]);
 
   /* Reset page on filter change */
   const filterKey = `${search}|${type}|${context}|${shotOnly}`;
@@ -406,7 +393,7 @@ function ProtectionViolationsTab() {
           value={screenshotAttempts}
           icon={Camera}
           tone="warning"
-          accent="PrintScreen key"
+          accent="screenshot events"
         />
         <SummaryCard
           label="Users flagged"
@@ -447,7 +434,7 @@ function ProtectionViolationsTab() {
               <input
                 value={searchRaw}
                 onChange={(e) => setSearchRaw(e.target.value)}
-                placeholder="Search user name or email…"
+                placeholder="Search user id…"
                 className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               />
             </div>
@@ -460,7 +447,7 @@ function ProtectionViolationsTab() {
               <option value="all">All event types</option>
               {ALL_EVENT_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {EVENT_LABELS[t]}
+                  {EVENT_TYPE_LABELS[t]}
                 </option>
               ))}
             </select>
@@ -493,8 +480,8 @@ function ProtectionViolationsTab() {
               All
             </button>
             {ALL_EVENT_TYPES.map((t) => {
-              const active = type === t || (shotOnly && t === "screenshot_key");
-              const isShot = t === "screenshot_key";
+              const active = type === t || (shotOnly && t === "screenshot_attempt");
+              const isShot = t === "screenshot_attempt";
               return (
                 <button
                   key={t}
@@ -511,7 +498,7 @@ function ProtectionViolationsTab() {
                       : "bg-surface-alt text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {EVENT_LABELS[t]}
+                  {EVENT_TYPE_LABELS[t]}
                 </button>
               );
             })}
@@ -526,7 +513,7 @@ function ProtectionViolationsTab() {
           {/* Table */}
           <div className="overflow-hidden rounded-2xl border border-border bg-surface">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-sm">
+              <table className="w-full min-w-[860px] text-sm">
                 <thead className="border-b border-border bg-surface-alt/40 text-[11px] uppercase tracking-widest text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3 text-left font-bold">User</th>
@@ -534,14 +521,29 @@ function ProtectionViolationsTab() {
                     <th className="px-4 py-3 text-left font-bold">Context</th>
                     <th className="px-4 py-3 text-left font-bold">IP</th>
                     <th className="px-4 py-3 text-left font-bold">Device</th>
-                    <th className="px-4 py-3 text-left font-bold">Location</th>
                     <th className="px-4 py-3 text-left font-bold">Timestamp</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {pageRows.length === 0 ? (
+                  {eventsQuery.isLoading ? (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={6}>
+                        <p className="px-6 py-16 text-center text-sm text-muted-foreground">
+                          Loading violations…
+                        </p>
+                      </td>
+                    </tr>
+                  ) : eventsQuery.isError ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <p className="px-6 py-16 text-center text-sm text-error">
+                          {(eventsQuery.error as Error)?.message ?? "Failed to load events."}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : pageRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
                         <p className="px-6 py-16 text-center text-sm text-muted-foreground">
                           No protection violations match these filters.
                         </p>
@@ -598,7 +600,9 @@ function ProtectionViolationsTab() {
             Users with the most protection violations.
           </p>
           <div className="mt-4 space-y-2">
-            {topOffenders.length === 0 ? (
+            {offendersQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : topOffenders.length === 0 ? (
               <p className="text-sm text-muted-foreground">No violations recorded yet.</p>
             ) : (
               topOffenders.map((o, i) => (
@@ -611,12 +615,15 @@ function ProtectionViolationsTab() {
                   <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-surface text-[11px] font-bold text-muted-foreground">
                     {i + 1}
                   </span>
-                  <Avatar name={o.userName} />
+                  <Avatar id={o.userId} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-foreground">
-                      {o.userName}
+                    <div className="truncate font-mono text-xs font-semibold text-foreground">
+                      {shortId(o.userId)}
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">{o.userEmail}</div>
+                    <div className="truncate text-[11px] text-muted-foreground">
+                      {o.screenshotAttempts} screenshot
+                      {o.screenshotAttempts === 1 ? "" : "s"}
+                    </div>
                   </div>
                   <span className="inline-flex flex-shrink-0 rounded-full bg-error/10 px-2.5 py-0.5 text-xs font-semibold text-error">
                     {o.count}
@@ -636,10 +643,12 @@ function ViolationRow({ e, onClick }: { e: ProtectionEvent; onClick: () => void 
     <tr className="cursor-pointer transition-colors hover:bg-surface-alt/50" onClick={onClick}>
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <Avatar name={e.userName} />
+          <Avatar id={e.userId} />
           <div className="min-w-0">
-            <div className="truncate font-semibold text-foreground">{e.userName}</div>
-            <div className="truncate text-xs text-muted-foreground">{e.userEmail}</div>
+            <div className="truncate font-mono text-xs font-semibold text-foreground">
+              {shortId(e.userId)}
+            </div>
+            <div className="truncate text-[11px] text-muted-foreground">User ID</div>
           </div>
         </div>
       </td>
@@ -653,7 +662,7 @@ function ViolationRow({ e, onClick }: { e: ProtectionEvent; onClick: () => void 
           ) : (
             <FileText className="h-3.5 w-3.5 text-muted-foreground" />
           )}
-          {e.context === "quiz_session" ? "Quiz" : "Note"}
+          {e.contextLabel}
         </span>
         <div className="font-mono text-xs text-muted-foreground">
           {e.contextId}
@@ -661,8 +670,7 @@ function ViolationRow({ e, onClick }: { e: ProtectionEvent; onClick: () => void 
         </div>
       </td>
       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{e.ip}</td>
-      <td className="px-4 py-3 text-xs text-foreground">{e.device}</td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">{e.location}</td>
+      <td className="px-4 py-3 font-mono text-xs text-foreground">{shortId(e.device)}</td>
       <td className="px-4 py-3 text-xs text-muted-foreground">
         {new Date(e.createdAt).toLocaleString()}
       </td>

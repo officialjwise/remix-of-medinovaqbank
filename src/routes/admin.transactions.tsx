@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Download, Search } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { useDebounce } from "@/hooks/useDebounce";
+import {
+  useTransactions,
+  exportTransactionsCsv,
+  type BackendPaymentStatus,
+  type TransactionVM,
+} from "@/api/transactions.api";
 
 export const Route = createFileRoute("/admin/transactions")({
   head: () => ({
@@ -12,99 +20,76 @@ export const Route = createFileRoute("/admin/transactions")({
   component: TransactionsPage,
 });
 
-interface Tx {
-  id: string;
-  ref: string;
-  user: string;
-  email: string;
-  amount: number;
-  plan: string;
-  status: "successful" | "pending" | "failed" | "refunded";
-  channel: "card" | "mobile_money" | "bank";
-  date: string;
-}
-
-const seed: Tx[] = Array.from({ length: 24 }, (_, i) => {
-  const statuses: Tx["status"][] = [
-    "successful",
-    "successful",
-    "successful",
-    "successful",
-    "pending",
-    "failed",
-    "refunded",
-  ];
-  const channels: Tx["channel"][] = ["card", "mobile_money", "bank"];
-  const plans = ["Monthly", "3 Months", "6 Months", "12 Months"];
-  const prices: Record<string, number> = {
-    Monthly: 99,
-    "3 Months": 249,
-    "6 Months": 449,
-    "12 Months": 799,
-  };
-  const plan = plans[i % plans.length];
-  return {
-    id: `tx-${i + 1}`,
-    ref: `PSK_${(1700000000 + i * 12345).toString(36).toUpperCase()}`,
-    user: ["Akua Mensah", "Kwame Owusu", "Ama Boateng", "Yaw Asante", "Esi Appiah"][i % 5],
-    email: `user${i + 1}@example.gh`,
-    amount: prices[plan],
-    plan,
-    status: statuses[i % statuses.length],
-    channel: channels[i % channels.length],
-    date: new Date(Date.now() - i * 18 * 3600 * 1000).toISOString(),
-  };
-});
-
-const statusStyle: Record<Tx["status"], string> = {
-  successful: "bg-success-light text-success",
+const statusStyle: Record<BackendPaymentStatus, string> = {
+  success: "bg-success-light text-success",
   pending: "bg-warning-light text-warning",
   failed: "bg-error-light text-error",
-  refunded: "bg-surface-alt text-muted-foreground",
+};
+
+const STATUS_LABEL: Record<BackendPaymentStatus, string> = {
+  success: "Successful",
+  pending: "Pending",
+  failed: "Failed",
 };
 
 function TransactionsPage() {
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<"all" | Tx["status"]>("all");
+  const [rawQuery, setRawQuery] = useState("");
+  const query = useDebounce(rawQuery, 250);
+  const [status, setStatus] = useState<"all" | BackendPaymentStatus>("all");
+  const [exporting, setExporting] = useState(false);
 
-  const filtered = seed.filter(
-    (t) =>
-      (status === "all" || t.status === status) &&
-      (query === "" ||
-        t.ref.toLowerCase().includes(query.toLowerCase()) ||
-        t.user.toLowerCase().includes(query.toLowerCase()) ||
-        t.email.toLowerCase().includes(query.toLowerCase())),
+  const params = useMemo(
+    () => ({
+      search: query || undefined,
+      status: status === "all" ? undefined : status,
+      limit: 100,
+    }),
+    [query, status],
   );
 
-  const totalRevenue = seed
-    .filter((t) => t.status === "successful")
-    .reduce((s, t) => s + t.amount, 0);
+  const { data, isLoading, isError, error } = useTransactions(params);
+  const transactions = data?.transactions ?? [];
+
+  const summary = useMemo(() => {
+    const successful = transactions.filter((t) => t.status === "success");
+    return {
+      successCount: successful.length,
+      revenue: successful.reduce((s, t) => s + Number(t.amount), 0),
+      pending: transactions.filter((t) => t.status === "pending").length,
+      failed: transactions.filter((t) => t.status === "failed").length,
+    };
+  }, [transactions]);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await exportTransactionsCsv(params);
+      toast.success("Transactions exported to CSV");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div>
       <header>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Transactions</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          All Paystack payment events. {seed.length} transactions tracked.
+          All Paystack payment events.{" "}
+          {data ? `${data.total.toLocaleString()} transactions tracked.` : "Loading…"}
         </p>
       </header>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <Card
           label="Successful"
-          value={`${seed.filter((t) => t.status === "successful").length}`}
-          sub={`GHS ${totalRevenue.toLocaleString()}`}
+          value={`${summary.successCount}`}
+          sub={`GHS ${summary.revenue.toLocaleString()}`}
         />
-        <Card
-          label="Pending"
-          value={`${seed.filter((t) => t.status === "pending").length}`}
-          sub="Awaiting confirmation"
-        />
-        <Card
-          label="Failed / refunded"
-          value={`${seed.filter((t) => t.status === "failed" || t.status === "refunded").length}`}
-          sub="Manual review"
-        />
+        <Card label="Pending" value={`${summary.pending}`} sub="Awaiting confirmation" />
+        <Card label="Failed" value={`${summary.failed}`} sub="Manual review" />
       </div>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -112,9 +97,9 @@ function TransactionsPage() {
           <div className="relative flex-1 sm:max-w-xs">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Reference, name, email…"
+              value={rawQuery}
+              onChange={(e) => setRawQuery(e.target.value)}
+              placeholder="Reference or email…"
               className="h-10 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>
@@ -124,17 +109,17 @@ function TransactionsPage() {
             className="h-10 rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none"
           >
             <option value="all">All statuses</option>
-            <option value="successful">Successful</option>
+            <option value="success">Successful</option>
             <option value="pending">Pending</option>
             <option value="failed">Failed</option>
-            <option value="refunded">Refunded</option>
           </select>
         </div>
         <button
-          onClick={() => alert("CSV export — mock")}
-          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"
+          onClick={handleExport}
+          disabled={exporting}
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt disabled:opacity-60"
         >
-          <Download className="h-4 w-4" /> Export CSV
+          <Download className="h-4 w-4" /> {exporting ? "Exporting…" : "Export CSV"}
         </button>
       </div>
 
@@ -153,38 +138,54 @@ function TransactionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((t) => (
-                <tr key={t.id} className="hover:bg-surface-alt/50">
-                  <td className="px-4 py-3 font-mono text-xs text-foreground">{t.ref}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-foreground">{t.user}</p>
-                    <p className="text-xs text-muted-foreground">{t.email}</p>
-                  </td>
-                  <td className="px-4 py-3 text-foreground">{t.plan}</td>
-                  <td className="px-4 py-3 text-right font-bold text-foreground">GHS {t.amount}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{t.channel.replace("_", " ")}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusStyle[t.status]}`}
-                    >
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {new Date(t.date).toLocaleString()}
-                  </td>
-                </tr>
+              {transactions.map((t) => (
+                <TxRow key={t.id} tx={t} />
               ))}
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && (
+        {isLoading && (
+          <p className="py-12 text-center text-sm text-muted-foreground">Loading transactions…</p>
+        )}
+        {isError && (
+          <p className="py-12 text-center text-sm text-error">
+            {error instanceof Error ? error.message : "Failed to load transactions."}
+          </p>
+        )}
+        {!isLoading && !isError && transactions.length === 0 && (
           <p className="py-12 text-center text-sm text-muted-foreground">
             No transactions match these filters.
           </p>
         )}
       </div>
     </div>
+  );
+}
+
+function TxRow({ tx }: { tx: TransactionVM }) {
+  return (
+    <tr className="hover:bg-surface-alt/50">
+      <td className="px-4 py-3 font-mono text-xs text-foreground">{tx.reference}</td>
+      <td className="px-4 py-3">
+        <p className="font-semibold text-foreground">{tx.userName}</p>
+        <p className="text-xs text-muted-foreground">{tx.userEmail}</p>
+      </td>
+      <td className="px-4 py-3 text-foreground">{tx.planLabel}</td>
+      <td className="px-4 py-3 text-right font-bold text-foreground">
+        {tx.currency} {Number(tx.amount).toLocaleString()}
+      </td>
+      <td className="px-4 py-3 capitalize text-muted-foreground">{tx.channelLabel}</td>
+      <td className="px-4 py-3">
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusStyle[tx.status]}`}
+        >
+          {STATUS_LABEL[tx.status]}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-xs text-muted-foreground">
+        {new Date(tx.createdAt).toLocaleString()}
+      </td>
+    </tr>
   );
 }
 

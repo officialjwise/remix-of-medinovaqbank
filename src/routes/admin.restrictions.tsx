@@ -12,13 +12,14 @@ import {
   ShieldOff,
   Timer,
 } from "lucide-react";
-import {
-  useProtectionStore,
-  type Restriction,
-  type RestrictionStatus,
-} from "@/stores/protectionStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useDebounce } from "@/hooks/useDebounce";
+import {
+  useRestrictions,
+  useLiftRestriction,
+  type Restriction,
+  type RestrictionStatus,
+} from "@/api/protection.api";
 
 export const Route = createFileRoute("/admin/restrictions")({
   head: () => ({
@@ -36,15 +37,8 @@ const PER_PAGE = 15;
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-function initialsFromName(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  );
+function shortId(id: string) {
+  return id.length > 10 ? `${id.slice(0, 8)}…` : id;
 }
 
 function formatDateTime(iso: string) {
@@ -67,10 +61,10 @@ function formatCountdown(ms: number) {
   return `${pad(m)}m ${pad(s)}s`;
 }
 
-const Avatar = React.memo(function Avatar({ name }: { name: string }) {
+const Avatar = React.memo(function Avatar({ id }: { id: string }) {
   return (
     <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-xs font-bold text-white">
-      {initialsFromName(name)}
+      {id.slice(0, 2).toUpperCase()}
     </span>
   );
 });
@@ -152,8 +146,10 @@ function RestrictionsPage() {
 
 function RestrictionsContent() {
   const navigate = useNavigate();
-  const restrictions = useProtectionStore((s) => s.restrictions);
-  const liftRestriction = useProtectionStore((s) => s.liftRestriction);
+  const { data, isLoading, isError, error } = useRestrictions({ limit: 200 });
+  const liftMut = useLiftRestriction();
+
+  const restrictions = useMemo(() => data?.restrictions ?? [], [data]);
 
   const [status, setStatus] = useState<"all" | RestrictionStatus>("all");
   const [searchRaw, setSearchRaw] = useState("");
@@ -183,7 +179,7 @@ function RestrictionsContent() {
       .filter((r) => {
         if (status !== "all" && r.status !== status) return false;
         if (!q) return true;
-        return r.userName.toLowerCase().includes(q) || r.userEmail.toLowerCase().includes(q);
+        return r.userId.toLowerCase().includes(q) || (r.notes ?? "").toLowerCase().includes(q);
       })
       .sort((a, b) => new Date(b.restrictedAt).getTime() - new Date(a.restrictedAt).getTime());
   }, [restrictions, status, search]);
@@ -205,8 +201,10 @@ function RestrictionsContent() {
   const goToUser = (userId: string) => navigate({ to: "/admin/users/$userId", params: { userId } });
 
   const handleLift = (r: Restriction) => {
-    liftRestriction(r.id);
-    toast.success(`Restriction lifted for ${r.userName}`);
+    liftMut.mutate(r.id, {
+      onSuccess: () => toast.success("Restriction lifted"),
+      onError: (e) => toast.error((e as Error).message),
+    });
   };
 
   return (
@@ -250,7 +248,7 @@ function RestrictionsContent() {
           <input
             value={searchRaw}
             onChange={(e) => setSearchRaw(e.target.value)}
-            placeholder="Search user name or email…"
+            placeholder="Search user id or notes…"
             className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
         </div>
@@ -276,7 +274,23 @@ function RestrictionsContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {pageRows.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8}>
+                    <p className="px-6 py-16 text-center text-sm text-muted-foreground">
+                      Loading restrictions…
+                    </p>
+                  </td>
+                </tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan={8}>
+                    <p className="px-6 py-16 text-center text-sm text-error">
+                      {(error as Error)?.message ?? "Failed to load restrictions."}
+                    </p>
+                  </td>
+                </tr>
+              ) : pageRows.length === 0 ? (
                 <tr>
                   <td colSpan={8}>
                     <p className="px-6 py-16 text-center text-sm text-muted-foreground">
@@ -291,18 +305,25 @@ function RestrictionsContent() {
                     <tr key={r.id} className="transition-colors hover:bg-surface-alt/50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <Avatar name={r.userName} />
+                          <Avatar id={r.userId} />
                           <div className="min-w-0">
-                            <div className="truncate font-semibold text-foreground">
-                              {r.userName}
+                            <div className="truncate font-mono text-xs font-semibold text-foreground">
+                              {shortId(r.userId)}
                             </div>
-                            <div className="truncate text-xs text-muted-foreground">
-                              {r.userEmail}
+                            <div className="truncate text-[11px] text-muted-foreground">
+                              User ID
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 max-w-[260px] text-foreground">{r.reason}</td>
+                      <td className="px-4 py-3 max-w-[260px] text-foreground">
+                        {r.reasonLabel}
+                        {r.notes ? (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {r.notes}
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="px-4 py-3 tabular-nums text-foreground">{r.strikes}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         {formatDateTime(r.restrictedAt)}
@@ -339,7 +360,8 @@ function RestrictionsContent() {
                             <button
                               type="button"
                               onClick={() => handleLift(r)}
-                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-success transition-colors hover:border-success/30 hover:bg-success/10"
+                              disabled={liftMut.isPending}
+                              className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-success transition-colors hover:border-success/30 hover:bg-success/10 disabled:opacity-50"
                             >
                               <LockOpen className="h-3.5 w-3.5" />
                               Lift early

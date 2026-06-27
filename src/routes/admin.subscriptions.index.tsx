@@ -3,6 +3,15 @@ import { useMemo, useState } from "react";
 import { Eye, MoreHorizontal, X, Calendar, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import {
+  useAdminSubscriptions,
+  useCancelSubscription,
+  useExtendSubscription,
+  PLAN_LABELS,
+  type AdminSubscription,
+  type BackendSubscriptionPlan,
+  type BackendSubscriptionStatus,
+} from "@/api/admin-subscriptions.api";
 
 export const Route = createFileRoute("/admin/subscriptions/")({
   head: () => ({
@@ -14,148 +23,68 @@ export const Route = createFileRoute("/admin/subscriptions/")({
   component: AdminSubscriptions,
 });
 
-interface SubRow {
-  id: string;
-  user: string;
-  email: string;
-  plan: "Monthly" | "3 Months" | "6 Months" | "12 Months";
-  amount: number;
-  start: string;
-  end: string;
-  status: "Active" | "Cancelled" | "Refunded" | "Failed" | "Expired";
-  ref: string;
-}
-
-const seed: SubRow[] = [
-  {
-    id: "p-1",
-    user: "Akua Mensah",
-    email: "akua@example.com",
-    plan: "12 Months",
-    amount: 799,
-    start: "2025-12-01",
-    end: "2026-12-01",
-    status: "Active",
-    ref: "PSK-9F2A1B",
-  },
-  {
-    id: "p-2",
-    user: "Kwame Boateng",
-    email: "kwame@example.com",
-    plan: "Monthly",
-    amount: 129,
-    start: "2026-04-22",
-    end: "2026-05-22",
-    status: "Active",
-    ref: "PSK-7C8E33",
-  },
-  {
-    id: "p-3",
-    user: "Adjoa Owusu",
-    email: "adjoa@example.com",
-    plan: "3 Months",
-    amount: 299,
-    start: "2026-03-15",
-    end: "2026-06-15",
-    status: "Active",
-    ref: "PSK-AA901D",
-  },
-  {
-    id: "p-4",
-    user: "Kofi Adu",
-    email: "kofi@example.com",
-    plan: "6 Months",
-    amount: 499,
-    start: "2025-11-04",
-    end: "2026-05-04",
-    status: "Refunded",
-    ref: "PSK-2D77E1",
-  },
-  {
-    id: "p-5",
-    user: "Esi Quaye",
-    email: "esi@example.com",
-    plan: "Monthly",
-    amount: 129,
-    start: "2026-04-09",
-    end: "2026-05-09",
-    status: "Failed",
-    ref: "PSK-1F4422",
-  },
-  {
-    id: "p-6",
-    user: "Nana Appiah",
-    email: "nana@example.com",
-    plan: "12 Months",
-    amount: 799,
-    start: "2025-07-15",
-    end: "2026-07-15",
-    status: "Active",
-    ref: "PSK-3B11C2",
-  },
-  {
-    id: "p-7",
-    user: "Yaw Asante",
-    email: "yaw@example.com",
-    plan: "3 Months",
-    amount: 299,
-    start: "2026-02-10",
-    end: "2026-05-10",
-    status: "Cancelled",
-    ref: "PSK-8E55F0",
-  },
-  {
-    id: "p-8",
-    user: "Efua Asare",
-    email: "efua@example.com",
-    plan: "Monthly",
-    amount: 129,
-    start: "2026-04-01",
-    end: "2026-05-01",
-    status: "Active",
-    ref: "PSK-44A0B7",
-  },
+const PLAN_OPTIONS: Array<{ value: "All" | BackendSubscriptionPlan; label: string }> = [
+  { value: "All", label: "All" },
+  { value: "monthly", label: "Monthly" },
+  { value: "three_months", label: "3 Months" },
+  { value: "six_months", label: "6 Months" },
+  { value: "twelve_months", label: "12 Months" },
+  { value: "free_trial", label: "Free Trial" },
 ];
 
-const PLANS = ["All", "Monthly", "3 Months", "6 Months", "12 Months"] as const;
-const STATUSES = ["All", "Active", "Cancelled", "Refunded", "Failed", "Expired"] as const;
+const STATUS_OPTIONS: Array<{ value: "All" | BackendSubscriptionStatus; label: string }> = [
+  { value: "All", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "trial", label: "Trial" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "expired", label: "Expired" },
+];
 
 function AdminSubscriptions() {
-  const [plan, setPlan] = useState<(typeof PLANS)[number]>("All");
-  const [status, setStatus] = useState<(typeof STATUSES)[number]>("All");
+  const [plan, setPlan] = useState<"All" | BackendSubscriptionPlan>("All");
+  const [status, setStatus] = useState<"All" | BackendSubscriptionStatus>("All");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [rows, setRows] = useState<SubRow[]>(seed);
 
+  const { data, isLoading, isError, error } = useAdminSubscriptions({
+    plan: plan === "All" ? undefined : plan,
+    status: status === "All" ? undefined : status,
+    limit: 100,
+  });
+
+  const rows = useMemo(() => data?.subscriptions ?? [], [data]);
+
+  // Date filtering is client-side (the query DTO has no date range).
   const filtered = useMemo(() => {
     return rows.filter((r) => {
-      if (plan !== "All" && r.plan !== plan) return false;
-      if (status !== "All" && r.status !== status) return false;
-      if (from && r.start < from) return false;
-      if (to && r.start > to) return false;
+      const startDay = r.startDate.slice(0, 10);
+      if (from && startDay < from) return false;
+      if (to && startDay > to) return false;
       return true;
     });
-  }, [rows, plan, status, from, to]);
+  }, [rows, from, to]);
 
   const now = new Date();
+  const billable = (r: AdminSubscription) =>
+    r.status === "active" || r.status === "expired" || r.status === "cancelled";
   const thisMonth = filtered
     .filter(
       (r) =>
-        r.status === "Active" &&
-        new Date(r.start).getMonth() === now.getMonth() &&
-        new Date(r.start).getFullYear() === now.getFullYear(),
+        billable(r) &&
+        new Date(r.startDate).getMonth() === now.getMonth() &&
+        new Date(r.startDate).getFullYear() === now.getFullYear(),
     )
-    .reduce((a, r) => a + r.amount, 0);
+    .reduce((a, r) => a + r.amountPaid, 0);
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonth = filtered
     .filter(
       (r) =>
-        r.status === "Active" &&
-        new Date(r.start).getMonth() === lastMonthDate.getMonth() &&
-        new Date(r.start).getFullYear() === lastMonthDate.getFullYear(),
+        billable(r) &&
+        new Date(r.startDate).getMonth() === lastMonthDate.getMonth() &&
+        new Date(r.startDate).getFullYear() === lastMonthDate.getFullYear(),
     )
-    .reduce((a, r) => a + r.amount, 0);
-  const allTime = filtered.filter((r) => r.status !== "Failed").reduce((a, r) => a + r.amount, 0);
+    .reduce((a, r) => a + r.amountPaid, 0);
+  const allTime = filtered.reduce((a, r) => a + r.amountPaid, 0);
 
   return (
     <div>
@@ -163,7 +92,7 @@ function AdminSubscriptions() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Subscriptions</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {filtered.length} of {rows.length} transactions
+            {filtered.length} of {data?.total ?? rows.length} subscriptions
           </p>
         </div>
       </div>
@@ -179,13 +108,13 @@ function AdminSubscriptions() {
           label="Plan"
           value={plan}
           onChange={(v) => setPlan(v as typeof plan)}
-          options={PLANS as readonly string[]}
+          options={PLAN_OPTIONS}
         />
         <FilterSelect
           label="Status"
           value={status}
           onChange={(v) => setStatus(v as typeof status)}
-          options={STATUSES as readonly string[]}
+          options={STATUS_OPTIONS}
         />
         <FilterDate label="From" value={from} onChange={setFrom} />
         <FilterDate label="To" value={to} onChange={setTo} />
@@ -206,56 +135,55 @@ function AdminSubscriptions() {
       </div>
 
       <div className="mt-5 overflow-hidden rounded-xl border border-border bg-surface">
-        <div className="hidden grid-cols-[1.5fr_120px_100px_110px_110px_110px_140px_60px] gap-4 border-b border-border bg-surface-alt/40 px-5 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground md:grid">
+        <div className="hidden grid-cols-[1.6fr_120px_100px_110px_110px_110px_60px] gap-4 border-b border-border bg-surface-alt/40 px-5 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground md:grid">
           <span>User</span>
           <span>Plan</span>
           <span className="text-right">Amount</span>
           <span>Start</span>
           <span>End</span>
           <span>Status</span>
-          <span>Reference</span>
           <span></span>
         </div>
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <LoadingState />
+        ) : isError ? (
+          <ErrorState message={(error as Error)?.message} />
+        ) : filtered.length === 0 ? (
           <EmptyState />
         ) : (
-          filtered.map((s) => (
-            <SubscriptionRow
-              key={s.id}
-              row={s}
-              onUpdate={(updated) =>
-                setRows((rs) => rs.map((r) => (r.id === updated.id ? updated : r)))
-              }
-            />
-          ))
+          filtered.map((s) => <SubscriptionRow key={s.id} row={s} />)
         )}
       </div>
     </div>
   );
 }
 
-function SubscriptionRow({ row, onUpdate }: { row: SubRow; onUpdate: (r: SubRow) => void }) {
+function SubscriptionRow({ row }: { row: AdminSubscription }) {
   const [open, setOpen] = useState(false);
   const [details, setDetails] = useState(false);
-  const [override, setOverride] = useState(false);
+  const [extend, setExtend] = useState(false);
   const [cancel, setCancel] = useState(false);
 
+  const cancelMut = useCancelSubscription();
+  const extendMut = useExtendSubscription();
+
+  const isCancellable = row.status === "active" || row.status === "trial";
+
   return (
-    <div className="grid grid-cols-1 gap-2 border-b border-border px-5 py-3 last:border-b-0 md:grid-cols-[1.5fr_120px_100px_110px_110px_110px_140px_60px] md:items-center md:gap-4">
+    <div className="grid grid-cols-1 gap-2 border-b border-border px-5 py-3 last:border-b-0 md:grid-cols-[1.6fr_120px_100px_110px_110px_110px_60px] md:items-center md:gap-4">
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-foreground">{row.user}</p>
-        <p className="truncate text-xs text-muted-foreground">{row.email}</p>
+        <p className="truncate font-mono text-xs font-semibold text-foreground">{row.userId}</p>
+        <p className="truncate text-[11px] text-muted-foreground">User ID</p>
       </div>
-      <span className="text-sm text-foreground">{row.plan}</span>
+      <span className="text-sm text-foreground">{row.planLabel}</span>
       <span className="text-right font-mono text-sm font-bold tabular-nums text-foreground">
-        GHS {row.amount}
+        {row.currency} {row.amountPaid}
       </span>
-      <span className="text-xs text-muted-foreground">{row.start}</span>
-      <span className="text-xs text-muted-foreground">{row.end}</span>
+      <span className="text-xs text-muted-foreground">{row.startDate.slice(0, 10)}</span>
+      <span className="text-xs text-muted-foreground">{row.endDate.slice(0, 10)}</span>
       <span>
-        <StatusPill status={row.status} />
+        <StatusPill status={row.status} label={row.statusLabel} />
       </span>
-      <span className="font-mono text-xs text-muted-foreground">{row.ref}</span>
       <div className="relative ml-auto">
         <button
           type="button"
@@ -279,13 +207,13 @@ function SubscriptionRow({ row, onUpdate }: { row: SubRow; onUpdate: (r: SubRow)
               />
               <MenuItem
                 icon={<Calendar className="h-4 w-4" />}
-                label="Override End Date"
+                label="Extend Subscription"
                 onClick={() => {
-                  setOverride(true);
+                  setExtend(true);
                   setOpen(false);
                 }}
               />
-              {row.status === "Active" && (
+              {isCancellable && (
                 <MenuItem
                   icon={<Ban className="h-4 w-4" />}
                   label="Cancel Subscription"
@@ -302,14 +230,22 @@ function SubscriptionRow({ row, onUpdate }: { row: SubRow; onUpdate: (r: SubRow)
       </div>
 
       {details && <DetailsModal row={row} onClose={() => setDetails(false)} />}
-      {override && (
-        <OverrideEndDateModal
+      {extend && (
+        <ExtendModal
           row={row}
-          onClose={() => setOverride(false)}
-          onSave={(end) => {
-            onUpdate({ ...row, end });
-            toast.success("End date updated");
-            setOverride(false);
+          busy={extendMut.isPending}
+          onClose={() => setExtend(false)}
+          onSave={(days, reason) => {
+            extendMut.mutate(
+              { id: row.id, input: { days, reason: reason || undefined } },
+              {
+                onSuccess: () => {
+                  toast.success("Subscription extended");
+                  setExtend(false);
+                },
+                onError: (e) => toast.error((e as Error).message),
+              },
+            );
           }}
         />
       )}
@@ -318,8 +254,8 @@ function SubscriptionRow({ row, onUpdate }: { row: SubRow; onUpdate: (r: SubRow)
         title="Cancel this subscription?"
         description={
           <>
-            This will end <span className="font-semibold text-foreground">{row.user}</span>'s plan{" "}
-            <span className="font-semibold text-foreground">{row.plan}</span> immediately.
+            This will end this user's{" "}
+            <span className="font-semibold text-foreground">{row.planLabel}</span> plan immediately.
           </>
         }
         confirmLabel="Cancel Subscription"
@@ -327,9 +263,13 @@ function SubscriptionRow({ row, onUpdate }: { row: SubRow; onUpdate: (r: SubRow)
         variant="destructive"
         typedConfirmation="CANCEL"
         onConfirm={() => {
-          onUpdate({ ...row, status: "Cancelled" });
-          toast.success("Subscription cancelled");
-          setCancel(false);
+          cancelMut.mutate(row.id, {
+            onSuccess: () => {
+              toast.success("Subscription cancelled");
+              setCancel(false);
+            },
+            onError: (e) => toast.error((e as Error).message),
+          });
         }}
         onCancel={() => setCancel(false)}
       />
@@ -360,20 +300,18 @@ function MenuItem({
   );
 }
 
-function StatusPill({ status }: { status: SubRow["status"] }) {
+function StatusPill({ status, label }: { status: BackendSubscriptionStatus; label: string }) {
   const cls =
-    status === "Active"
+    status === "active"
       ? "bg-success-light text-success"
-      : status === "Cancelled"
-        ? "bg-warning-light text-warning"
-        : status === "Refunded"
+      : status === "trial"
+        ? "bg-accent/10 text-accent"
+        : status === "cancelled"
           ? "bg-warning-light text-warning"
-          : status === "Expired"
-            ? "bg-surface-alt text-muted-foreground"
-            : "bg-error-light text-error";
+          : "bg-surface-alt text-muted-foreground";
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>
-      {status}
+      {label}
     </span>
   );
 }
@@ -401,7 +339,7 @@ function FilterSelect({
   label: string;
   value: string;
   onChange: (v: string) => void;
-  options: readonly string[];
+  options: ReadonlyArray<{ value: string; label: string }>;
 }) {
   return (
     <label className="flex flex-col text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -412,8 +350,8 @@ function FilterSelect({
         className="mt-1 h-9 rounded-lg border border-border bg-surface px-2.5 text-sm font-medium normal-case tracking-normal text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
       >
         {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
+          <option key={o.value} value={o.value}>
+            {o.label}
           </option>
         ))}
       </select>
@@ -443,15 +381,31 @@ function FilterDate({
   );
 }
 
-function EmptyState() {
+function LoadingState() {
   return (
     <div className="px-5 py-16 text-center">
-      <p className="text-sm text-muted-foreground">No transactions match your filters.</p>
+      <p className="text-sm text-muted-foreground">Loading subscriptions…</p>
     </div>
   );
 }
 
-function DetailsModal({ row, onClose }: { row: SubRow; onClose: () => void }) {
+function ErrorState({ message }: { message?: string }) {
+  return (
+    <div className="px-5 py-16 text-center">
+      <p className="text-sm text-error">{message ?? "Failed to load subscriptions."}</p>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="px-5 py-16 text-center">
+      <p className="text-sm text-muted-foreground">No subscriptions match your filters.</p>
+    </div>
+  );
+}
+
+function DetailsModal({ row, onClose }: { row: AdminSubscription; onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16"
@@ -472,14 +426,16 @@ function DetailsModal({ row, onClose }: { row: SubRow; onClose: () => void }) {
           </button>
         </header>
         <div className="space-y-2 p-5 text-sm">
-          <DetailRow label="User" value={row.user} />
-          <DetailRow label="Email" value={row.email} />
-          <DetailRow label="Plan" value={row.plan} />
-          <DetailRow label="Amount" value={`GHS ${row.amount}`} />
-          <DetailRow label="Start" value={row.start} />
-          <DetailRow label="End" value={row.end} />
-          <DetailRow label="Status" value={row.status} />
-          <DetailRow label="Paystack Ref" value={row.ref} mono />
+          <DetailRow label="User ID" value={row.userId} mono />
+          <DetailRow label="Plan" value={row.planLabel} />
+          <DetailRow label="Amount" value={`${row.currency} ${row.amountPaid}`} />
+          <DetailRow label="Start" value={row.startDate.slice(0, 10)} />
+          <DetailRow label="End" value={row.endDate.slice(0, 10)} />
+          <DetailRow label="Days remaining" value={String(row.daysRemaining)} />
+          <DetailRow label="Status" value={row.statusLabel} />
+          {row.cancelledAt && (
+            <DetailRow label="Cancelled at" value={row.cancelledAt.slice(0, 10)} />
+          )}
         </div>
       </div>
     </div>
@@ -488,25 +444,28 @@ function DetailsModal({ row, onClose }: { row: SubRow; onClose: () => void }) {
 
 function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="flex justify-between border-b border-border pb-1.5 last:border-b-0">
+    <div className="flex justify-between gap-3 border-b border-border pb-1.5 last:border-b-0">
       <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className={`text-sm font-semibold text-foreground ${mono ? "font-mono" : ""}`}>
+      <span className={`truncate text-sm font-semibold text-foreground ${mono ? "font-mono" : ""}`}>
         {value}
       </span>
     </div>
   );
 }
 
-function OverrideEndDateModal({
+function ExtendModal({
   row,
+  busy,
   onClose,
   onSave,
 }: {
-  row: SubRow;
+  row: AdminSubscription;
+  busy: boolean;
   onClose: () => void;
-  onSave: (end: string) => void;
+  onSave: (days: number, reason: string) => void;
 }) {
-  const [end, setEnd] = useState(row.end);
+  const [days, setDays] = useState(30);
+  const [reason, setReason] = useState("");
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16"
@@ -517,7 +476,7 @@ function OverrideEndDateModal({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h3 className="text-base font-bold text-foreground">Override end date</h3>
+          <h3 className="text-base font-bold text-foreground">Extend subscription</h3>
           <button
             type="button"
             onClick={onClose}
@@ -528,16 +487,30 @@ function OverrideEndDateModal({
         </header>
         <div className="space-y-3 p-5">
           <p className="text-sm text-muted-foreground">
-            {row.user} · {row.plan}
+            {row.planLabel} · ends {row.endDate.slice(0, 10)}
           </p>
           <label className="block">
             <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              New end date
+              Days to add
             </span>
             <input
-              type="date"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
+              type="number"
+              min={1}
+              max={3650}
+              value={days}
+              onChange={(e) => setDays(Math.max(1, Number(e.target.value) || 0))}
+              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Reason (optional)
+            </span>
+            <input
+              type="text"
+              maxLength={300}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
               className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             />
           </label>
@@ -552,10 +525,11 @@ function OverrideEndDateModal({
           </button>
           <button
             type="button"
-            onClick={() => onSave(end)}
-            className="inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
+            disabled={busy}
+            onClick={() => onSave(days, reason)}
+            className="inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
           >
-            Save
+            {busy ? "Saving…" : "Save"}
           </button>
         </footer>
       </div>
