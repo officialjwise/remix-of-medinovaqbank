@@ -39,12 +39,12 @@ import {
 } from "recharts";
 import { useShallow } from "zustand/react/shallow";
 import { useAuthStore } from "@/stores/authStore";
-import { useSessions, useCreateSession } from "@/api/quiz.api";
+import { useCreateSession } from "@/api/quiz.api";
+import { useDashboardSummary } from "@/api/dashboard.api";
 import { useTrial } from "@/hooks/useTrial";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 import { UserDashboardSkeleton } from "@/components/shared/DashboardSkeletons";
 import { useInitialLoad } from "@/hooks/useInitialLoad";
-import { questionBanks } from "@/data/banks";
 import { useUnreadCount } from "@/api/notifications.api";
 import { usePaidPlans } from "@/api/plans.api";
 import type { QuizMode } from "@/types";
@@ -60,8 +60,9 @@ export const Route = createFileRoute("/_app/dashboard")({
    Module-scope deterministic constants — no Math.random() in render
 ────────────────────────────────────────────────────────────────────────── */
 
-const STREAK_DAYS = 7;
+// GAP: leaderboard rank is not yet provided by the backend — placeholder.
 const GLOBAL_RANK = 284;
+// GAP: per-day weekly activity is not in /dashboard/summary — placeholder shape.
 const WEEK_ACTIVITY = [true, true, true, false, true, true, true];
 const WEEK_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
@@ -125,7 +126,7 @@ function DashboardPage() {
     useShallow((s) => ({ user: s.user, subscription: s.subscription })),
   );
   const navigate = useNavigate();
-  const { data: serverSessions } = useSessions();
+  const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
   const createSession = useCreateSession();
   const { isTrial, daysLeft, questionsLeft, questionsTotal, expired } = useTrial();
 
@@ -136,19 +137,20 @@ function DashboardPage() {
   const { data: paidPlans = [] } = usePaidPlans();
   const activePlan = subscription?.status === "ACTIVE" ? paidPlans[0] : undefined;
 
-  if (loading) return <UserDashboardSkeleton />;
+  if (loading || summaryLoading) return <UserDashboardSkeleton />;
 
-  /* Derive session stats from the server session list */
-  const sessions = serverSessions ?? [];
-  const liveInProgress = sessions
-    .filter((s) => s.inProgress)
-    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+  /* Real aggregates from GET /dashboard/summary */
+  const kpis = summary?.kpis;
+  const streak = summary?.studyStreak;
+  const recentSessions = summary?.recentSessions ?? [];
+  const recommendedBanks = summary?.recommendedBanks ?? [];
 
-  const completed = sessions.filter((s) => !s.inProgress);
-  const totalAnswered = sessions.reduce((a, s) => a + s.answeredCount, 0);
-  const avgScore = Math.round(
-    completed.reduce((a, s) => a + s.scorePct, 0) / Math.max(completed.length, 1),
-  );
+  const streakDays = streak?.current ?? 0;
+  const liveInProgress = recentSessions.find((s) => s.inProgress);
+  const completed = recentSessions.filter((s) => !s.inProgress);
+
+  const totalAnswered = kpis?.totalQuestionsAnswered ?? 0;
+  const avgScore = Math.round(kpis?.averageScore ?? 0);
   const bestScore = completed.reduce((m, s) => Math.max(m, s.scorePct), 0);
 
   const firstName = user?.name?.split(" ")[0] ?? "Doctor";
@@ -174,9 +176,9 @@ function DashboardPage() {
   const badges = [
     {
       icon: Flame,
-      label: `${STREAK_DAYS}-day streak`,
+      label: `${streakDays}-day streak`,
       sub: "Study consistency",
-      earned: STREAK_DAYS >= 3,
+      earned: streakDays >= 3,
       tint: "from-[#D97706] to-[#F59E0B]",
     },
     {
@@ -275,7 +277,7 @@ function DashboardPage() {
               style={{ background: "linear-gradient(135deg, #D97706, #F59E0B)" }}
             >
               <Flame className="h-4 w-4" />
-              <span className="text-sm font-bold">{STREAK_DAYS}-day streak</span>
+              <span className="text-sm font-bold">{streakDays}-day streak</span>
             </div>
           </div>
         </div>
@@ -300,9 +302,9 @@ function DashboardPage() {
         <GradientKpiCard
           gradient="amber"
           label="Active streak"
-          value={String(STREAK_DAYS)}
+          value={String(streakDays)}
           icon={Flame}
-          sub="days in a row"
+          sub={`days in a row${streak?.activeToday ? " · active today" : ""}`}
         />
         <GradientKpiCard
           gradient="violet"
@@ -328,15 +330,17 @@ function DashboardPage() {
       {/* ── Continue / start session ─────────────────────────────────── */}
       {liveInProgress ? (
         <LiveContinueCard
-          bankName={`${liveInProgress.totalQuestions}-question session`}
+          bankName={liveInProgress.bankName}
           answered={liveInProgress.answeredCount}
           total={liveInProgress.totalQuestions}
           onResume={() =>
             navigate({ to: "/quiz/$sessionId", params: { sessionId: liveInProgress.id } })
           }
         />
+      ) : recommendedBanks[0] ? (
+        <StartCard onStart={() => startBank(recommendedBanks[0].id, "QUIZ")} />
       ) : (
-        <StartCard onStart={() => startBank(questionBanks[0].id, "QUIZ")} />
+        <StartCard onStart={() => navigate({ to: "/banks" })} />
       )}
 
       {/* ── Two-column main layout ───────────────────────────────────── */}
@@ -352,7 +356,7 @@ function DashboardPage() {
               </div>
               <div className="flex items-center gap-1.5 rounded-full border border-border bg-surface-alt px-3 py-1 text-xs font-semibold text-foreground">
                 <Flame className="h-3.5 w-3.5 text-[#F59E0B]" />
-                {STREAK_DAYS}-day streak
+                {streakDays}-day streak
               </div>
             </div>
             <div className="mt-5 flex items-end justify-between gap-2">
@@ -447,15 +451,18 @@ function DashboardPage() {
               </Link>
             </header>
             <div className="divide-y divide-border">
+              {completed.length === 0 && (
+                <p className="px-6 py-8 text-center text-sm text-muted-foreground">
+                  No completed sessions yet — finish a quiz to see it here.
+                </p>
+              )}
               {completed.slice(0, 4).map((s) => (
                 <div
                   key={s.id}
                   className="flex items-center gap-4 px-6 py-3.5 transition-colors hover:bg-surface-alt/50"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {s.totalQuestions}-question session
-                    </p>
+                    <p className="truncate text-sm font-medium text-foreground">{s.bankName}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {formatDateStable(s.completedAt ?? s.startedAt)}
                     </p>
@@ -503,7 +510,12 @@ function DashboardPage() {
               </Link>
             </header>
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
-              {questionBanks.slice(0, 3).map((b) => (
+              {recommendedBanks.length === 0 && (
+                <p className="col-span-full text-sm text-muted-foreground">
+                  No recommendations yet — browse all banks to get started.
+                </p>
+              )}
+              {recommendedBanks.slice(0, 3).map((b) => (
                 <article
                   key={b.id}
                   className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5"

@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { BookOpen, FileText, Lock, Search, Sparkles, Star } from "lucide-react";
-import { useNotesStore, type AdminNote } from "@/stores/notesStore";
-import { useTrial } from "@/hooks/useTrial";
+import { BookOpen, FileText, Loader2, Lock, Search, Sparkles, Star } from "lucide-react";
+import { useNotes, type NoteListItem } from "@/api/notes.api";
+import { useCategories } from "@/api/categories.api";
+import { useExamTypes } from "@/api/exam-types.api";
 import { useUpgradeModal } from "@/stores/upgradeModalStore";
 import { useDebounce } from "@/hooks/useDebounce";
 
@@ -19,39 +20,23 @@ export const Route = createFileRoute("/_app/notes/")({
 const ALL = "All";
 
 function NotesPage() {
-  const notes = useNotesStore((s) => s.notes);
-  const { isTrial } = useTrial();
-
   const [q, setQ] = useState("");
-  const [category, setCategory] = useState<string>(ALL);
-  const [examType, setExamType] = useState<string>(ALL);
+  const [categoryId, setCategoryId] = useState<string>(ALL);
+  const [examTypeId, setExamTypeId] = useState<string>(ALL);
   const debouncedQ = useDebounce(q, 250);
 
-  const eligible = useMemo(() => notes.filter((n) => n.active && n.tier !== "hidden"), [notes]);
+  // Server-side filtering: tier filtering, search, category + exam are all
+  // applied by the backend (it returns only notes this user may see).
+  const { data, isLoading, isError } = useNotes({
+    search: debouncedQ || undefined,
+    categoryId: categoryId === ALL ? undefined : categoryId,
+    examTypeId: examTypeId === ALL ? undefined : examTypeId,
+  });
 
-  const categories = useMemo(
-    () => [ALL, ...Array.from(new Set(eligible.map((n) => n.category))).sort()],
-    [eligible],
-  );
-  const examTypes = useMemo(
-    () => [ALL, ...Array.from(new Set(eligible.map((n) => n.examType))).sort()],
-    [eligible],
-  );
+  const { data: categories } = useCategories();
+  const { data: examTypes } = useExamTypes();
 
-  const list = useMemo(() => {
-    const needle = debouncedQ.trim().toLowerCase();
-    return eligible.filter((n) => {
-      if (category !== ALL && n.category !== category) return false;
-      if (examType !== ALL && n.examType !== examType) return false;
-      if (!needle) return true;
-      return (
-        n.title.toLowerCase().includes(needle) ||
-        n.description.toLowerCase().includes(needle) ||
-        n.category.toLowerCase().includes(needle) ||
-        n.examType.toLowerCase().includes(needle)
-      );
-    });
-  }, [eligible, debouncedQ, category, examType]);
+  const notes = useMemo(() => data?.notes ?? [], [data]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -83,26 +68,28 @@ function NotesPage() {
               />
             </label>
             <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
               className="h-10 rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               aria-label="Filter by category"
             >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c === ALL ? "All categories" : c}
+              <option value={ALL}>All categories</option>
+              {(categories ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
             </select>
             <select
-              value={examType}
-              onChange={(e) => setExamType(e.target.value)}
+              value={examTypeId}
+              onChange={(e) => setExamTypeId(e.target.value)}
               className="h-10 rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               aria-label="Filter by exam type"
             >
-              {examTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t === ALL ? "All exams" : t}
+              <option value={ALL}>All exams</option>
+              {(examTypes ?? []).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
                 </option>
               ))}
             </select>
@@ -110,7 +97,15 @@ function NotesPage() {
         </div>
       </header>
 
-      {list.length === 0 ? (
+      {isLoading ? (
+        <div className="card-surface flex items-center justify-center gap-2 p-12 text-sm font-medium text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" /> Loading notes…
+        </div>
+      ) : isError ? (
+        <div className="card-surface p-12 text-center text-sm font-medium text-error">
+          Could not load notes. Please try again.
+        </div>
+      ) : notes.length === 0 ? (
         <div className="card-surface flex flex-col items-center justify-center p-12 text-center">
           <div className="grid h-12 w-12 place-items-center rounded-full bg-surface-alt">
             <BookOpen className="h-6 w-6 text-muted-foreground" />
@@ -122,8 +117,8 @@ function NotesPage() {
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((n) => (
-            <NoteCard key={n.id} note={n} locked={isTrial && n.tier === "paid_only"} />
+          {notes.map((n) => (
+            <NoteCard key={n.id} note={n} />
           ))}
         </div>
       )}
@@ -138,7 +133,10 @@ function openUpgrade() {
   });
 }
 
-function NoteCard({ note, locked }: { note: AdminNote; locked: boolean }) {
+function NoteCard({ note }: { note: NoteListItem }) {
+  // The backend decides whole-note lock via the user's tier.
+  const locked = note.locked;
+
   const cover = (
     <div
       className="relative h-28 w-full overflow-hidden"
@@ -154,7 +152,7 @@ function NoteCard({ note, locked }: { note: AdminNote; locked: boolean }) {
         strokeWidth={1.25}
       />
       <div className="absolute bottom-2 left-3 inline-flex items-center gap-1 rounded-full bg-black/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur">
-        {note.examType}
+        {note.tier === "paid_only" ? "Premium" : "High-Yield"}
       </div>
     </div>
   );
@@ -164,7 +162,7 @@ function NoteCard({ note, locked }: { note: AdminNote; locked: boolean }) {
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-1 text-[11px] font-semibold text-foreground">
           <BookOpen className="h-3 w-3" />
-          {note.category}
+          Notes
         </span>
         {locked ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-warning">

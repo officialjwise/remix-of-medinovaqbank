@@ -1,22 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Loader2,
   Lock,
   Maximize2,
   Minimize2,
   Star,
 } from "lucide-react";
-import {
-  useNotesStore,
-  fetchNotePage,
-  trialHiddenPages,
-  type AdminNote,
-  type NotePageContent,
-} from "@/stores/notesStore";
-import { useTrial } from "@/hooks/useTrial";
+import { useNote, notesApi, type NoteDetail } from "@/api/notes.api";
 import { useUpgradeModal } from "@/stores/upgradeModalStore";
 import { ProtectedSurface } from "@/components/shared/ProtectedSurface";
 
@@ -33,39 +27,50 @@ function openUpgrade() {
 
 function NoteReaderPage() {
   const { noteId } = Route.useParams();
-  const note = useNotesStore((s) => s.notes.find((n) => n.id === noteId));
-  const { isTrial } = useTrial();
+  const { data: note, isLoading, isError } = useNote(noteId);
 
-  // Not found, hidden, or deactivated → not available.
-  if (!note || note.tier === "hidden" || !note.active) {
+  if (isLoading) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-md items-center justify-center">
+        <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" /> Loading note…
+        </span>
+      </div>
+    );
+  }
+
+  // Not found / hidden / inactive, or a load error → not available.
+  if (isError || !note) {
     return <NotAvailable />;
   }
 
-  // Premium note + trial user → upsell wall instead of the reader.
-  if (note.tier === "paid_only" && isTrial) {
+  // Whole-note locked for this tier (e.g. paid_only opened by a trial user).
+  if (note.locked) {
     return <PremiumWall note={note} />;
   }
 
-  return <Reader note={note} isTrial={isTrial} />;
+  return <Reader note={note} />;
 }
 
-function Reader({ note, isTrial }: { note: AdminNote; isTrial: boolean }) {
+function Reader({ note }: { note: NoteDetail }) {
   const total = note.pageCount;
 
-  // Pages a trial user must NOT see for a Trial+Paid note.
-  const lockedPages = useMemo(
-    () => (isTrial && note.tier === "trial_paid" ? trialHiddenPages(note) : new Set<number>()),
-    [isTrial, note],
-  );
+  // Per-page lock flags come straight from the backend tier decision.
+  const lockedPages = useMemo(() => {
+    const set = new Set<number>();
+    for (const p of note.pages) if (p.locked) set.add(p.pageNumber);
+    return set;
+  }, [note.pages]);
 
   const [page, setPage] = useState(1);
-  const [content, setContent] = useState<NotePageContent | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [fit, setFit] = useState(true); // zoom-to-fit toggle
 
   const isLocked = lockedPages.has(page);
 
-  // Next/prev page that the user is actually allowed to view (skips locked pages).
+  // Next/prev page the user is allowed to view (skips locked pages).
   const nextViewable = useMemo(() => {
     for (let p = page + 1; p <= total; p++) if (!lockedPages.has(p)) return p;
     return null;
@@ -75,32 +80,37 @@ function Reader({ note, isTrial }: { note: AdminNote; isTrial: boolean }) {
     return null;
   }, [page, lockedPages]);
 
-  // Fetch the current page ONE at a time (never the whole note). A locked page
-  // is never fetched — we show the upgrade overlay instead.
+  // Fetch a fresh, short-lived signed URL for the CURRENT page only — one page
+  // at a time, never the source PDF. A locked page is never requested.
   useEffect(() => {
     if (isLocked) {
-      setContent(null);
+      setImageUrl(null);
       setLoading(false);
+      setError(false);
       return;
     }
     let alive = true;
     setLoading(true);
-    fetchNotePage(note, page).then((c) => {
-      if (alive) {
-        setContent(c);
-        setLoading(false);
-      }
-    });
+    setError(false);
+    setImageUrl(null);
+    notesApi
+      .getPageUrl(note.id, page)
+      .then((res) => {
+        if (alive) {
+          setImageUrl(res.url);
+          // The <img> onLoad clears `loading`; keep it true until the bytes land.
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setError(true);
+          setLoading(false);
+        }
+      });
     return () => {
       alive = false;
     };
-  }, [note, page, isLocked]);
-
-  // Prefetch ONLY the immediately adjacent next viewable page (fire-and-forget).
-  useEffect(() => {
-    if (isLocked || nextViewable == null) return;
-    void fetchNotePage(note, nextViewable);
-  }, [note, nextViewable, isLocked]);
+  }, [note.id, page, isLocked]);
 
   const goPrev = useCallback(() => {
     if (prevViewable != null) setPage(prevViewable);
@@ -141,7 +151,7 @@ function Reader({ note, isTrial }: { note: AdminNote; isTrial: boolean }) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-foreground">{note.title}</p>
             <p className="truncate text-[11px] text-muted-foreground">
-              {note.category} · {note.examType}
+              {note.tier === "paid_only" ? "Premium" : "High-Yield Notes"}
             </p>
           </div>
           <span className="hidden rounded-full bg-surface-alt px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground sm:inline-flex">
@@ -180,7 +190,7 @@ function Reader({ note, isTrial }: { note: AdminNote; isTrial: boolean }) {
         <div className="h-1 w-full bg-surface-alt sm:hidden">
           <div
             className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
-            style={{ width: `${(page / total) * 100}%` }}
+            style={{ width: `${(page / Math.max(total, 1)) * 100}%` }}
           />
         </div>
       </header>
@@ -198,10 +208,19 @@ function Reader({ note, isTrial }: { note: AdminNote; isTrial: boolean }) {
           >
             {isLocked ? (
               <LockedPage onUpgrade={openUpgrade} onSkip={goNext} canSkip={nextViewable != null} />
-            ) : loading || !content ? (
-              <PageShimmer />
+            ) : error ? (
+              <PageError onRetry={() => setPage((p) => p)} />
             ) : (
-              <PageDocument content={content} key={page} />
+              <PageImage
+                url={imageUrl}
+                page={page}
+                loading={loading}
+                onLoad={() => setLoading(false)}
+                onError={() => {
+                  setError(true);
+                  setLoading(false);
+                }}
+              />
             )}
           </ProtectedSurface>
 
@@ -233,25 +252,44 @@ function Reader({ note, isTrial }: { note: AdminNote; isTrial: boolean }) {
   );
 }
 
-/* The "document page" surface — white, serif, generous padding, real-page feel. */
-function PageDocument({ content }: { content: NotePageContent }) {
+/**
+ * The protected page surface: a watermarked PNG served from a short-lived signed
+ * URL. The image is non-draggable/non-selectable; ProtectedSurface adds the
+ * per-user watermark overlay + capture-blur on top.
+ */
+function PageImage({
+  url,
+  page,
+  loading,
+  onLoad,
+  onError,
+}: {
+  url: string | null;
+  page: number;
+  loading: boolean;
+  onLoad: () => void;
+  onError: () => void;
+}) {
   return (
-    <div className="bg-[#fdfdfb] px-7 py-10 text-[#1a2430] sm:px-12 sm:py-14 animate-in fade-in duration-300">
-      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0E7C7B]">
-        {content.topicName}
-      </p>
-      <h2 className="mt-2 font-serif text-xl font-bold leading-snug sm:text-2xl">
-        {content.heading}
-      </h2>
-      <div className="mt-5 space-y-4 font-serif text-[15px] leading-7 text-[#27313d] sm:text-base sm:leading-8">
-        {content.paragraphs.map((p, i) => (
-          <p key={i}>{p}</p>
-        ))}
-      </div>
-      <div className="mt-10 flex items-center justify-between border-t border-[#e7e4dc] pt-4 text-[11px] text-[#8a9099]">
-        <span>Medinovaqbank · High-Yield Notes</span>
-        <span className="tabular-nums">Page {content.page}</span>
-      </div>
+    <div className="relative min-h-[60vh] bg-[#fdfdfb]">
+      {(loading || !url) && (
+        <div className="absolute inset-0 z-10">
+          <PageShimmer />
+        </div>
+      )}
+      {url && (
+        <img
+          key={`${page}-${url}`}
+          src={url}
+          alt={`Page ${page}`}
+          draggable={false}
+          onContextMenu={(e) => e.preventDefault()}
+          onLoad={onLoad}
+          onError={onError}
+          className="block w-full select-none animate-in fade-in duration-300"
+          style={{ WebkitUserSelect: "none", userSelect: "none" }}
+        />
+      )}
     </div>
   );
 }
@@ -271,6 +309,25 @@ function PageShimmer() {
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+/* Page load / signed-URL failure. */
+function PageError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center bg-[#fdfdfb] px-7 py-16 text-center">
+      <h3 className="text-lg font-bold text-[#1a2430]">Could not load this page</h3>
+      <p className="mt-1 max-w-sm text-sm text-[#5b636d]">
+        The secure page link may have expired. Try again to refresh it.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-accent px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+      >
+        Retry
+      </button>
     </div>
   );
 }
@@ -319,8 +376,8 @@ function LockedPage({
   );
 }
 
-/* Full-page premium wall for a paid_only note opened by a trial user. */
-function PremiumWall({ note }: { note: AdminNote }) {
+/* Full-page premium wall for a locked note opened by a non-entitled user. */
+function PremiumWall({ note }: { note: NoteDetail }) {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center px-4 text-center">
       <div className="card-surface flex w-full flex-col items-center p-8">

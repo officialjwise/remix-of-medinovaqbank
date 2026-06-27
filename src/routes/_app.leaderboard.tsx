@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Medal,
   Trophy,
@@ -17,11 +17,19 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Loader2,
 } from "lucide-react";
-import { buildLeaderboard, type LeaderboardRow } from "@/data/leaderboard";
-import { questionBanks } from "@/data/banks";
+import {
+  useLeaderboard,
+  useLeaderboardBanks,
+  useMyRank,
+  type LeaderboardEntry,
+  type LeaderboardPeriod,
+  type RankMovement,
+} from "@/api/leaderboard.api";
 import { scoreColor } from "@/lib/quiz-results";
 import { useTrial } from "@/hooks/useTrial";
+import { useAuthStore } from "@/stores/authStore";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
 
 export const Route = createFileRoute("/_app/leaderboard")({
@@ -33,96 +41,41 @@ export const Route = createFileRoute("/_app/leaderboard")({
 
 const PAGE_SIZE = 25;
 
-type Period = "weekly" | "monthly" | "all";
+type PeriodTab = "weekly" | "monthly" | "all";
 
-/** Deterministic 32-bit string hash → stable pseudo-random for a given seed. */
-function seededHash(seed: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  // Map to [0, 1)
-  return ((h >>> 0) % 100000) / 100000;
+const PERIOD_TO_API: Record<PeriodTab, LeaderboardPeriod> = {
+  weekly: "weekly",
+  monthly: "monthly",
+  all: "all_time",
+};
+
+/** Signed movement delta for the legacy ±UI (null → 0). */
+function movementValue(m: RankMovement | null): number {
+  if (!m) return 0;
+  if (m.direction === "up") return Math.abs(m.delta);
+  if (m.direction === "down") return -Math.abs(m.delta);
+  return 0;
 }
 
-/** Stable signed integer in [-span, span] from a seed. */
-function seededDelta(seed: string, span: number): number {
-  return Math.round((seededHash(seed) - 0.5) * 2 * span);
-}
-
-interface DerivedRow extends LeaderboardRow {
-  movement: number; // ±rank change vs. previous period snapshot
-  bankId: string; // the bank this practitioner is strongest in
-}
-
-// Base cohort built once at module scope.
-const BASE_ROWS = buildLeaderboard();
-
-/**
- * Derive a stable, non-empty ranking for a given (period, bank) tab. Because
- * the underlying mock data has no per-bank/period series, we apply a seeded
- * per-row score offset keyed by the tab so each tab shows a *different but
- * reproducible* ordering — never an empty list.
- */
-function deriveBoard(period: Period, bankId: string): DerivedRow[] {
-  const periodWeight = period === "weekly" ? 1.8 : period === "monthly" ? 1.2 : 1;
-
-  const enriched = BASE_ROWS.map((r, idx) => {
-    // Assign every practitioner a "home" bank deterministically.
-    const homeBank =
-      questionBanks[Math.floor(seededHash(`${r.name}|home`) * questionBanks.length)].id;
-    // Seeded score offset per (name + period + bank) so tabs reshuffle stably.
-    const offset = seededDelta(`${r.name}|${period}|${bankId}`, 9);
-    // Practitioners stronger in the selected bank get a positive nudge.
-    const bankBoost = bankId !== "All" && homeBank === bankId ? 7 : 0;
-    const periodVolume = Math.round(
-      r.questions / (period === "weekly" ? 14 : period === "monthly" ? 4 : 1),
+function MovementBadge({ value }: { value: number }) {
+  if (value === 0)
+    return (
+      <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-muted-foreground">
+        <Minus className="h-3 w-3" /> 0
+      </span>
     );
-
-    const rawScore = r.isYou
-      ? r.avgScore // keep the user's headline score stable across tabs
-      : Math.max(20, Math.min(99, r.avgScore + offset + bankBoost));
-
-    return {
-      ...r,
-      avgScore: rawScore,
-      questions: periodVolume,
-      sessions: Math.max(
-        1,
-        Math.round(r.sessions / (period === "weekly" ? 12 : period === "monthly" ? 3 : 1)),
-      ),
-      bankId: homeBank,
-      _sortScore: rawScore * periodWeight + (r.isYou ? 0 : seededHash(`${r.name}|tiebreak`)),
-    };
-  });
-
-  // When a specific bank is selected, keep practitioners whose home bank matches
-  // plus the current user (so "you" always appears) — fall back to all if a bank
-  // would be too sparse, guaranteeing a populated tab.
-  let pool = enriched;
-  if (bankId !== "All") {
-    const matched = enriched.filter((r) => r.bankId === bankId || r.isYou);
-    pool = matched.length >= 8 ? matched : enriched;
-  }
-
-  const ranked = pool
-    .slice()
-    .sort((a, b) => b._sortScore - a._sortScore)
-    .map((r, i) => {
-      const newRank = i + 1;
-      // Stable movement: compare this rank to a seeded "last period" rank.
-      const movement = r.isYou
-        ? seededDelta(`${r.name}|move|${period}|${bankId}`, 5)
-        : seededDelta(`${r.name}|move|${period}|${bankId}`, 8);
-      return { ...r, rank: newRank, movement } as DerivedRow;
-    });
-
-  return ranked;
+  const up = value > 0;
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 text-xs font-bold ${up ? "text-success" : "text-error"}`}
+    >
+      {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+      {Math.abs(value)}
+    </span>
+  );
 }
 
-/** Horizontally scrollable tab strip with arrow controls + edge fades so all
- *  per-bank tabs are reachable on any device. */
+/** Horizontally scrollable tab strip with arrow controls + edge fades. */
 function ScrollableTabs({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const scroll = (dir: number) => ref.current?.scrollBy({ left: dir * 240, behavior: "smooth" });
@@ -160,50 +113,32 @@ function ScrollableTabs({ children }: { children: React.ReactNode }) {
   );
 }
 
-function MovementBadge({ value }: { value: number }) {
-  if (value === 0)
-    return (
-      <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-muted-foreground">
-        <Minus className="h-3 w-3" /> 0
-      </span>
-    );
-  const up = value > 0;
-  return (
-    <span
-      className={`inline-flex items-center gap-0.5 text-xs font-bold ${up ? "text-success" : "text-error"}`}
-    >
-      {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-      {Math.abs(value)}
-    </span>
-  );
-}
-
 function LeaderboardPage() {
-  const [period, setPeriod] = useState<Period>("all");
+  const [period, setPeriod] = useState<PeriodTab>("all");
   const [bank, setBank] = useState("All");
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<DerivedRow | null>(null);
+  const [selected, setSelected] = useState<LeaderboardEntry | null>(null);
 
   const { isTrial, can, requireFeature } = useTrial();
+  const myUserId = useAuthStore((s) => s.user?.id ?? null);
   const canCompete = can("leaderboard");
 
-  const ranked = useMemo(() => deriveBoard(period, bank), [period, bank]);
-  const you = useMemo(() => ranked.find((r) => r.isYou)!, [ranked]);
-  const total = ranked.length;
-  const percentile = Math.max(1, Math.round(((total - you.rank + 1) / total) * 100));
+  const apiParams = useMemo(
+    () => ({
+      period: PERIOD_TO_API[period],
+      bankId: bank === "All" ? undefined : bank,
+    }),
+    [period, bank],
+  );
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return ranked;
-    return ranked.filter((r) => (r.isYou ? "you" : r.name).toLowerCase().includes(q));
-  }, [ranked, query]);
+  const boardQuery = useLeaderboard(apiParams);
+  const banksQuery = useLeaderboardBanks();
+  const myRankQuery = useMyRank(apiParams);
 
-  const podium = ranked.slice(0, 3);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const slice = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const entries = boardQuery.data ?? [];
+  const banks = banksQuery.data ?? [];
+  const myRank = myRankQuery.data ?? null;
 
   // Reset to page 1 whenever the active view changes.
   function changeView(fn: () => void) {
@@ -211,17 +146,37 @@ function LeaderboardPage() {
     setPage(1);
   }
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter((r) => r.name.toLowerCase().includes(q));
+  }, [entries, query]);
+
+  const podium = entries.slice(0, 3);
+  const totalRanked = myRank?.totalRanked ?? entries.length;
+  const youRank = myRank?.rank ?? null;
+  const youScore = myRank?.avgScore ?? 0;
+  const youQuestions = myRank?.totalQuestions ?? 0;
+  const youMovement = movementValue(myRank?.movement ?? null);
+  const youPercentile = myRank?.percentile ?? 0;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const slice = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   const climbHint =
-    you.rank <= 3
-      ? "You're on the podium — defend your lead by keeping your accuracy above 85%."
-      : `Answer ~${Math.max(80, (you.rank - 1) * 12)} more questions at high accuracy to overtake #${you.rank - 1}.`;
+    youRank == null
+      ? "Complete a session to claim a spot on the leaderboard."
+      : youRank <= 3
+        ? "You're on the podium — defend your lead by keeping your accuracy high."
+        : `Answer more questions at high accuracy to climb past rank #${youRank - 1}.`;
 
   return (
     <div className="mx-auto max-w-6xl">
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Leaderboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Rank against {BASE_ROWS.length.toLocaleString()} active medical practitioners.
+          Rank against {totalRanked.toLocaleString()} active medical practitioners.
         </p>
       </header>
 
@@ -248,40 +203,40 @@ function LeaderboardPage() {
         </button>
       )}
 
-      {/* Gradient KPI strip */}
+      {/* Gradient KPI strip — the signed-in user's own standing */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <GradientKpiCard
           label="Your Rank"
-          value={`#${you.rank}`}
+          value={youRank == null ? "—" : `#${youRank}`}
           icon={Crown}
           gradient="navy"
-          sub={`of ${total.toLocaleString()} ranked`}
+          sub={youRank == null ? "not ranked yet" : `of ${totalRanked.toLocaleString()} ranked`}
           trend={
-            you.movement !== 0
+            youMovement !== 0
               ? {
-                  value: `${Math.abs(you.movement)} this ${period === "all" ? "season" : period}`,
-                  up: you.movement > 0,
+                  value: `${Math.abs(youMovement)} this ${period === "all" ? "season" : period}`,
+                  up: youMovement > 0,
                 }
               : undefined
           }
         />
         <GradientKpiCard
           label="Percentile"
-          value={`Top ${100 - percentile + 1 > 0 ? Math.max(1, 100 - percentile) : 1}%`}
+          value={youRank == null ? "—" : `Top ${Math.max(1, Math.round(100 - youPercentile))}%`}
           icon={Percent}
           gradient="teal"
           sub="vs. all practitioners"
         />
         <GradientKpiCard
           label="Avg Score"
-          value={`${you.avgScore}%`}
+          value={`${youScore}%`}
           icon={Target}
           gradient="emerald"
           sub="across answered questions"
         />
         <GradientKpiCard
           label="Questions"
-          value={you.questions.toLocaleString()}
+          value={youQuestions.toLocaleString()}
           icon={Brain}
           gradient="violet"
           sub={period === "all" ? "all time" : `this ${period}`}
@@ -300,21 +255,23 @@ function LeaderboardPage() {
               Your Current Rank
             </p>
             <p className="text-4xl font-extrabold tracking-tight drop-shadow-md flex items-center gap-3">
-              #{you.rank}
+              {youRank == null ? "Unranked" : `#${youRank}`}
               <span className="text-sm font-bold">
-                <MovementBadge value={you.movement} />
+                <MovementBadge value={youMovement} />
               </span>
             </p>
             <p className="mt-2 text-sm text-white/80 font-medium">
-              Score <span className="font-bold text-white text-[15px]">{you.avgScore}%</span>{" "}
-              <span className="text-white/40 mx-1">•</span> {you.questions.toLocaleString()}{" "}
+              Score <span className="font-bold text-white text-[15px]">{youScore}%</span>{" "}
+              <span className="text-white/40 mx-1">•</span> {youQuestions.toLocaleString()}{" "}
               questions answered
             </p>
             <p className="mt-2 max-w-xl text-xs text-[#9FE8E2]">{climbHint}</p>
           </div>
-          <div className="rounded-full bg-white/10 px-5 py-2.5 text-xs font-bold uppercase tracking-widest border border-white/20 backdrop-blur-sm shadow-inner">
-            Top {Math.max(1, 100 - percentile)}% of all practitioners
-          </div>
+          {youRank != null && (
+            <div className="rounded-full bg-white/10 px-5 py-2.5 text-xs font-bold uppercase tracking-widest border border-white/20 backdrop-blur-sm shadow-inner">
+              Top {Math.max(1, Math.round(100 - youPercentile))}% of all practitioners
+            </div>
+          )}
         </div>
       </section>
 
@@ -323,6 +280,7 @@ function LeaderboardPage() {
         {[1, 0, 2].map((order) => {
           const r = podium[order];
           if (!r) return <div key={order} />;
+          const isYou = myUserId != null && r.userId === myUserId;
           const isFirst = r.rank === 1;
           const medal =
             r.rank === 1
@@ -349,7 +307,7 @@ function LeaderboardPage() {
               onClick={() => setSelected(r)}
               className={`relative flex flex-col items-center rounded-2xl border bg-surface p-6 text-center transition hover:-translate-y-0.5 ${
                 isFirst ? "border-warning/40 sm:-mt-3" : "border-border"
-              } ${r.isYou ? "ring-2 ring-[#00D4C8]" : ""}`}
+              } ${isYou ? "ring-2 ring-[#00D4C8]" : ""}`}
             >
               <span
                 className={`mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${medal.ring} text-white ${medal.glow}`}
@@ -360,15 +318,15 @@ function LeaderboardPage() {
                 #{r.rank}
               </p>
               <p
-                className={`mt-1 truncate text-sm font-bold ${r.isYou ? "text-accent" : "text-foreground"}`}
+                className={`mt-1 truncate text-sm font-bold ${isYou ? "text-accent" : "text-foreground"}`}
               >
-                {r.isYou ? "You" : r.name}
+                {isYou ? "You" : r.name}
               </p>
-              <p className="text-xs text-muted-foreground">{r.specialty}</p>
+              <p className="text-xs text-muted-foreground">{r.specialty ?? "—"}</p>
               <p className="mt-2 font-mono text-lg font-extrabold tabular-nums text-foreground">
                 {r.avgScore}%
               </p>
-              <MovementBadge value={r.movement} />
+              <MovementBadge value={movementValue(r.movement)} />
             </button>
           );
         })}
@@ -404,31 +362,33 @@ function LeaderboardPage() {
           </div>
         </div>
 
-        <ScrollableTabs>
-          <button
-            onClick={() => changeView(() => setBank("All"))}
-            className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-all duration-300 border-b-2 whitespace-nowrap ${
-              bank === "All"
-                ? "border-accent text-accent"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            All Banks
-          </button>
-          {questionBanks.map((b) => (
+        {banks.length > 0 && (
+          <ScrollableTabs>
             <button
-              key={b.id}
-              onClick={() => changeView(() => setBank(b.id))}
+              onClick={() => changeView(() => setBank("All"))}
               className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-all duration-300 border-b-2 whitespace-nowrap ${
-                bank === b.id
+                bank === "All"
                   ? "border-accent text-accent"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              {b.name}
+              All Banks
             </button>
-          ))}
-        </ScrollableTabs>
+            {banks.map((b) => (
+              <button
+                key={b.bankId}
+                onClick={() => changeView(() => setBank(b.bankId))}
+                className={`flex-shrink-0 px-4 py-2 text-sm font-semibold transition-all duration-300 border-b-2 whitespace-nowrap ${
+                  bank === b.bankId
+                    ? "border-accent text-accent"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {b.bankName}
+              </button>
+            ))}
+          </ScrollableTabs>
+        )}
       </div>
 
       {/* Leaderboard table */}
@@ -442,20 +402,38 @@ function LeaderboardPage() {
           <span className="text-right">Questions</span>
           <span className="text-right">Sessions</span>
         </div>
-        {slice.length === 0 && (
-          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-            No practitioners match "{query}".
+
+        {boardQuery.isLoading && (
+          <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-accent" /> Loading rankings…
           </div>
         )}
+
+        {boardQuery.isError && (
+          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+            We couldn't load the leaderboard. Please try again.
+          </div>
+        )}
+
+        {!boardQuery.isLoading && !boardQuery.isError && slice.length === 0 && (
+          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+            {query
+              ? `No practitioners match "${query}".`
+              : "No rankings yet for this view. Be the first to complete a session."}
+          </div>
+        )}
+
         {slice.map((r) => {
           const c = scoreColor(r.avgScore);
+          const isYou = myUserId != null && r.userId === myUserId;
+          const movement = movementValue(r.movement);
           return (
             <button
-              key={r.rank}
+              key={r.userId}
               type="button"
               onClick={() => setSelected(r)}
               className={`grid w-full grid-cols-1 items-center gap-3 border-b border-white/5 px-6 py-4 text-left last:border-b-0 md:grid-cols-[70px_1fr_140px_70px_110px_100px_90px] md:gap-4 transition-colors ${
-                r.isYou
+                isYou
                   ? "bg-[#00D4C8]/5 relative before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[#00D4C8]"
                   : "hover:bg-surface-alt/30"
               }`}
@@ -473,7 +451,7 @@ function LeaderboardPage() {
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-700/20 text-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.3)]">
                     <Medal className="h-4 w-4" />
                   </span>
-                ) : r.isYou ? (
+                ) : isYou ? (
                   <span className="text-[#00D4C8] w-8 text-center text-sm">#{r.rank}</span>
                 ) : (
                   <span className="w-8 text-center text-sm text-muted-foreground">#{r.rank}</span>
@@ -482,7 +460,7 @@ function LeaderboardPage() {
               <div className="flex items-center gap-3 min-w-0">
                 <span
                   className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold shadow-sm ${
-                    r.isYou
+                    isYou
                       ? "bg-gradient-to-br from-[#3B82F6] to-[#00D4C8] text-white"
                       : "bg-surface-alt text-foreground border border-white/5"
                   }`}
@@ -490,23 +468,25 @@ function LeaderboardPage() {
                   {r.initials}
                 </span>
                 <span
-                  className={`truncate text-[15px] ${r.isYou ? "font-bold text-[#00D4C8]" : "font-semibold text-foreground"}`}
+                  className={`truncate text-[15px] ${isYou ? "font-bold text-[#00D4C8]" : "font-semibold text-foreground"}`}
                 >
-                  {r.isYou ? "YOU" : r.name}
+                  {isYou ? "YOU" : r.name}
                 </span>
               </div>
-              <span className="text-xs font-medium text-muted-foreground">{r.specialty}</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {r.specialty ?? "—"}
+              </span>
               <span className="flex justify-center md:justify-center">
-                <MovementBadge value={r.movement} />
+                <MovementBadge value={movement} />
               </span>
               <span className={`text-right font-mono text-sm font-bold tabular-nums ${c.text}`}>
                 {r.avgScore}%
               </span>
               <span className="text-right font-mono text-sm font-medium tabular-nums text-foreground/80">
-                {r.questions.toLocaleString()}
+                {r.totalQuestions.toLocaleString()}
               </span>
               <span className="text-right font-mono text-sm font-medium tabular-nums text-foreground/80">
-                {r.sessions}
+                {r.totalSessions}
               </span>
             </button>
           );
@@ -514,97 +494,121 @@ function LeaderboardPage() {
       </div>
 
       {/* Pagination */}
-      <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          Showing {slice.length} of {filtered.length.toLocaleString()} · Page {safePage} of{" "}
-          {totalPages}
-        </span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={safePage === 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="h-8 rounded-md border border-border bg-surface px-3 font-semibold text-foreground hover:bg-surface-alt disabled:opacity-40"
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            disabled={safePage === totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="h-8 rounded-md border border-border bg-surface px-3 font-semibold text-foreground hover:bg-surface-alt disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-
-      {/* Row detail popover */}
-      {selected && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-          onClick={() => setSelected(null)}
-        >
-          <div
-            className="w-full max-w-md overflow-hidden rounded-t-2xl border border-border bg-surface shadow-2xl sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="relative bg-gradient-to-r from-[#0F2B4C] to-[#0E7C7B] p-6 text-white">
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/80 transition hover:bg-white/20"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <div className="flex items-center gap-4">
-                <span
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl text-base font-bold ${
-                    selected.isYou
-                      ? "bg-gradient-to-br from-[#3B82F6] to-[#00D4C8] text-white"
-                      : "bg-white/15 text-white"
-                  }`}
-                >
-                  {selected.initials}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-lg font-bold">
-                    {selected.isYou ? "You" : selected.name}
-                  </p>
-                  <p className="text-sm text-white/75">{selected.specialty}</p>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-px bg-border">
-              <DetailStat label="Rank" value={`#${selected.rank}`} />
-              <DetailStat
-                label="Movement"
-                value={
-                  selected.movement === 0
-                    ? "No change"
-                    : `${selected.movement > 0 ? "▲" : "▼"} ${Math.abs(selected.movement)}`
-                }
-                tone={selected.movement === 0 ? "muted" : selected.movement > 0 ? "up" : "down"}
-              />
-              <DetailStat label="Avg Score" value={`${selected.avgScore}%`} />
-              <DetailStat label="Questions" value={selected.questions.toLocaleString()} />
-              <DetailStat label="Sessions" value={String(selected.sessions)} />
-              <DetailStat
-                label="Strongest Bank"
-                value={questionBanks.find((b) => b.id === selected.bankId)?.name ?? "—"}
-              />
-            </div>
-            {selected.isYou && (
-              <div className="border-t border-border p-4">
-                <p className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <TrendingUp className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
-                  {climbHint}
-                </p>
-              </div>
-            )}
+      {filtered.length > 0 && (
+        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            Showing {slice.length} of {filtered.length.toLocaleString()} · Page {safePage} of{" "}
+            {totalPages}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={safePage === 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="h-8 rounded-md border border-border bg-surface px-3 font-semibold text-foreground hover:bg-surface-alt disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={safePage === totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="h-8 rounded-md border border-border bg-surface px-3 font-semibold text-foreground hover:bg-surface-alt disabled:opacity-40"
+            >
+              Next
+            </button>
           </div>
         </div>
       )}
+
+      {/* Row detail popover */}
+      {selected && (
+        <RowDetail
+          entry={selected}
+          isYou={myUserId != null && selected.userId === myUserId}
+          climbHint={climbHint}
+          onClose={() => setSelected(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function RowDetail({
+  entry,
+  isYou,
+  climbHint,
+  onClose,
+}: {
+  entry: LeaderboardEntry;
+  isYou: boolean;
+  climbHint: string;
+  onClose: () => void;
+}) {
+  // Close on Escape for keyboard users.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const movement = movementValue(entry.movement);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-t-2xl border border-border bg-surface shadow-2xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative bg-gradient-to-r from-[#0F2B4C] to-[#0E7C7B] p-6 text-white">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/80 transition hover:bg-white/20"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="flex items-center gap-4">
+            <span
+              className={`flex h-14 w-14 items-center justify-center rounded-2xl text-base font-bold ${
+                isYou
+                  ? "bg-gradient-to-br from-[#3B82F6] to-[#00D4C8] text-white"
+                  : "bg-white/15 text-white"
+              }`}
+            >
+              {entry.initials}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-lg font-bold">{isYou ? "You" : entry.name}</p>
+              <p className="text-sm text-white/75">{entry.specialty ?? "—"}</p>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-px bg-border">
+          <DetailStat label="Rank" value={`#${entry.rank}`} />
+          <DetailStat
+            label="Movement"
+            value={
+              movement === 0 ? "No change" : `${movement > 0 ? "▲" : "▼"} ${Math.abs(movement)}`
+            }
+            tone={movement === 0 ? "muted" : movement > 0 ? "up" : "down"}
+          />
+          <DetailStat label="Avg Score" value={`${entry.avgScore}%`} />
+          <DetailStat label="Questions" value={entry.totalQuestions.toLocaleString()} />
+          <DetailStat label="Sessions" value={String(entry.totalSessions)} />
+          <DetailStat label="Practitioner" value={isYou ? "You" : entry.name} />
+        </div>
+        {isYou && (
+          <div className="border-t border-border p-4">
+            <p className="flex items-start gap-2 text-xs text-muted-foreground">
+              <TrendingUp className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
+              {climbHint}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
   Award,
@@ -10,7 +10,9 @@ import {
   CalendarDays,
   CreditCard,
   GraduationCap,
+  KeyRound,
   LineChart,
+  Lock,
   Mail,
   MapPin,
   Monitor,
@@ -23,10 +25,18 @@ import {
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import { useTrial } from "@/hooks/useTrial";
-import { recentSessions } from "@/data/banks";
 import { deviceLabel } from "@/lib/trial";
 import { AvatarUploader } from "@/components/shared/AvatarUploader";
 import { GradientKpiCard } from "@/components/shared/GradientKpiCard";
+import { ApiError } from "@/api/client";
+import {
+  useProfile,
+  useUserStats,
+  useUpdateProfile,
+  useUploadAvatar,
+  useRemoveAvatar,
+  useChangePassword,
+} from "@/api/profile.api";
 
 export const Route = createFileRoute("/_app/profile")({
   head: () => ({
@@ -72,26 +82,58 @@ function initialsOf(name: string) {
     .join("");
 }
 
+/** Turn a cropped data URL from the AvatarUploader into a Blob for FormData. */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, b64] = dataUrl.split(",");
+  const mimeMatch = /data:(.*?);base64/.exec(header);
+  const mime = mimeMatch?.[1] ?? "image/jpeg";
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+function errMsg(e: unknown, fallback: string): string {
+  return e instanceof ApiError ? e.message : fallback;
+}
+
 function ProfilePage() {
   const { user, subscription, setUser } = useAuthStore();
   const trial = useTrial();
 
-  const [name, setName] = useState(user?.name ?? "");
-  const [specialty, setSpecialty] = useState(user?.specialty ?? "General Practice");
-  const [institution, setInstitution] = useState("Korle-Bu Teaching Hospital");
+  const { data: profile } = useProfile();
+  const { data: stats } = useUserStats();
+  const updateProfile = useUpdateProfile();
+  const uploadAvatar = useUploadAvatar();
+  const removeAvatar = useRemoveAvatar();
+  const changePassword = useChangePassword();
+
+  const [name, setName] = useState("");
+  const [specialty, setSpecialty] = useState("General Practice");
+  const [institution, setInstitution] = useState("");
   const [country, setCountry] = useState("Ghana");
 
-  // Derived stats from mock sessions
-  const totalSessions = recentSessions.length;
-  const totalQuestions = recentSessions.reduce((acc, s) => acc + s.questionsAnswered, 0);
-  const finished = recentSessions.filter((s) => !s.inProgress);
-  const avgScore = Math.round(
-    finished.reduce((acc, s) => acc + s.scorePct, 0) / Math.max(1, finished.length),
-  );
+  // Hydrate form fields from the live profile once it loads.
+  useEffect(() => {
+    if (!profile) return;
+    setName(profile.name);
+    setSpecialty(profile.specialty ?? "General Practice");
+    setInstitution(profile.institution ?? "");
+    setCountry(profile.country || "Ghana");
+  }, [profile]);
 
-  const initials = initialsOf(name || user?.name || "U");
-  const joined = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString("en-GB", { year: "numeric", month: "long" })
+  // KPIs from the real /users/me/stats endpoint.
+  const totalSessions = stats?.totalSessions ?? 0;
+  const totalQuestions = stats?.totalQuestionsAnswered ?? 0;
+  const avgScore = Math.round(stats?.averageScore ?? 0);
+
+  const displayName = profile?.name ?? user?.name ?? "";
+  const email = profile?.email ?? user?.email ?? "";
+  const avatarUrl = profile?.avatarUrl ?? user?.avatarUrl;
+  const initials = initialsOf(name || displayName || "U");
+  const joinedSource = profile?.createdAt ?? user?.createdAt;
+  const joined = joinedSource
+    ? new Date(joinedSource).toLocaleDateString("en-GB", { year: "numeric", month: "long" })
     : "—";
   const device = subscription?.boundDevice ?? deviceLabel();
 
@@ -104,21 +146,62 @@ function ProfilePage() {
           ? "Expired"
           : "No subscription";
 
+  /** Persist profile fields and sync name/specialty into the auth store. */
+  function syncStore(patch: { name?: string; specialty?: string; avatarUrl?: string }) {
+    if (!user) return;
+    setUser({ ...user, ...patch });
+  }
+
   function handlePersonalSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) return;
-    setUser({ ...user, name: name.trim() || user.name });
-    toast.success("Personal information updated");
+    updateProfile.mutate(
+      { name: name.trim() || displayName, country },
+      {
+        onSuccess: (p) => {
+          syncStore({ name: p.name });
+          toast.success("Personal information updated");
+        },
+        onError: (err) => toast.error(errMsg(err, "Couldn't update your profile")),
+      },
+    );
   }
 
   function handleProfessionalSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) return;
-    setUser({ ...user, specialty });
-    toast.success("Professional details saved");
+    updateProfile.mutate(
+      { specialty, institution: institution.trim() },
+      {
+        onSuccess: (p) => {
+          syncStore({ specialty: p.specialty ?? undefined });
+          toast.success("Professional details saved");
+        },
+        onError: (err) => toast.error(errMsg(err, "Couldn't save your details")),
+      },
+    );
   }
 
-  if (!user) {
+  function handleAvatarSave(dataUrl: string) {
+    const blob = dataUrlToBlob(dataUrl);
+    uploadAvatar.mutate(blob, {
+      onSuccess: (p) => {
+        syncStore({ avatarUrl: p.avatarUrl });
+        toast.success("Profile photo updated");
+      },
+      onError: (err) => toast.error(errMsg(err, "Couldn't upload your photo")),
+    });
+  }
+
+  function handleAvatarRemove() {
+    removeAvatar.mutate(undefined, {
+      onSuccess: (p) => {
+        syncStore({ avatarUrl: p.avatarUrl });
+        toast.success("Profile photo removed");
+      },
+      onError: (err) => toast.error(errMsg(err, "Couldn't remove your photo")),
+    });
+  }
+
+  if (!user && !profile) {
     return (
       <div className="mx-auto max-w-5xl">
         <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-card)]">
@@ -147,25 +230,26 @@ function ProfilePage() {
             <div className="shrink-0">
               <div className="rounded-[1.25rem] bg-surface p-1 shadow-[var(--shadow-card)]">
                 <AvatarUploader
-                  value={user.avatarUrl}
+                  value={avatarUrl}
                   initials={initials}
                   size={104}
-                  onSave={(dataUrl) => setUser({ ...user, avatarUrl: dataUrl })}
-                  onRemove={() => setUser({ ...user, avatarUrl: undefined })}
+                  onSave={handleAvatarSave}
+                  onRemove={handleAvatarRemove}
                 />
               </div>
             </div>
             <div className="min-w-0 flex-1 sm:pb-1">
               <h1 className="truncate text-2xl font-bold tracking-tight text-foreground">
-                {user.name}
+                {displayName}
               </h1>
               <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Mail className="h-3.5 w-3.5" /> {user.email}
+                <Mail className="h-3.5 w-3.5" /> {email}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                {user.specialty && (
+                {(profile?.specialty ?? user?.specialty) && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                    <GraduationCap className="h-3.5 w-3.5" /> {user.specialty}
+                    <GraduationCap className="h-3.5 w-3.5" />{" "}
+                    {profile?.specialty ?? user?.specialty}
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-1 text-xs font-semibold text-muted-foreground">
@@ -220,11 +304,11 @@ function ProfilePage() {
           sub="across completed quizzes"
         />
         <GradientKpiCard
-          label="National Rank"
-          value="#128"
+          label="Accuracy"
+          value={`${Math.round(stats?.accuracy ?? 0)}%`}
           icon={Award}
           gradient="emerald"
-          sub="top 12% of practitioners"
+          sub="correct / answered"
         />
         <GradientKpiCard
           label="Questions Answered"
@@ -270,9 +354,11 @@ function ProfilePage() {
               <div className="flex justify-end sm:col-span-2">
                 <button
                   type="submit"
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90"
+                  disabled={updateProfile.isPending}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 disabled:opacity-60"
                 >
-                  <Save className="h-4 w-4" /> Save changes
+                  <Save className="h-4 w-4" />{" "}
+                  {updateProfile.isPending ? "Saving…" : "Save changes"}
                 </button>
               </div>
             </form>
@@ -311,13 +397,30 @@ function ProfilePage() {
               <div className="flex justify-end sm:col-span-2">
                 <button
                   type="submit"
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90"
+                  disabled={updateProfile.isPending}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 disabled:opacity-60"
                 >
-                  <Save className="h-4 w-4" /> Save details
+                  <Save className="h-4 w-4" />{" "}
+                  {updateProfile.isPending ? "Saving…" : "Save details"}
                 </button>
               </div>
             </form>
           </Card>
+
+          {/* Change password */}
+          <ChangePasswordCard
+            disabled={profile?.provider === "google"}
+            isPending={changePassword.isPending}
+            onSubmit={(currentPassword, newPassword) =>
+              changePassword.mutate(
+                { currentPassword, newPassword },
+                {
+                  onSuccess: () => toast.success("Password changed"),
+                  onError: (err) => toast.error(errMsg(err, "Couldn't change your password")),
+                },
+              )
+            }
+          />
 
           {/* Security */}
           <Card title="Security" desc="How your account stays protected on this device.">
@@ -357,12 +460,12 @@ function ProfilePage() {
             <dl className="space-y-3">
               <Row label="Email">
                 <span className="inline-flex items-center gap-1.5 text-foreground">
-                  <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {user.email}
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {email}
                 </span>
               </Row>
               <Row label="Role">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-                  <Briefcase className="h-3 w-3" /> {user.role}
+                  <Briefcase className="h-3 w-3" /> {profile?.role ?? user?.role}
                 </span>
               </Row>
               <Row label="Plan status">
@@ -440,6 +543,97 @@ function ProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ChangePasswordCard({
+  disabled,
+  isPending,
+  onSubmit,
+}: {
+  disabled: boolean;
+  isPending: boolean;
+  onSubmit: (currentPassword: string, newPassword: string) => void;
+}) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (next !== confirm) {
+      toast.error("New passwords don't match");
+      return;
+    }
+    onSubmit(current, next);
+    setCurrent("");
+    setNext("");
+    setConfirm("");
+  }
+
+  if (disabled) {
+    return (
+      <Card title="Password" desc="Manage how you sign in.">
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-alt/40 p-4">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Lock className="h-5 w-5" />
+          </span>
+          <p className="text-sm text-muted-foreground">
+            You signed in with Google — password changes are managed by your Google account.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Change password" desc="Use a strong password you don't use elsewhere.">
+      <form onSubmit={submit} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <Field label="Current password" icon={<Lock className="h-4 w-4" />}>
+          <input
+            required
+            type="password"
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            className={INPUT}
+            placeholder="••••••••"
+          />
+        </Field>
+        <div className="hidden sm:block" />
+        <Field label="New password" icon={<KeyRound className="h-4 w-4" />}>
+          <input
+            required
+            type="password"
+            autoComplete="new-password"
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            className={INPUT}
+            placeholder="At least 8 characters"
+          />
+        </Field>
+        <Field label="Confirm new password" icon={<KeyRound className="h-4 w-4" />}>
+          <input
+            required
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            className={INPUT}
+            placeholder="Re-enter new password"
+          />
+        </Field>
+        <div className="flex justify-end sm:col-span-2">
+          <button
+            type="submit"
+            disabled={isPending}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 disabled:opacity-60"
+          >
+            <KeyRound className="h-4 w-4" /> {isPending ? "Updating…" : "Update password"}
+          </button>
+        </div>
+      </form>
+    </Card>
   );
 }
 

@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, Sparkles, Clock } from "lucide-react";
-import { useAuthStore } from "@/stores/authStore";
-import { useTrial } from "@/hooks/useTrial";
-import { type DurationPlan } from "@/data/plans";
+import { Check, Sparkles, Clock, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { usePaidPlans, type Plan } from "@/api/plans.api";
-import { PaystackCheckoutModal } from "@/components/payments/PaystackCheckoutModal";
+import {
+  useSubscriptionStatus,
+  usePaymentHistory,
+  useInitializePayment,
+  type PaymentTransactionView,
+} from "@/api/payments.api";
 
 export const Route = createFileRoute("/_app/subscription")({
   head: () => ({
@@ -14,49 +17,42 @@ export const Route = createFileRoute("/_app/subscription")({
   component: SubscriptionPage,
 });
 
-const paymentHistory = [
-  {
-    date: "2025-12-15",
-    plan: "3 Months Access",
-    amount: 299,
-    ref: "PSK-9F2A1B",
-    status: "Successful",
-  },
-  { date: "2025-09-15", plan: "Monthly", amount: 129, ref: "PSK-7C8E33", status: "Successful" },
-  { date: "2025-08-15", plan: "Monthly", amount: 129, ref: "PSK-5D1F22", status: "Successful" },
-];
-
-/** Map a backend Plan to the DurationPlan shape the Paystack modal expects. */
-function toDurationPlan(p: Plan): DurationPlan {
-  const months = Math.max(1, Math.round(p.durationDays / 30));
-  const features = p.bullets.filter((b) => b.included).map((b) => b.text);
-  return {
-    id: p.planKey as unknown as DurationPlan["id"],
-    name: p.name,
-    durationLabel: p.durationLabel,
-    months,
-    price: p.price,
-    currency: "GHS",
-    perMonth: Math.round(p.price / months),
-    features,
-    cta: "Subscribe",
-  };
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-GB", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 function SubscriptionPage() {
-  const subscription = useAuthStore((s) => s.subscription);
-  const isActive = subscription?.status === "ACTIVE";
-  const { isTrial, daysLeft, questionsLeft, questionsTotal } = useTrial();
+  const { data: status } = useSubscriptionStatus();
   const { data: paidPlans = [] } = usePaidPlans();
-  const [checkoutPlan, setCheckoutPlan] = useState<DurationPlan | null>(null);
+  const { data: history = [], isLoading: historyLoading } = usePaymentHistory();
+  const initialize = useInitializePayment();
 
-  const renewsLabel = subscription?.renewsAt
-    ? new Date(subscription.renewsAt).toLocaleDateString("en-GB", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : "—";
+  const [pendingPlanKey, setPendingPlanKey] = useState<string | null>(null);
+
+  const isActive = status?.hasActiveSubscription ?? false;
+  const isTrial = status?.isTrialActive ?? false;
+  const trialDaysLeft = status?.trialDaysRemaining ?? 0;
+  const questionsLeft = status?.trialQuestionsRemaining;
+  const questionsTotal = status?.trialLimit;
+
+  /** Initialize a real Paystack checkout and redirect to the authorization URL. */
+  async function subscribe(plan: Plan) {
+    setPendingPlanKey(plan.planKey);
+    try {
+      const res = await initialize.mutateAsync(plan.planKey);
+      // Hand off to Paystack's hosted checkout; it returns to /payment/callback.
+      window.location.href = res.authorizationUrl;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not start payment.";
+      toast.error(message);
+      setPendingPlanKey(null);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -77,10 +73,20 @@ function SubscriptionPage() {
                 Active Subscription
               </p>
               <h2 className="mt-1 text-xl font-bold tracking-tight text-foreground">
-                {subscription?.planName ?? "Active plan"}
+                {status?.planName ?? "Active plan"}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Renews <span className="font-semibold text-foreground">{renewsLabel}</span>
+                Renews{" "}
+                <span className="font-semibold text-foreground">{formatDate(status?.endDate)}</span>
+                {typeof status?.daysRemaining === "number" && status.daysRemaining >= 0 && (
+                  <>
+                    {" "}
+                    · <span className="font-semibold text-foreground">
+                      {status.daysRemaining}
+                    </span>{" "}
+                    {status.daysRemaining === 1 ? "day" : "days"} left
+                  </>
+                )}
               </p>
             </div>
             <a
@@ -101,7 +107,11 @@ function SubscriptionPage() {
               <p className="text-xs font-bold uppercase tracking-wide text-warning">Free Trial</p>
               <h2 className="mt-1 text-xl font-bold tracking-tight text-foreground">
                 {isTrial
-                  ? `${daysLeft} ${daysLeft === 1 ? "day" : "days"} and ${questionsLeft}/${questionsTotal} questions left`
+                  ? `${trialDaysLeft} ${trialDaysLeft === 1 ? "day" : "days"}${
+                      questionsLeft != null && questionsTotal != null
+                        ? ` and ${questionsLeft}/${questionsTotal} questions`
+                        : ""
+                    } left`
                   : "Subscribe to get started"}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -119,7 +129,7 @@ function SubscriptionPage() {
         </section>
       )}
 
-      {/* Plans (live from admin-defined store) */}
+      {/* Plans (live from admin-defined plans) */}
       <section id="plans" className="mt-10">
         <h2 className="text-lg font-bold tracking-tight text-foreground">
           {isActive ? "Renew or upgrade" : "Choose a plan"}
@@ -127,6 +137,7 @@ function SubscriptionPage() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {paidPlans.map((p) => {
             const featured = !!p.badgeLabel;
+            const pending = pendingPlanKey === p.planKey;
             return (
               <div
                 key={p.id}
@@ -161,11 +172,16 @@ function SubscriptionPage() {
                 </ul>
                 <button
                   type="button"
-                  onClick={() => setCheckoutPlan(toDurationPlan(p))}
-                  className={`mt-4 inline-flex h-9 items-center justify-center rounded-lg text-xs font-semibold ${featured ? "bg-accent text-accent-foreground hover:bg-accent/90" : "border border-border bg-surface text-foreground hover:bg-surface-alt"}`}
+                  disabled={pending || initialize.isPending}
+                  onClick={() => void subscribe(p)}
+                  className={`mt-4 inline-flex h-9 items-center justify-center rounded-lg text-xs font-semibold disabled:opacity-60 ${featured ? "bg-accent text-accent-foreground hover:bg-accent/90" : "border border-border bg-surface text-foreground hover:bg-surface-alt"}`}
                 >
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                  {isActive ? "Switch Plan" : "Subscribe"}
+                  {pending ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {pending ? "Redirecting…" : isActive ? "Switch Plan" : "Subscribe"}
                 </button>
               </div>
             );
@@ -179,47 +195,60 @@ function SubscriptionPage() {
         </p>
       </section>
 
-      {/* Payment history */}
+      {/* Payment history (live) */}
       <section className="mt-10 rounded-2xl border border-border bg-surface">
         <header className="border-b border-border px-5 py-4">
           <h2 className="text-lg font-bold tracking-tight text-foreground">Payment History</h2>
         </header>
         <div>
-          <div className="hidden grid-cols-[120px_1fr_100px_140px_120px] gap-4 border-b border-border bg-surface-alt/40 px-5 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground md:grid">
+          <div className="hidden grid-cols-[120px_1fr_100px_180px_120px] gap-4 border-b border-border bg-surface-alt/40 px-5 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground md:grid">
             <span>Date</span>
             <span>Plan</span>
             <span className="text-right">Amount</span>
             <span>Reference</span>
             <span>Status</span>
           </div>
-          {paymentHistory.map((p) => (
-            <div
-              key={p.ref}
-              className="grid grid-cols-1 gap-2 border-b border-border px-5 py-3 last:border-b-0 md:grid-cols-[120px_1fr_100px_140px_120px] md:items-center md:gap-4"
-            >
-              <span className="text-sm text-muted-foreground">
-                {new Date(p.date).toLocaleDateString()}
-              </span>
-              <span className="text-sm font-semibold text-foreground">{p.plan}</span>
-              <span className="text-right font-mono text-sm font-bold tabular-nums text-foreground">
-                GHS {p.amount}
-              </span>
-              <span className="font-mono text-xs text-muted-foreground">{p.ref}</span>
-              <span>
-                <span className="inline-flex rounded-full bg-success-light px-2 py-0.5 text-xs font-semibold text-success">
-                  {p.status}
-                </span>
-              </span>
+          {historyLoading ? (
+            <div className="flex items-center justify-center gap-2 px-5 py-10 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading payment history…
             </div>
-          ))}
+          ) : history.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+              No payments yet. Subscribe to a plan to get started.
+            </div>
+          ) : (
+            history.map((p) => <PaymentRow key={p.id} tx={p} />)
+          )}
         </div>
       </section>
+    </div>
+  );
+}
 
-      <PaystackCheckoutModal
-        plan={checkoutPlan}
-        open={checkoutPlan !== null}
-        onClose={() => setCheckoutPlan(null)}
-      />
+function PaymentRow({ tx }: { tx: PaymentTransactionView }) {
+  const badgeClass =
+    tx.status === "success"
+      ? "bg-success-light text-success"
+      : tx.status === "failed"
+        ? "bg-error-light text-error"
+        : "bg-warning-light text-warning";
+  return (
+    <div className="grid grid-cols-1 gap-2 border-b border-border px-5 py-3 last:border-b-0 md:grid-cols-[120px_1fr_100px_180px_120px] md:items-center md:gap-4">
+      <span className="text-sm text-muted-foreground">
+        {new Date(tx.createdAt).toLocaleDateString()}
+      </span>
+      <span className="text-sm font-semibold text-foreground">{tx.planName}</span>
+      <span className="text-right font-mono text-sm font-bold tabular-nums text-foreground">
+        {tx.currency} {tx.amount.toLocaleString()}
+      </span>
+      <span className="truncate font-mono text-xs text-muted-foreground">{tx.reference}</span>
+      <span>
+        <span
+          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${badgeClass}`}
+        >
+          {tx.statusLabel}
+        </span>
+      </span>
     </div>
   );
 }

@@ -1,5 +1,18 @@
-// Paystack mock — frontend only. Simulates the live flow described in spec 9.1.
+/**
+ * Paystack helpers — now backed by the REAL backend (no mock).
+ *
+ * The canonical implementation lives in `@/api/payments.api` (TanStack hooks +
+ * `paymentsApi`). This thin shim preserves the historical import surface
+ * (`initializePayment` / `verifyPayment` / the response types) so existing
+ * call-sites keep type-checking. It maps the frontend `DurationPlan` to the
+ * backend plan key and delegates to `paymentsApi`.
+ *
+ * NOTE: the real flow REDIRECTS to Paystack (authorizationUrl). The old
+ * in-page "checkout modal" simulation is no longer the source of truth; prefer
+ * the redirect flow wired in routes/_app.subscription.tsx + payment.callback.tsx.
+ */
 import type { DurationPlan } from "@/data/plans";
+import { paymentsApi, type BackendSubscriptionPlan } from "@/api/payments.api";
 
 export interface InitializeResponse {
   authorizationUrl: string;
@@ -16,41 +29,37 @@ export interface VerifyResponse {
   planId: DurationPlan["id"];
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-function makeRef() {
-  const t = Date.now().toString(36).toUpperCase();
-  const r = Math.random().toString(36).slice(2, 7).toUpperCase();
-  return `PSK-${t}-${r}`;
+/** A DurationPlan id IS the backend plan key in the live wiring (see toDurationPlan). */
+function toPlanKey(plan: DurationPlan): BackendSubscriptionPlan {
+  return plan.id as unknown as BackendSubscriptionPlan;
 }
 
+/** Start a real Paystack checkout. Returns the redirect URL + reference. */
 export async function initializePayment(
   plan: DurationPlan,
-  email: string,
+  _email?: string,
 ): Promise<InitializeResponse> {
-  await sleep(450);
-  const reference = makeRef();
+  const r = await paymentsApi.initialize(toPlanKey(plan));
   return {
-    reference,
-    accessCode: `ac_${reference.slice(-8).toLowerCase()}`,
-    authorizationUrl: `https://checkout.paystack.com/${reference}?email=${encodeURIComponent(email)}&amount=${plan.price * 100}`,
+    authorizationUrl: r.authorizationUrl,
+    reference: r.reference,
+    accessCode: r.accessCode,
   };
 }
 
+/** Verify a real payment by reference. `planId`/`amount`/`channel` are display-only. */
 export async function verifyPayment(
   reference: string,
   planId: DurationPlan["id"],
   amount: number,
   channel: VerifyResponse["channel"] = "card",
 ): Promise<VerifyResponse> {
-  await sleep(700);
-  // Mock: 100% success unless reference contains "FAIL"
-  const ok = !reference.includes("FAIL");
+  const { transaction } = await paymentsApi.verify(reference);
   return {
-    reference,
-    status: ok ? "success" : "failed",
-    amount,
-    paidAt: new Date().toISOString(),
+    reference: transaction.reference,
+    status: transaction.status === "success" ? "success" : "failed",
+    amount: transaction.amount || amount,
+    paidAt: transaction.createdAt,
     channel,
     planId,
   };

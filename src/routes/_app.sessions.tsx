@@ -1,195 +1,182 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { useSessions, type SessionListItem } from "@/api/quiz.api";
-import type { QuizMode } from "@/types";
-import { Eye, FileSearch, Loader2 } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import {
+  AlertTriangle,
+  Loader2,
+  Monitor,
+  ShieldAlert,
+  ShieldCheck,
+  Smartphone,
+  Tablet,
+  Trash2,
+} from "lucide-react";
+import {
+  useActiveSessions,
+  useTerminateSession,
+  type DeviceLock,
+  type DeviceSession,
+} from "@/api/sessions.api";
 
 export const Route = createFileRoute("/_app/sessions")({
   head: () => ({
-    meta: [{ title: "My Sessions — Medinovaqbank" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Active Devices — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
   component: SessionsPage,
 });
 
 function SessionsPage() {
-  const { data: sessions, isLoading, isError } = useSessions();
-
-  const [mode, setMode] = useState<"All" | QuizMode>("All");
-  const [scoreMin, setScoreMin] = useState(0);
-
-  const filtered = useMemo(() => {
-    const list = sessions ?? [];
-    return list.filter((s) => {
-      if (mode !== "All" && s.mode !== mode) return false;
-      if (!s.inProgress && s.scorePct < scoreMin) return false;
-      return true;
-    });
-  }, [sessions, mode, scoreMin]);
+  const { data, isLoading, isError } = useActiveSessions();
+  const sessions = data?.sessions ?? [];
+  const deviceLock = data?.deviceLock ?? null;
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="mx-auto max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-extrabold tracking-tight text-foreground drop-shadow-sm">
-          My Sessions
+          Active Devices
         </h1>
         <p className="mt-2 text-[15px] font-medium text-muted-foreground">
-          {filtered.length} session{filtered.length !== 1 ? "s" : ""} · filter by mode and score
+          Devices currently signed in to your account. Sign out any you don’t recognize.
         </p>
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-white/5 bg-surface/50 p-4 shadow-[0_4px_20px_-10px_rgb(0_0_0_/_0.3)] backdrop-blur">
-        <FilterSelect
-          label="Mode"
-          value={mode}
-          onChange={(v) => setMode(v as "All" | QuizMode)}
-          options={["All", "TUTOR", "QUIZ"]}
-        />
-        <label className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#00D4C8] ml-auto">
-          Min Score
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={scoreMin}
-            onChange={(e) => setScoreMin(Number(e.target.value))}
-            className="w-32 accent-[#00D4C8]"
-          />
-          <span className="w-12 text-right font-mono text-[15px] text-foreground">{scoreMin}%</span>
-        </label>
-      </div>
+      {deviceLock && <DeviceLockBanner lock={deviceLock} />}
 
       <div className="overflow-hidden rounded-2xl border border-white/5 bg-surface shadow-[0_10px_30px_-10px_rgb(0_0_0_/_0.3)]">
-        <div className="hidden grid-cols-[110px_minmax(0,1fr)_84px_72px_112px_210px] gap-4 border-b border-white/5 bg-surface-alt/40 px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground md:grid">
-          <span>Date</span>
-          <span>Session</span>
-          <span>Mode</span>
-          <span>Score</span>
-          <span>Status</span>
-          <span className="text-right">Actions</span>
-        </div>
-
         {isLoading && (
           <div className="flex items-center justify-center gap-2 px-6 py-16 text-[15px] font-medium text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading sessions…
+            <Loader2 className="h-5 w-5 animate-spin" /> Loading devices…
           </div>
         )}
         {isError && !isLoading && (
           <div className="px-6 py-16 text-center text-[15px] font-medium text-error">
-            Could not load your sessions. Please try again.
+            Could not load your active devices. Please try again.
           </div>
         )}
-        {!isLoading && !isError && filtered.length === 0 && (
+        {!isLoading && !isError && sessions.length === 0 && (
           <div className="px-6 py-16 text-center text-[15px] font-medium text-muted-foreground">
-            No sessions match these filters.
+            No active devices found.
           </div>
         )}
 
-        {!isLoading && filtered.map((s) => <SessionRow key={s.id} s={s} />)}
+        {!isLoading &&
+          sessions.map((s) => <SessionRow key={s.id} session={s} multiple={sessions.length > 1} />)}
       </div>
     </div>
   );
 }
 
-function SessionRow({ s }: { s: SessionListItem }) {
-  const date = s.completedAt ?? s.startedAt;
+function DeviceLockBanner({ lock }: { lock: DeviceLock }) {
   return (
-    <div className="group grid grid-cols-1 gap-3 border-b border-white/5 px-6 py-4 last:border-b-0 md:grid-cols-[110px_minmax(0,1fr)_84px_72px_112px_210px] md:items-center hover:bg-surface-alt/30 transition-colors">
-      <span className="text-[14px] font-medium text-muted-foreground">
-        {new Date(date).toLocaleDateString()}
-      </span>
-      <span className="truncate text-[15px] font-semibold text-primary">
-        {s.totalQuestions} questions
-      </span>
-      <span>
+    <div className="mb-6 flex items-start gap-3 rounded-2xl border border-warning/20 bg-warning/5 p-4">
+      <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning" />
+      <div className="text-sm">
+        <p className="font-bold text-foreground">Trial device lock active</p>
+        <p className="mt-1 text-muted-foreground">
+          Your trial is locked to a single device (bound{" "}
+          {new Date(lock.lockedAt).toLocaleDateString()}). Logging in from a new device will be
+          blocked. Upgrade to a paid plan for multi-device access.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function DeviceIcon({ type }: { type: string | null }) {
+  if (type === "mobile") return <Smartphone className="h-5 w-5" />;
+  if (type === "tablet") return <Tablet className="h-5 w-5" />;
+  return <Monitor className="h-5 w-5" />;
+}
+
+function SessionRow({ session, multiple }: { session: DeviceSession; multiple: boolean }) {
+  const terminate = useTerminateSession();
+  const [confirming, setConfirming] = useState(false);
+
+  const lastSeen = new Date(session.lastPingAt);
+
+  return (
+    <div className="flex flex-col gap-3 border-b border-white/5 px-6 py-4 last:border-b-0 sm:flex-row sm:items-center hover:bg-surface-alt/30 transition-colors">
+      <div className="flex flex-1 items-start gap-3">
         <span
-          className={`inline-flex rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${
-            s.mode === "TUTOR" ? "bg-[#3B82F6]/10 text-[#3B82F6]" : "bg-warning/10 text-warning"
+          className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
+            session.isSuspicious ? "bg-error/10 text-error" : "bg-[#00D4C8]/10 text-[#00D4C8]"
           }`}
         >
-          {s.mode}
+          <DeviceIcon type={session.deviceType} />
         </span>
-      </span>
-      <span
-        className={`font-mono text-[15px] font-bold tabular-nums ${
-          s.inProgress
-            ? "text-muted-foreground"
-            : s.scorePct >= 80
-              ? "text-success"
-              : s.scorePct >= 60
-                ? "text-warning"
-                : "text-error"
-        }`}
-      >
-        {s.inProgress ? "—" : `${s.scorePct}%`}
-      </span>
-      <span>
-        {s.inProgress ? (
-          <span className="inline-flex rounded-md bg-warning/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-warning border border-warning/20">
-            In Progress
-          </span>
-        ) : (
-          <span className="inline-flex rounded-md bg-success/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-success border border-success/20">
-            Complete
-          </span>
-        )}
-      </span>
-      <div className="flex items-center gap-2 md:justify-end opacity-80 group-hover:opacity-100 transition-opacity">
-        {!s.inProgress ? (
-          <>
-            <Link
-              to="/quiz/$sessionId/results"
-              params={{ sessionId: s.id }}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-surface px-3 text-[13px] font-semibold text-foreground hover:bg-[#00D4C8]/10 hover:text-[#00D4C8] hover:border-[#00D4C8]/30 transition-all"
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[15px] font-semibold text-foreground">{session.deviceLabel}</span>
+            {session.isSuspicious ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-error/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-error border border-error/20">
+                <AlertTriangle className="h-3 w-3" /> Suspicious
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-success border border-success/20">
+                <ShieldCheck className="h-3 w-3" /> Trusted
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+            {[session.location, session.ipAddress].filter(Boolean).join(" · ") ||
+              "Unknown location"}
+          </p>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            Last active {lastSeen.toLocaleString()} · {session.fingerprint}
+          </p>
+          {session.isSuspicious && session.suspiciousReasons.length > 0 && (
+            <p className="mt-0.5 text-[12px] font-medium text-error">
+              {session.suspiciousReasons.map((r) => r.replace(/_/g, " ")).join(", ")}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center sm:justify-end">
+        {confirming ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => terminate.mutate(session.id)}
+              disabled={terminate.isPending}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-error px-3 text-[13px] font-bold text-white hover:opacity-90 transition-all disabled:opacity-60"
             >
-              <Eye className="h-4 w-4" /> Results
-            </Link>
-            <Link
-              to="/quiz/$sessionId/review"
-              params={{ sessionId: s.id }}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-surface px-3 text-[13px] font-semibold text-foreground hover:bg-[#3B82F6]/10 hover:text-[#3B82F6] hover:border-[#3B82F6]/30 transition-all"
+              {terminate.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Confirm sign out
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              disabled={terminate.isPending}
+              className="inline-flex h-9 items-center rounded-lg border border-white/10 bg-surface px-3 text-[13px] font-semibold text-muted-foreground hover:text-foreground transition-all"
             >
-              <FileSearch className="h-4 w-4" /> Review
-            </Link>
-          </>
+              Cancel
+            </button>
+          </div>
         ) : (
-          <Link
-            to="/quiz/$sessionId"
-            params={{ sessionId: s.id }}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#00D4C8] to-[#3B82F6] px-4 text-[13px] font-bold text-white shadow-[0_0_15px_rgba(0,212,200,0.3)] hover:opacity-90 transition-all"
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            disabled={!multiple}
+            title={
+              multiple ? "Sign out this device" : "Cannot sign out your only active device here"
+            }
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-surface px-3 text-[13px] font-semibold text-foreground hover:bg-error/10 hover:text-error hover:border-error/30 transition-all disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface disabled:hover:text-foreground disabled:hover:border-white/10"
           >
-            Resume
-          </Link>
+            <Trash2 className="h-4 w-4" /> Sign out
+          </button>
         )}
       </div>
-    </div>
-  );
-}
 
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-}) {
-  return (
-    <label className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-      {label}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-10 rounded-lg border border-white/10 bg-surface px-3 text-[14px] font-medium normal-case tracking-normal text-foreground focus:border-[#00D4C8] focus:outline-none focus:ring-1 focus:ring-[#00D4C8] transition-colors hover:border-white/20"
-      >
-        {options.map((o) => (
-          <option key={o} value={o} className="bg-surface">
-            {o}
-          </option>
-        ))}
-      </select>
-    </label>
+      {terminate.isError && (
+        <p className="text-[12px] font-medium text-error sm:hidden">
+          Could not sign out this device.
+        </p>
+      )}
+    </div>
   );
 }

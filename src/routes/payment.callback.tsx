@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
+import { paymentsApi, planLabel } from "@/api/payments.api";
 
 type Status = "verifying" | "success" | "failed";
 
@@ -14,25 +15,68 @@ export const Route = createFileRoute("/payment/callback")({
   component: PaymentCallback,
 });
 
+interface VerifiedSummary {
+  reference: string;
+  planName: string;
+  amount: number;
+  currency: string;
+}
+
 function PaymentCallback() {
   const navigate = useNavigate();
   const search = useSearch({ from: "/payment/callback" });
-  const [status, setStatus] = useState<Status>(search.status ?? "verifying");
+  const reference = search.reference ?? search.trxref;
+
+  const [status, setStatus] = useState<Status>("verifying");
+  const [summary, setSummary] = useState<VerifiedSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Guard against double-invocation (StrictMode / re-render).
+  const ran = useRef(false);
 
   useEffect(() => {
-    if (status !== "verifying") return;
-    const t = setTimeout(
-      () => setStatus(search.reference || search.trxref ? "success" : "failed"),
-      1400,
-    );
-    return () => clearTimeout(t);
-  }, [status, search.reference, search.trxref]);
+    if (ran.current) return;
+    ran.current = true;
 
-  useEffect(() => {
-    if (status === "success") {
-      const t = setTimeout(() => navigate({ to: "/subscription" }), 2500);
-      return () => clearTimeout(t);
+    if (!reference) {
+      setError("No reference was returned by the payment provider.");
+      setStatus("failed");
+      return;
     }
+
+    let cancelled = false;
+    void paymentsApi
+      .verify(reference)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.transaction.status === "success") {
+          setSummary({
+            reference: res.transaction.reference,
+            planName: planLabel(res.transaction.plan),
+            amount: res.transaction.amount,
+            currency: res.transaction.currency,
+          });
+          setStatus("success");
+        } else {
+          setError("The payment was not successful. If you were charged, contact support.");
+          setStatus("failed");
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Could not verify the payment.");
+        setStatus("failed");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reference]);
+
+  // On success, redirect to the dashboard after a short confirmation pause.
+  useEffect(() => {
+    if (status !== "success") return;
+    const t = setTimeout(() => navigate({ to: "/dashboard" }), 2500);
+    return () => clearTimeout(t);
   }, [status, navigate]);
 
   return (
@@ -43,8 +87,7 @@ function PaymentCallback() {
             <Loader2 className="mx-auto h-12 w-12 animate-spin text-accent" />
             <h1 className="mt-5 text-xl font-bold text-foreground">Verifying your payment…</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Reference:{" "}
-              <code className="font-mono">{search.reference ?? search.trxref ?? "—"}</code>
+              Reference: <code className="font-mono">{reference ?? "—"}</code>
             </p>
           </>
         )}
@@ -53,13 +96,31 @@ function PaymentCallback() {
             <CheckCircle2 className="mx-auto h-14 w-14 text-success" />
             <h1 className="mt-5 text-2xl font-bold text-foreground">Payment successful</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your subscription is now active. Redirecting you to your account…
+              Your subscription is now active. Redirecting you to your dashboard…
             </p>
+            {summary && (
+              <div className="mt-4 rounded-lg border border-border bg-surface-alt/40 p-3 text-left text-xs">
+                <p>
+                  <span className="text-muted-foreground">Plan:</span>{" "}
+                  <span className="font-semibold text-foreground">{summary.planName}</span>
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Amount:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    {summary.currency} {summary.amount.toLocaleString()}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Reference:</span>{" "}
+                  <span className="font-mono text-foreground">{summary.reference}</span>
+                </p>
+              </div>
+            )}
             <Link
-              to="/subscription"
+              to="/dashboard"
               className="mt-6 inline-flex h-11 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-5 text-sm font-bold text-white shadow-md"
             >
-              Go to subscription <ArrowRight className="h-4 w-4" />
+              Go to dashboard <ArrowRight className="h-4 w-4" />
             </Link>
           </>
         )}
@@ -70,15 +131,14 @@ function PaymentCallback() {
               Payment could not be verified
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              No reference was returned by the payment provider. If you were charged, contact
-              support.
+              {error ?? "Something went wrong while verifying your payment."}
             </p>
             <div className="mt-6 flex justify-center gap-2">
               <Link
-                to="/pricing"
+                to="/subscription"
                 className="inline-flex h-11 items-center rounded-lg border border-border bg-surface px-5 text-sm font-semibold hover:bg-surface-alt"
               >
-                Back to pricing
+                Back to plans
               </Link>
               <Link
                 to="/help"
