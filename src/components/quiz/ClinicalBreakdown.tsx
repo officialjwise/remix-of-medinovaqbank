@@ -103,9 +103,7 @@ export function ClinicalBreakdown({
               <p className="mt-1 text-sm font-semibold text-foreground">
                 {question.correctKey}. {correctOpt?.text}
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-foreground/90">
-                {question.whyCorrect}
-              </p>
+              <p className="mt-2 text-sm leading-relaxed text-foreground">{question.whyCorrect}</p>
             </div>
           </div>
         </div>
@@ -119,7 +117,7 @@ export function ClinicalBreakdown({
                 <p className="text-[11px] font-bold uppercase tracking-wide text-error">
                   Your choice · {selected} was incorrect
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+                <p className="mt-2 text-sm leading-relaxed text-foreground">
                   {question.whyWrong[selected] ??
                     "This option doesn't fit the clinical picture in this vignette."}
                 </p>
@@ -134,7 +132,7 @@ export function ClinicalBreakdown({
             <h4 className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
               <BookOpen className="h-3.5 w-3.5" /> Why each other option is wrong
             </h4>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs text-foreground/80">
               The highest-yield insight — and the exact scenario that flips each distractor into the
               right answer.
             </p>
@@ -163,11 +161,11 @@ export function ClinicalBreakdown({
                     </p>
                   </div>
                   <div className="mt-2.5 space-y-1.5 pl-[2.375rem]">
-                    <p className="text-sm leading-relaxed text-foreground/90">
+                    <p className="text-sm leading-relaxed text-foreground">
                       <span className="font-bold text-error">Why it's wrong — </span>
                       {wrongReason}
                     </p>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
+                    <p className="text-sm leading-relaxed text-foreground/80">
                       <span className="font-bold text-primary">When it would be correct — </span>
                       {wouldBeCorrect}
                     </p>

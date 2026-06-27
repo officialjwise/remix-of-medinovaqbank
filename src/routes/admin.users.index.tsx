@@ -9,7 +9,6 @@ import {
   UserMinus,
   Search,
   Download,
-  MoreHorizontal,
   Eye,
   Pencil,
   Mail,
@@ -23,6 +22,7 @@ import {
   X,
   UserCheck,
   ShieldBan,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -115,7 +115,7 @@ function RolePill({ role }: { role: DisplayRole }) {
 }
 
 const GRID =
-  "grid-cols-[40px_minmax(220px,2fr)_140px_120px_110px_minmax(120px,1fr)_120px_120px_56px]";
+  "grid-cols-[40px_minmax(220px,2fr)_140px_120px_110px_minmax(120px,1fr)_120px_120px_minmax(180px,220px)]";
 
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
@@ -311,7 +311,7 @@ function AdminUsers() {
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
         <div className="overflow-x-auto">
-          <div className="min-w-[1020px]">
+          <div className="min-w-[1184px]">
             {/* Header row */}
             <div
               className={`grid ${GRID} items-center gap-3 border-b border-border bg-surface-alt/40 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground`}
@@ -414,14 +414,16 @@ function AdminUsers() {
         typedConfirmation={deleteTarget?.name}
         confirmLabel="Delete account"
         onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deleteTarget) return;
           const target = deleteTarget;
-          deleteMutation.mutate(target.id, {
-            onSuccess: () => toast.success(`${target.name} deleted`),
-            onError: (e) => toast.error(e instanceof Error ? e.message : "Delete failed"),
-          });
-          setDeleteTarget(null);
+          try {
+            await deleteMutation.mutateAsync(target.id);
+            toast.success(`${target.name} deleted`);
+            setDeleteTarget(null);
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Delete failed");
+          }
         }}
       />
     </div>
@@ -505,7 +507,6 @@ function RowActions({
   onView: () => void;
   onDelete: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [modal, setModal] = useState<null | "edit" | "email" | "flag">(null);
 
   const updateMutation = useUpdateAdminUser();
@@ -516,13 +517,8 @@ function RowActions({
 
   const isSuspended = user.status === "suspended" || user.status === "banned";
 
-  function act(fn: () => void) {
-    setOpen(false);
-    fn();
-  }
-
   return (
-    <div className="relative inline-flex items-center gap-1.5 text-left">
+    <div className="inline-flex items-center gap-1 text-left">
       {user.isFlagged && (
         <span
           className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning"
@@ -531,85 +527,85 @@ function RowActions({
           <Flag className="h-3 w-3" /> Flagged
         </span>
       )}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground"
-        aria-label="Actions"
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 z-40 mt-1 w-52 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-xl">
-            <MenuItem icon={Eye} onClick={() => act(onView)}>
-              View profile
-            </MenuItem>
-            <MenuItem icon={Pencil} onClick={() => act(() => setModal("edit"))}>
-              Edit profile
-            </MenuItem>
-            <MenuItem icon={Mail} onClick={() => act(() => setModal("email"))}>
-              Send email
-            </MenuItem>
-            <MenuItem icon={Flag} onClick={() => act(() => setModal("flag"))}>
-              Flag account
-            </MenuItem>
-            <div className="my-1 border-t border-border" />
-            {isSuspended ? (
-              <MenuItem
-                icon={UserCheck}
-                onClick={() =>
-                  act(() =>
-                    reactivateMutation.mutate(user.id, {
-                      onSuccess: () => toast.success(`${user.name} reactivated`),
-                      onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
-                    }),
-                  )
-                }
-              >
-                Reactivate
-              </MenuItem>
-            ) : (
-              <MenuItem
-                icon={Ban}
-                onClick={() =>
-                  act(() =>
-                    suspendMutation.mutate(
-                      { id: user.id },
-                      {
-                        onSuccess: () => toast.success(`${user.name} suspended`),
-                        onError: (e) =>
-                          toast.error(e instanceof Error ? e.message : "Action failed"),
-                      },
-                    ),
-                  )
-                }
-              >
-                Suspend
-              </MenuItem>
-            )}
-            <MenuItem
-              icon={ShieldBan}
-              onClick={() =>
-                act(() =>
-                  banMutation.mutate(
-                    { id: user.id },
-                    {
-                      onSuccess: () => toast.success(`${user.name} banned`),
-                      onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
-                    },
-                  ),
-                )
-              }
-            >
-              Ban
-            </MenuItem>
-            <MenuItem icon={Trash2} tone="error" onClick={() => act(onDelete)}>
-              Delete
-            </MenuItem>
-          </div>
-        </>
+
+      <IconBtn title="View profile" onClick={onView}>
+        <Eye className="h-4 w-4" />
+      </IconBtn>
+      <IconBtn title="Edit profile" onClick={() => setModal("edit")}>
+        <Pencil className="h-4 w-4" />
+      </IconBtn>
+      <IconBtn title="Send email" onClick={() => setModal("email")}>
+        <Mail className="h-4 w-4" />
+      </IconBtn>
+      <IconBtn title="Flag account" onClick={() => setModal("flag")}>
+        <Flag className="h-4 w-4" />
+      </IconBtn>
+
+      {isSuspended ? (
+        <IconBtn
+          title="Reactivate"
+          tone="success"
+          disabled={reactivateMutation.isPending}
+          onClick={() =>
+            reactivateMutation.mutate(user.id, {
+              onSuccess: () => toast.success(`${user.name} reactivated`),
+              onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
+            })
+          }
+        >
+          {reactivateMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <UserCheck className="h-4 w-4" />
+          )}
+        </IconBtn>
+      ) : (
+        <IconBtn
+          title="Suspend"
+          tone="warning"
+          disabled={suspendMutation.isPending}
+          onClick={() =>
+            suspendMutation.mutate(
+              { id: user.id },
+              {
+                onSuccess: () => toast.success(`${user.name} suspended`),
+                onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
+              },
+            )
+          }
+        >
+          {suspendMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Ban className="h-4 w-4" />
+          )}
+        </IconBtn>
       )}
+
+      <IconBtn
+        title="Ban"
+        tone="error"
+        disabled={banMutation.isPending}
+        onClick={() =>
+          banMutation.mutate(
+            { id: user.id },
+            {
+              onSuccess: () => toast.success(`${user.name} banned`),
+              onError: (e) => toast.error(e instanceof Error ? e.message : "Action failed"),
+            },
+          )
+        }
+      >
+        {banMutation.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ShieldBan className="h-4 w-4" />
+        )}
+      </IconBtn>
+
+      <IconBtn title="Delete" tone="error" onClick={onDelete}>
+        <Trash2 className="h-4 w-4" />
+      </IconBtn>
 
       {modal === "edit" && (
         <EditUserModal
@@ -785,25 +781,37 @@ function BulkBtn({
   );
 }
 
-function MenuItem({
-  icon: Icon,
+function IconBtn({
   children,
   onClick,
+  title,
   tone = "default",
+  disabled = false,
 }: {
-  icon: typeof Eye;
   children: React.ReactNode;
   onClick: () => void;
-  tone?: "default" | "error";
+  title: string;
+  tone?: "default" | "success" | "warning" | "error";
+  disabled?: boolean;
 }) {
+  const toneCls =
+    tone === "success"
+      ? "text-muted-foreground hover:bg-success/10 hover:text-success"
+      : tone === "warning"
+        ? "text-muted-foreground hover:bg-warning/10 hover:text-warning"
+        : tone === "error"
+          ? "text-muted-foreground hover:bg-error/10 hover:text-error"
+          : "text-muted-foreground hover:bg-surface-alt hover:text-foreground";
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-alt ${
-        tone === "error" ? "text-error" : "text-foreground"
-      }`}
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      className={`inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${toneCls}`}
     >
-      <Icon className="h-4 w-4" /> {children}
+      {children}
     </button>
   );
 }

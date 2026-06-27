@@ -628,15 +628,34 @@ function ProtectionViolationsTab() {
                   <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-surface text-[11px] font-bold text-muted-foreground">
                     {i + 1}
                   </span>
-                  <Avatar id={o.userId} />
+                  <Avatar id={o.userName ?? o.userEmail ?? o.userId} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-mono text-xs font-semibold text-foreground">
-                      {shortId(o.userId)}
-                    </div>
-                    <div className="truncate text-[11px] text-muted-foreground">
-                      {o.screenshotAttempts} screenshot
-                      {o.screenshotAttempts === 1 ? "" : "s"}
-                    </div>
+                    {o.userName || o.userEmail ? (
+                      <>
+                        <div className="truncate text-xs font-semibold text-foreground">
+                          {o.userName ?? o.userEmail}
+                        </div>
+                        {o.userName && o.userEmail ? (
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {o.userEmail}
+                          </div>
+                        ) : (
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {o.screenshotAttempts} screenshot
+                            {o.screenshotAttempts === 1 ? "" : "s"}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="truncate text-xs font-semibold text-foreground">
+                          Deleted user
+                        </div>
+                        <div className="truncate font-mono text-[11px] text-muted-foreground">
+                          {shortId(o.userId)}
+                        </div>
+                      </>
+                    )}
                   </div>
                   <span className="inline-flex flex-shrink-0 rounded-full bg-error/10 px-2.5 py-0.5 text-xs font-semibold text-error">
                     {o.count}

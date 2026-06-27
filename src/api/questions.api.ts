@@ -14,6 +14,8 @@
  *   GET    /admin/uploads/template                — XLSX template download (binary)
  *   GET    /admin/question-banks                  — bank list (for selects/headers)
  *   POST   /questions/flags                        — user flags a question
+ *   DELETE /questions/flags/:questionId            — user removes a flag (?type=)
+ *   GET    /questions/flags/me                     — the current user's flags
  *
  * Option model bridge:
  *   Backend stores options as rows { id, label (A–E), text, isCorrect, imageUrl }.
@@ -30,6 +32,34 @@ import type { Difficulty } from "@/types";
 // ── Backend enums / wire shapes ──
 export type BackendDifficulty = "easy" | "medium" | "hard";
 export type FlagType = "bookmark" | "flag";
+
+/** A single persisted flag row as returned by GET /questions/flags/me. */
+export interface BackendQuestionFlag {
+  id: string;
+  questionId: string;
+  type: FlagType;
+  note: string | null;
+  createdAt: string;
+}
+
+/** FE-facing flag shape (the wire shape is already clean; kept for symmetry). */
+export interface QuestionFlag {
+  id: string;
+  questionId: string;
+  type: FlagType;
+  note: string | null;
+  createdAt: string;
+}
+
+export function mapFlag(f: BackendQuestionFlag): QuestionFlag {
+  return {
+    id: f.id,
+    questionId: f.questionId,
+    type: f.type,
+    note: f.note ?? null,
+    createdAt: f.createdAt,
+  };
+}
 
 export interface BackendQuestionOption {
   id: string;
@@ -339,6 +369,17 @@ export const questionsApi = {
   async flag(questionId: string, type: FlagType = "flag", note?: string): Promise<void> {
     await apiClient.post("/questions/flags", { questionId, type, note });
   },
+
+  /** Remove the user's flag (or bookmark) for a question. */
+  async removeFlag(questionId: string, type: FlagType = "flag"): Promise<void> {
+    await apiClient.delete(`/questions/flags/${questionId}`, undefined, { params: { type } });
+  },
+
+  /** The current user's flags + bookmarks (source of truth for the runtime). */
+  async myFlags(): Promise<QuestionFlag[]> {
+    const data = await apiClient.get<BackendQuestionFlag[]>("/questions/flags/me");
+    return data.map(mapFlag);
+  },
 };
 
 /**
@@ -369,6 +410,7 @@ export const questionKeys = {
   all: ["questions"] as const,
   list: (params: AdminQuestionQuery) => [...questionKeys.all, "list", params] as const,
   banks: ["question-banks-lite"] as const,
+  myFlags: ["question-flags", "me"] as const,
 };
 
 // ── Hooks ──
@@ -440,17 +482,47 @@ export function useBulkUploadQuestions() {
   });
 }
 
-/** User-facing flag mutation. */
-export function useFlagQuestion() {
+/** The current user's flags + bookmarks (source of truth for bookmark/flag UI). */
+export function useMyFlags() {
+  return useQuery({
+    queryKey: questionKeys.myFlags,
+    queryFn: questionsApi.myFlags,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * User-facing flag mutation. Pass a default `type` at the hook level
+ * (e.g. `useFlagQuestion({ type: "bookmark" })`); a per-call `type` still
+ * wins. Invalidates the cached "my flags" list on success.
+ */
+export function useFlagQuestion(defaults: { type?: FlagType } = {}) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
       questionId,
-      type = "flag",
+      type = defaults.type ?? "flag",
       note,
     }: {
       questionId: string;
       type?: FlagType;
       note?: string;
     }) => questionsApi.flag(questionId, type, note),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: questionKeys.myFlags }),
+  });
+}
+
+/** User-facing un-flag / un-bookmark mutation. */
+export function useRemoveFlag(defaults: { type?: FlagType } = {}) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      questionId,
+      type = defaults.type ?? "flag",
+    }: {
+      questionId: string;
+      type?: FlagType;
+    }) => questionsApi.removeFlag(questionId, type),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: questionKeys.myFlags }),
   });
 }

@@ -4,10 +4,12 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Expand,
   Loader2,
   Lock,
   Maximize2,
   Minimize2,
+  Shrink,
   Star,
 } from "lucide-react";
 import { useNote, notesApi, type NoteDetail } from "@/api/notes.api";
@@ -66,7 +68,8 @@ function Reader({ note }: { note: NoteDetail }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [fit, setFit] = useState(true); // zoom-to-fit toggle
+  const [fit, setFit] = useState(true); // fit-to-width vs. actual (capped) size
+  const [fullscreen, setFullscreen] = useState(false); // fixed-overlay reader
 
   const isLocked = lockedPages.has(page);
 
@@ -131,16 +134,38 @@ function Reader({ note }: { note: NoteDetail }) {
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         goPrev();
+      } else if (e.key === "Escape") {
+        setFullscreen((f) => (f ? false : f));
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [goNext, goPrev]);
 
+  // Lock body scroll while the fullscreen overlay is open.
+  useEffect(() => {
+    if (typeof document === "undefined" || !fullscreen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [fullscreen]);
+
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-surface-alt/40 shadow-[var(--shadow-card)]">
+    <div
+      className={
+        fullscreen
+          ? "fixed inset-0 z-50 flex flex-col overflow-hidden bg-surface-alt/40 backdrop-blur-sm"
+          : "mx-auto flex min-h-[calc(100vh-8rem)] max-w-7xl flex-col overflow-hidden rounded-2xl border border-border bg-surface-alt/40 shadow-[var(--shadow-card)]"
+      }
+    >
       {/* Top bar */}
-      <header className="sticky top-[4.5rem] z-20 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+      <header
+        className={`z-20 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80 ${
+          fullscreen ? "" : "sticky top-[4.5rem]"
+        }`}
+      >
         <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
           <Link
             to="/notes"
@@ -165,7 +190,17 @@ function Reader({ note }: { note: NoteDetail }) {
               aria-label={fit ? "Actual size" : "Fit to width"}
               title={fit ? "Actual size" : "Fit to width"}
             >
-              {fit ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+              {fit ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFullscreen((f) => !f)}
+              className="inline-flex items-center justify-center rounded-lg border border-border bg-surface p-2 text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground"
+              aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              title={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              aria-pressed={fullscreen}
+            >
+              {fullscreen ? <Shrink className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
             </button>
             <button
               type="button"
@@ -196,9 +231,9 @@ function Reader({ note }: { note: NoteDetail }) {
       </header>
 
       {/* Page stage */}
-      <div className="flex flex-1 items-start justify-center px-3 py-6 sm:px-6 sm:py-10">
+      <div className="flex flex-1 items-start justify-center overflow-auto px-3 py-6 sm:px-6 sm:py-10">
         <div
-          className={`w-full ${fit ? "max-w-3xl" : "max-w-xl"} transition-[max-width] duration-300`}
+          className={`w-full ${fit ? "max-w-none" : "max-w-3xl"} transition-[max-width] duration-300`}
         >
           <ProtectedSurface
             context="high_yield_note"

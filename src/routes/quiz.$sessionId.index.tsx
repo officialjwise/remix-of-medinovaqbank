@@ -18,6 +18,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   useCompleteSession,
   useSessionState,
@@ -25,6 +26,7 @@ import {
   type AnswerResult,
   type QuizQuestion,
 } from "@/api/quiz.api";
+import { useFlagQuestion, useMyFlags, useRemoveFlag } from "@/api/questions.api";
 import { useSessionStore } from "@/stores/sessionStore";
 import { TutorBreakdown } from "@/components/quiz/TutorBreakdown";
 import { ProtectedSurface } from "@/components/shared/ProtectedSurface";
@@ -44,8 +46,14 @@ function QuizPage() {
   const ui = useSessionStore((s) => s.ui[sessionId]);
   const selectOption = useSessionStore((s) => s.selectOption);
   const markSubmitted = useSessionStore((s) => s.markSubmitted);
-  const toggleBookmark = useSessionStore((s) => s.toggleBookmark);
-  const toggleFlag = useSessionStore((s) => s.toggleFlag);
+  const setBookmark = useSessionStore((s) => s.setBookmark);
+  const setFlag = useSessionStore((s) => s.setFlag);
+  const hydrateFlags = useSessionStore((s) => s.hydrateFlags);
+
+  // Real, persisted bookmarks/flags — the server is the source of truth.
+  const { data: myFlags } = useMyFlags();
+  const addFlag = useFlagQuestion();
+  const removeFlag = useRemoveFlag();
 
   const [index, setIndex] = useState(0);
   const [navOpen, setNavOpen] = useState(false);
@@ -87,6 +95,50 @@ function QuizPage() {
   const answeredSet = useMemo(
     () => new Set(state?.answeredQuestionIds ?? []),
     [state?.answeredQuestionIds],
+  );
+
+  // Set of this session's question ids, used to scope server flags to this run.
+  const questionIdSet = useMemo(() => new Set(questions.map((q) => q.id)), [questions]);
+
+  // Hydrate the optimistic local mirror from the server's flags whenever either
+  // the server list or the session's questions change. The server is canonical.
+  useEffect(() => {
+    if (!myFlags || total === 0) return;
+    const bookmarked: Record<string, true> = {};
+    const flagged: Record<string, true> = {};
+    for (const f of myFlags) {
+      if (!questionIdSet.has(f.questionId)) continue;
+      if (f.type === "bookmark") bookmarked[f.questionId] = true;
+      else flagged[f.questionId] = true;
+    }
+    hydrateFlags(sessionId, { bookmarked, flagged });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myFlags, questionIdSet, sessionId, total]);
+
+  const bookmarkBusy = addFlag.isPending || removeFlag.isPending;
+
+  // Optimistic toggle for bookmark/flag, reconciled against the server.
+  const toggleServerFlag = useCallback(
+    (type: "bookmark" | "flag", on: boolean) => {
+      if (!qid) return;
+      const apply = type === "bookmark" ? setBookmark : setFlag;
+      const label = type === "bookmark" ? "Bookmark" : "Flag";
+      apply(sessionId, qid, on); // optimistic
+      const mutation = on ? addFlag : removeFlag;
+      mutation.mutate(
+        { questionId: qid, type },
+        {
+          onSuccess: () => toast.success(on ? `${label} added` : `${label} removed`),
+          onError: (err) => {
+            apply(sessionId, qid, !on); // revert
+            toast.error(
+              err instanceof Error ? err.message : `Could not update ${label.toLowerCase()}`,
+            );
+          },
+        },
+      );
+    },
+    [qid, sessionId, setBookmark, setFlag, addFlag, removeFlag],
   );
 
   const go = useCallback(
@@ -174,12 +226,23 @@ function QuizPage() {
         go(-1);
       } else if (e.key.toLowerCase() === "b") {
         e.preventDefault();
-        toggleBookmark(sessionId, qid);
+        if (!bookmarkBusy) toggleServerFlag("bookmark", !(qid && ui?.bookmarked[qid]));
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [question, qid, isSubmitted, selectOption, sessionId, handlePrimary, go, toggleBookmark]);
+  }, [
+    question,
+    qid,
+    isSubmitted,
+    selectOption,
+    sessionId,
+    handlePrimary,
+    go,
+    toggleServerFlag,
+    bookmarkBusy,
+    ui?.bookmarked,
+  ]);
 
   if (isLoading) {
     return (
@@ -219,7 +282,7 @@ function QuizPage() {
   const correctOptionId = result?.correctOptionId;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background pb-10">
       <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
         <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
           <Link
@@ -283,8 +346,8 @@ function QuizPage() {
         </div>
       </header>
 
-      <div className="flex w-full gap-0 lg:gap-6 lg:px-6 lg:py-6">
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:px-0 lg:py-0">
+      <div className="mx-auto flex w-full max-w-6xl gap-0 lg:gap-6 lg:px-6 lg:py-6">
+        <main className="mx-auto min-w-0 max-w-3xl flex-1 px-4 py-6 sm:px-8 lg:px-0 lg:py-0">
           <ProtectedSurface context="quiz_session" contextId={sessionId} page={index + 1}>
             {question ? (
               <>
@@ -303,15 +366,18 @@ function QuizPage() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => qid && toggleBookmark(sessionId, qid)}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                      onClick={() => toggleServerFlag("bookmark", !(qid && ui?.bookmarked[qid]))}
+                      disabled={!qid || bookmarkBusy}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                         qid && ui?.bookmarked[qid]
                           ? "border-accent/40 bg-accent/10 text-accent"
                           : "border-border bg-surface text-muted-foreground hover:bg-surface-alt"
                       }`}
                       aria-pressed={!!(qid && ui?.bookmarked[qid])}
                     >
-                      {qid && ui?.bookmarked[qid] ? (
+                      {addFlag.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : qid && ui?.bookmarked[qid] ? (
                         <BookmarkCheck className="h-4 w-4" />
                       ) : (
                         <Bookmark className="h-4 w-4" />
@@ -322,8 +388,9 @@ function QuizPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => qid && toggleFlag(sessionId, qid)}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                      onClick={() => toggleServerFlag("flag", !(qid && ui?.flagged[qid]))}
+                      disabled={!qid || bookmarkBusy}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                         qid && ui?.flagged[qid]
                           ? "border-warning/40 bg-warning/10 text-warning"
                           : "border-border bg-surface text-muted-foreground hover:bg-surface-alt"

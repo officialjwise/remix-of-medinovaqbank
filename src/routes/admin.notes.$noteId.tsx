@@ -13,16 +13,25 @@ import {
   Check,
   FileText,
   Info,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  useNotesStore,
+  useAdminNote,
+  useUpdateNote,
+  useDeleteNote,
+  useReprocessNote,
+  useUpdateNoteTopics,
+  useUpdateNotePage,
   TIER_LABELS,
-  getNotePageContent,
+  STATUS_LABELS,
+  type AdminNoteDetail,
+  type AdminNoteTopic,
+  type AdminNotePage,
   type NoteTier,
   type NoteStatus,
-  type NoteTopic,
-} from "@/stores/notesStore";
+  type TopicInput,
+} from "@/api/admin-notes.api";
 import { useExamTypes } from "@/api/exam-types.api";
 import { useCategories } from "@/api/categories.api";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
@@ -40,9 +49,9 @@ export const Route = createFileRoute("/admin/notes/$noteId")({
 });
 
 const TIER_PILL: Record<NoteTier, string> = {
-  trial_paid: "bg-success/10 text-success",
+  trial_and_paid: "bg-success/10 text-success",
   paid_only: "bg-warning/10 text-warning",
-  hidden: "bg-error/10 text-error",
+  none: "bg-error/10 text-error",
 };
 
 const STATUS_PILL: Record<NoteStatus, string> = {
@@ -51,25 +60,50 @@ const STATUS_PILL: Record<NoteStatus, string> = {
   failed: "bg-error/10 text-error",
 };
 
-const STATUS_LABEL: Record<NoteStatus, string> = {
-  ready: "Ready",
-  processing: "Processing",
-  failed: "Failed",
-};
+/** Map the FE topic set back to the backend upsert payload (preserving ids). */
+function toTopicInputs(topics: AdminNoteTopic[]): TopicInput[] {
+  return topics.map((t, i) => ({
+    id: t.id,
+    title: t.title,
+    sortOrder: i,
+    isHiddenForTrial: t.isHiddenForTrial,
+  }));
+}
 
 function ManageNotePage() {
   const { noteId } = Route.useParams();
   const navigate = useNavigate();
-  const note = useNotesStore((s) => s.getById(noteId));
-  const update = useNotesStore((s) => s.update);
-  const remove = useNotesStore((s) => s.remove);
-  const reprocess = useNotesStore((s) => s.reprocess);
-  const setTopics = useNotesStore((s) => s.setTopics);
+  const { data: note, isLoading, isError } = useAdminNote(noteId);
+  const { data: categories = [] } = useCategories();
+  const { data: examTypes = [] } = useExamTypes();
+
+  const updateNote = useUpdateNote();
+  const deleteNote = useDeleteNote();
+  const reprocess = useReprocessNote();
+  const updateTopics = useUpdateNoteTopics();
+  const updatePage = useUpdateNotePage();
 
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  if (!note) {
+  const categoryName = useMemo(() => {
+    const map = new Map(categories.map((c) => [c.id, c.name]));
+    return (id: string | null) => (id ? (map.get(id) ?? "Uncategorised") : "Uncategorised");
+  }, [categories]);
+  const examTypeName = useMemo(() => {
+    const map = new Map(examTypes.map((e) => [e.id, e.name]));
+    return (id: string | null) => (id ? (map.get(id) ?? "—") : "—");
+  }, [examTypes]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 text-muted-foreground">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading note…
+      </div>
+    );
+  }
+
+  if (isError || !note) {
     return (
       <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-[var(--shadow-card)]">
         <p className="text-sm text-muted-foreground">Note not found.</p>
@@ -83,11 +117,18 @@ function ManageNotePage() {
     );
   }
 
-  const isTrialPaid = note.tier === "trial_paid";
+  const isTrialPaid = note.tier === "trial_and_paid";
+  const topicsPending = updateTopics.isPending;
 
-  const commitTopics = (next: NoteTopic[], message: string) => {
-    setTopics(note.id, next);
-    toast.success(message);
+  const commitTopics = (next: AdminNoteTopic[], message: string) => {
+    updateTopics.mutate(
+      { id: note.id, topics: toTopicInputs(next) },
+      {
+        onSuccess: () => toast.success(message),
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : "Could not update topics"),
+      },
+    );
   };
 
   const moveTopic = (index: number, dir: -1 | 1) => {
@@ -98,25 +139,18 @@ function ManageNotePage() {
     commitTopics(next, "Topic order updated");
   };
 
-  const renameTopic = (id: string, name: string) => {
+  const renameTopic = (id: string, title: string) => {
     commitTopics(
-      note.topics.map((t) => (t.id === id ? { ...t, name } : t)),
+      note.topics.map((t) => (t.id === id ? { ...t, title } : t)),
       "Topic renamed",
-    );
-  };
-
-  const setTopicRange = (id: string, patch: Partial<Pick<NoteTopic, "pageStart" | "pageEnd">>) => {
-    commitTopics(
-      note.topics.map((t) => (t.id === id ? { ...t, ...patch } : t)),
-      "Topic pages updated",
     );
   };
 
   const toggleTopicHidden = (id: string) => {
     const topic = note.topics.find((t) => t.id === id);
     commitTopics(
-      note.topics.map((t) => (t.id === id ? { ...t, hiddenForTrial: !t.hiddenForTrial } : t)),
-      topic?.hiddenForTrial ? "Topic shown to trial users" : "Topic hidden from trial users",
+      note.topics.map((t) => (t.id === id ? { ...t, isHiddenForTrial: !t.isHiddenForTrial } : t)),
+      topic?.isHiddenForTrial ? "Topic shown to trial users" : "Topic hidden from trial users",
     );
   };
 
@@ -127,15 +161,45 @@ function ManageNotePage() {
     );
   };
 
-  const addTopic = (name: string, pageStart: number, pageEnd: number) => {
-    const next: NoteTopic = {
-      id: `t-${Date.now().toString(36)}`,
-      name,
-      pageStart,
-      pageEnd,
-      hiddenForTrial: false,
-    };
-    commitTopics([...note.topics, next], "Topic added");
+  const addTopic = (title: string) => {
+    // New topics are created by omitting `id` in the upsert payload.
+    const next: TopicInput[] = [
+      ...toTopicInputs(note.topics),
+      { title, sortOrder: note.topics.length, isHiddenForTrial: false },
+    ];
+    updateTopics.mutate(
+      { id: note.id, topics: next },
+      {
+        onSuccess: () => toast.success("Topic added"),
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Could not add topic"),
+      },
+    );
+  };
+
+  const assignPage = (page: AdminNotePage, topicId: string | null) => {
+    updatePage.mutate(
+      { id: note.id, pageId: page.id, input: { topicId: topicId ?? undefined } },
+      {
+        onSuccess: () =>
+          toast.success(`Page ${page.pageNumber} assigned to ${topicLabel(note, topicId)}`),
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Could not assign page"),
+      },
+    );
+  };
+
+  const togglePageHidden = (page: AdminNotePage) => {
+    updatePage.mutate(
+      { id: note.id, pageId: page.id, input: { isHiddenForTrial: !page.isHiddenForTrial } },
+      {
+        onSuccess: () =>
+          toast.success(
+            page.isHiddenForTrial
+              ? `Page ${page.pageNumber} shown to trial`
+              : `Page ${page.pageNumber} hidden from trial`,
+          ),
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update page"),
+      },
+    );
   };
 
   return (
@@ -161,7 +225,7 @@ function ManageNotePage() {
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_PILL[note.status]}`}
               >
                 {note.status === "processing" && <Loader2 className="h-3 w-3 animate-spin" />}
-                {STATUS_LABEL[note.status]}
+                {STATUS_LABELS[note.status]}
               </span>
               <span
                 className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${note.active ? "bg-success/10 text-success" : "bg-surface-alt text-muted-foreground"}`}
@@ -171,9 +235,15 @@ function ManageNotePage() {
             </div>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">{note.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {note.category} · {note.examType} · {note.pageCount} pages ·{" "}
-              {note.subscribers.toLocaleString()} subscribers
+              {categoryName(note.categoryId)} · {examTypeName(note.examTypeId)} · {note.pageCount}{" "}
+              pages
             </p>
+            {note.status === "failed" && note.processingError && (
+              <p className="mt-2 flex items-start gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-xs text-error">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                {note.processingError}
+              </p>
+            )}
           </div>
           <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
             <button
@@ -183,13 +253,22 @@ function ManageNotePage() {
               <Pencil className="h-4 w-4" /> Edit
             </button>
             <button
-              onClick={() => {
-                reprocess(note.id);
-                toast.success("Reprocessing note…");
-              }}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-foreground hover:bg-surface-alt"
+              onClick={() =>
+                reprocess.mutate(note.id, {
+                  onSuccess: () => toast.success("Reprocessing note…"),
+                  onError: (err) =>
+                    toast.error(err instanceof Error ? err.message : "Reprocess failed"),
+                })
+              }
+              disabled={reprocess.isPending}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-foreground hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <RotateCcw className="h-4 w-4" /> Reprocess
+              {reprocess.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="h-4 w-4" />
+              )}{" "}
+              Reprocess
             </button>
             <button
               onClick={() => setConfirmDelete(true)}
@@ -218,8 +297,18 @@ function ManageNotePage() {
                 The preview appears once processing completes.
               </p>
             </div>
+          ) : note.pages.length === 0 ? (
+            <div className="mt-3 rounded-2xl border border-dashed border-border bg-surface p-10 text-center text-sm text-muted-foreground shadow-[var(--shadow-card)]">
+              No pages available yet.
+            </div>
           ) : (
-            <PagePreview note={note} />
+            <PagePreview
+              note={note}
+              onAssign={assignPage}
+              onToggleHidden={togglePageHidden}
+              isPending={updatePage.isPending}
+              pendingPageId={updatePage.variables?.pageId}
+            />
           )}
         </section>
 
@@ -227,7 +316,10 @@ function ManageNotePage() {
         <section>
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground">Topics</h3>
-            <span className="text-xs text-muted-foreground">{note.topics.length} total</span>
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              {topicsPending && <Loader2 className="h-3 w-3 animate-spin" />}
+              {note.topics.length} total
+            </span>
           </div>
 
           {!isTrialPaid && (
@@ -251,11 +343,11 @@ function ManageNotePage() {
                   topic={t}
                   index={i}
                   count={note.topics.length}
-                  pageCount={note.pageCount}
                   isTrialPaid={isTrialPaid}
+                  disabled={topicsPending}
+                  pageCount={note.pages.filter((p) => p.topicId === t.id).length}
                   onMove={moveTopic}
                   onRename={renameTopic}
-                  onRange={setTopicRange}
                   onToggleHidden={toggleTopicHidden}
                   onDelete={deleteTopic}
                 />
@@ -263,18 +355,27 @@ function ManageNotePage() {
             )}
           </div>
 
-          <AddTopicForm pageCount={note.pageCount} onAdd={addTopic} />
+          <AddTopicForm disabled={topicsPending} onAdd={addTopic} />
         </section>
       </div>
 
       {editOpen && (
         <EditMetadataModal
           note={note}
+          saving={updateNote.isPending}
           onClose={() => setEditOpen(false)}
-          onSave={(patch) => {
-            update(note.id, patch);
-            setEditOpen(false);
-            toast.success("Note updated");
+          onSave={(input) => {
+            updateNote.mutate(
+              { id: note.id, input },
+              {
+                onSuccess: () => {
+                  setEditOpen(false);
+                  toast.success("Note updated");
+                },
+                onError: (err) =>
+                  toast.error(err instanceof Error ? err.message : "Could not update note"),
+              },
+            );
           }}
         />
       )}
@@ -291,15 +392,26 @@ function ManageNotePage() {
             pages. This action cannot be undone.
           </>
         }
-        onConfirm={() => {
-          remove(note.id);
-          toast.success("Note deleted");
-          navigate({ to: "/admin/notes" });
+        onConfirm={async () => {
+          try {
+            await deleteNote.mutateAsync(note.id);
+            toast.success("Note deleted");
+            navigate({ to: "/admin/notes" });
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Delete failed");
+          } finally {
+            setConfirmDelete(false);
+          }
         }}
         onCancel={() => setConfirmDelete(false)}
       />
     </div>
   );
+}
+
+function topicLabel(note: AdminNoteDetail, topicId: string | null): string {
+  if (!topicId) return "General";
+  return note.topics.find((t) => t.id === topicId)?.title ?? "General";
 }
 
 /* ------------------------------------------------------------------ */
@@ -308,65 +420,108 @@ function ManageNotePage() {
 
 function PagePreview({
   note,
+  onAssign,
+  onToggleHidden,
+  isPending,
+  pendingPageId,
 }: {
-  note: ReturnType<typeof useNotesStore.getState>["notes"][number];
+  note: AdminNoteDetail;
+  onAssign: (page: AdminNotePage, topicId: string | null) => void;
+  onToggleHidden: (page: AdminNotePage) => void;
+  isPending: boolean;
+  pendingPageId?: string;
 }) {
-  // Build page list grouped by the topic that owns each page.
+  // Group pages by the topic each is assigned to (unassigned -> General).
   const groups = useMemo(() => {
-    const pages = Array.from({ length: note.pageCount }, (_, i) => i + 1);
-    const byTopic = new Map<string, { name: string; hiddenForTrial: boolean; pages: number[] }>();
+    const byTopic = new Map<
+      string,
+      { topicId: string | null; name: string; hiddenForTrial: boolean; pages: AdminNotePage[] }
+    >();
     const order: string[] = [];
-    for (const p of pages) {
-      const content = getNotePageContent(note, p);
-      const key = content.topicId ?? "__general__";
+    for (const p of note.pages) {
+      const key = p.topicId ?? "__general__";
       if (!byTopic.has(key)) {
-        const topic = note.topics.find((t) => t.id === content.topicId);
+        const topic = note.topics.find((t) => t.id === p.topicId);
         byTopic.set(key, {
-          name: content.topicName,
-          hiddenForTrial: topic?.hiddenForTrial ?? false,
+          topicId: p.topicId,
+          name: topic?.title ?? "General",
+          hiddenForTrial: topic?.isHiddenForTrial ?? false,
           pages: [],
         });
         order.push(key);
       }
       byTopic.get(key)!.pages.push(p);
     }
-    return order.map((k) => ({ key: k, ...byTopic.get(k)! }));
+    return order.map((k) => byTopic.get(k)!);
   }, [note]);
 
   return (
     <div className="mt-3 space-y-5">
       {groups.map((g) => (
-        <div key={g.key}>
+        <div key={g.topicId ?? "__general__"}>
           <div className="flex items-center gap-2">
             <h4 className="text-sm font-bold text-foreground">{g.name}</h4>
-            {g.hiddenForTrial && note.tier === "trial_paid" && (
+            {g.hiddenForTrial && note.tier === "trial_and_paid" && (
               <span className="inline-flex rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
                 Hidden for trial
               </span>
             )}
             <span className="text-xs text-muted-foreground">
-              p.{g.pages[0]}–{g.pages[g.pages.length - 1]}
+              {g.pages.length} page{g.pages.length === 1 ? "" : "s"}
             </span>
           </div>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             {g.pages.map((p) => {
-              const content = getNotePageContent(note, p);
+              const busy = isPending && pendingPageId === p.id;
               return (
                 <article
-                  key={p}
+                  key={p.id}
                   className="rounded-xl border border-border bg-surface p-3 shadow-[var(--shadow-card)]"
                 >
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      <FileText className="h-3 w-3" /> Page {p}
+                      <FileText className="h-3 w-3" /> Page {p.pageNumber}
+                    </span>
+                    {busy && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                  </div>
+                  <div className="mt-2 flex aspect-[3/4] items-center justify-center rounded-lg border border-dashed border-border bg-surface-alt/40 text-[11px] font-semibold text-muted-foreground">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider",
+                        STATUS_PILL[note.status],
+                      )}
+                    >
+                      {note.status === "ready" ? "Protected image" : STATUS_LABELS[note.status]}
                     </span>
                   </div>
-                  <p className="mt-1.5 line-clamp-2 text-xs font-bold text-foreground">
-                    {content.heading}
-                  </p>
-                  <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-muted-foreground">
-                    {content.paragraphs[0]}
-                  </p>
+                  <label className="mt-2 block">
+                    <select
+                      value={p.topicId ?? ""}
+                      disabled={busy}
+                      onChange={(e) => onAssign(p, e.target.value || null)}
+                      className="h-8 w-full rounded-lg border border-border bg-surface px-2 text-[11px] font-semibold disabled:opacity-60"
+                      aria-label={`Assign page ${p.pageNumber} to a topic`}
+                    >
+                      <option value="">General (unassigned)</option>
+                      {note.topics.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {note.tier === "trial_and_paid" && (
+                    <label className="mt-2 flex items-center gap-2 text-[10px] font-semibold text-muted-foreground">
+                      <ToggleSwitch
+                        size="sm"
+                        checked={p.isHiddenForTrial}
+                        disabled={busy}
+                        ariaLabel={`Hide page ${p.pageNumber} from trial`}
+                        onChange={() => onToggleHidden(p)}
+                      />
+                      Hidden for trial
+                    </label>
+                  )}
                 </article>
               );
             })}
@@ -385,26 +540,26 @@ function TopicRow({
   topic,
   index,
   count,
-  pageCount,
   isTrialPaid,
+  disabled,
+  pageCount,
   onMove,
   onRename,
-  onRange,
   onToggleHidden,
   onDelete,
 }: {
-  topic: NoteTopic;
+  topic: AdminNoteTopic;
   index: number;
   count: number;
-  pageCount: number;
   isTrialPaid: boolean;
+  disabled: boolean;
+  pageCount: number;
   onMove: (index: number, dir: -1 | 1) => void;
-  onRename: (id: string, name: string) => void;
-  onRange: (id: string, patch: Partial<Pick<NoteTopic, "pageStart" | "pageEnd">>) => void;
+  onRename: (id: string, title: string) => void;
   onToggleHidden: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const [name, setName] = useState(topic.name);
+  const [title, setTitle] = useState(topic.title);
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4 shadow-[var(--shadow-card)]">
@@ -412,7 +567,7 @@ function TopicRow({
         <div className="flex flex-col gap-0.5">
           <button
             onClick={() => onMove(index, -1)}
-            disabled={index === 0}
+            disabled={index === 0 || disabled}
             aria-label="Move up"
             className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
           >
@@ -420,7 +575,7 @@ function TopicRow({
           </button>
           <button
             onClick={() => onMove(index, 1)}
-            disabled={index === count - 1}
+            disabled={index === count - 1 || disabled}
             aria-label="Move down"
             className="rounded-md p-1 text-muted-foreground hover:bg-surface-alt hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
           >
@@ -429,62 +584,39 @@ function TopicRow({
         </div>
         <div className="min-w-0 flex-1">
           <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={title}
+            disabled={disabled}
+            onChange={(e) => setTitle(e.target.value)}
             onBlur={() => {
-              const trimmed = name.trim();
+              const trimmed = title.trim();
               if (!trimmed) {
-                setName(topic.name);
+                setTitle(topic.title);
                 return;
               }
-              if (trimmed !== topic.name) onRename(topic.id, trimmed);
+              if (trimmed !== topic.title) onRename(topic.id, trimmed);
             }}
-            className="h-9 w-full rounded-lg border border-border bg-surface px-2.5 text-sm font-semibold focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="h-9 w-full rounded-lg border border-border bg-surface px-2.5 text-sm font-semibold focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
             aria-label="Topic name"
           />
-          <div className="mt-2 flex items-center gap-2">
-            <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              From
-              <input
-                type="number"
-                min={1}
-                max={pageCount}
-                value={topic.pageStart}
-                onChange={(e) =>
-                  onRange(topic.id, { pageStart: clamp(Number(e.target.value), 1, pageCount) })
-                }
-                className="h-8 w-16 rounded-lg border border-border bg-surface px-2 text-sm font-semibold text-foreground focus:border-accent focus:outline-none"
-              />
-            </label>
-            <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              To
-              <input
-                type="number"
-                min={1}
-                max={pageCount}
-                value={topic.pageEnd}
-                onChange={(e) =>
-                  onRange(topic.id, { pageEnd: clamp(Number(e.target.value), 1, pageCount) })
-                }
-                className="h-8 w-16 rounded-lg border border-border bg-surface px-2 text-sm font-semibold text-foreground focus:border-accent focus:outline-none"
-              />
-            </label>
-          </div>
+          <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
+            {pageCount} page{pageCount === 1 ? "" : "s"} assigned
+          </p>
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
             <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
               <ToggleSwitch
                 size="sm"
-                checked={topic.hiddenForTrial}
-                disabled={!isTrialPaid}
-                ariaLabel={`Hide ${topic.name} from trial users`}
+                checked={topic.isHiddenForTrial}
+                disabled={!isTrialPaid || disabled}
+                ariaLabel={`Hide ${topic.title} from trial users`}
                 onChange={() => onToggleHidden(topic.id)}
               />
               Hidden for trial
             </span>
             <button
               onClick={() => onDelete(topic.id)}
+              disabled={disabled}
               aria-label="Delete topic"
-              className="inline-flex h-7 items-center gap-1 rounded-lg border border-error/30 bg-error/10 px-2 text-[11px] font-semibold text-error hover:bg-error/20"
+              className="inline-flex h-7 items-center gap-1 rounded-lg border border-error/30 bg-error/10 px-2 text-[11px] font-semibold text-error hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
@@ -495,69 +627,36 @@ function TopicRow({
   );
 }
 
-function AddTopicForm({
-  pageCount,
-  onAdd,
-}: {
-  pageCount: number;
-  onAdd: (name: string, pageStart: number, pageEnd: number) => void;
-}) {
-  const [name, setName] = useState("");
-  const [pageStart, setPageStart] = useState(1);
-  const [pageEnd, setPageEnd] = useState(pageCount);
+function AddTopicForm({ disabled, onAdd }: { disabled: boolean; onAdd: (title: string) => void }) {
+  const [title, setTitle] = useState("");
 
   const submit = () => {
-    if (!name.trim()) {
+    if (!title.trim()) {
       toast.error("Topic name is required");
       return;
     }
-    const start = clamp(pageStart, 1, pageCount);
-    const end = clamp(pageEnd, 1, pageCount);
-    if (end < start) {
-      toast.error("End page must be on or after the start page");
-      return;
-    }
-    onAdd(name.trim(), start, end);
-    setName("");
-    setPageStart(1);
-    setPageEnd(pageCount);
+    onAdd(title.trim());
+    setTitle("");
   };
 
   return (
     <div className="mt-4 rounded-xl border border-dashed border-border bg-surface-alt/30 p-4">
       <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Add topic</p>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Topic name"
-        className="mt-2 h-9 w-full rounded-lg border border-border bg-surface px-2.5 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-      />
       <div className="mt-2 flex items-center gap-2">
-        <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-          From
-          <input
-            type="number"
-            min={1}
-            max={pageCount}
-            value={pageStart}
-            onChange={(e) => setPageStart(Number(e.target.value))}
-            className="h-8 w-16 rounded-lg border border-border bg-surface px-2 text-sm font-semibold focus:border-accent focus:outline-none"
-          />
-        </label>
-        <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-          To
-          <input
-            type="number"
-            min={1}
-            max={pageCount}
-            value={pageEnd}
-            onChange={(e) => setPageEnd(Number(e.target.value))}
-            className="h-8 w-16 rounded-lg border border-border bg-surface px-2 text-sm font-semibold focus:border-accent focus:outline-none"
-          />
-        </label>
+        <input
+          value={title}
+          disabled={disabled}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          placeholder="Topic name"
+          className="h-9 flex-1 rounded-lg border border-border bg-surface px-2.5 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
+        />
         <button
           onClick={submit}
-          className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-semibold text-accent-foreground hover:bg-accent/90"
+          disabled={disabled}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-semibold text-accent-foreground hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Plus className="h-3.5 w-3.5" /> Add
         </button>
@@ -572,17 +671,19 @@ function AddTopicForm({
 
 function EditMetadataModal({
   note,
+  saving,
   onClose,
   onSave,
 }: {
-  note: ReturnType<typeof useNotesStore.getState>["notes"][number];
+  note: AdminNoteDetail;
+  saving: boolean;
   onClose: () => void;
-  onSave: (patch: {
+  onSave: (input: {
     title: string;
     description: string;
-    category: string;
-    examType: string;
-    tier: NoteTier;
+    categoryId?: string;
+    examTypeId?: string;
+    accessTier: NoteTier;
   }) => void;
 }) {
   const { data: categories = [] } = useCategories();
@@ -590,8 +691,8 @@ function EditMetadataModal({
 
   const [title, setTitle] = useState(note.title);
   const [description, setDescription] = useState(note.description);
-  const [category, setCategory] = useState(note.category);
-  const [examType, setExamType] = useState(note.examType);
+  const [categoryId, setCategoryId] = useState(note.categoryId ?? "");
+  const [examTypeId, setExamTypeId] = useState(note.examTypeId ?? "");
   const [tier, setTier] = useState<NoteTier>(note.tier);
 
   const save = () => {
@@ -599,7 +700,13 @@ function EditMetadataModal({
       toast.error("Title is required");
       return;
     }
-    onSave({ title: title.trim(), description: description.trim(), category, examType, tier });
+    onSave({
+      title: title.trim(),
+      description: description.trim(),
+      categoryId: categoryId || undefined,
+      examTypeId: examTypeId || undefined,
+      accessTier: tier,
+    });
   };
 
   return (
@@ -651,15 +758,13 @@ function EditMetadataModal({
                 Category
               </span>
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
                 className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
               >
-                {!categories.some((c) => c.name === category) && (
-                  <option value={category}>{category}</option>
-                )}
+                <option value="">Uncategorised</option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.name}>
+                  <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
                 ))}
@@ -670,15 +775,13 @@ function EditMetadataModal({
                 Exam Type
               </span>
               <select
-                value={examType}
-                onChange={(e) => setExamType(e.target.value)}
+                value={examTypeId}
+                onChange={(e) => setExamTypeId(e.target.value)}
                 className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
               >
-                {!examTypes.some((e) => e.name === examType) && (
-                  <option value={examType}>{examType}</option>
-                )}
+                <option value="">—</option>
                 {examTypes.map((et) => (
-                  <option key={et.id} value={et.name}>
+                  <option key={et.id} value={et.id}>
                     {et.name}
                   </option>
                 ))}
@@ -711,23 +814,21 @@ function EditMetadataModal({
         <footer className="flex justify-end gap-2 border-t border-border px-5 py-3">
           <button
             onClick={onClose}
-            className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt"
+            disabled={saving}
+            className="inline-flex h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={save}
-            className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
+            disabled={saving}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Check className="h-4 w-4" /> Save
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{" "}
+            Save
           </button>
         </footer>
       </div>
     </div>
   );
-}
-
-function clamp(n: number, min: number, max: number): number {
-  if (Number.isNaN(n)) return min;
-  return Math.min(max, Math.max(min, n));
 }

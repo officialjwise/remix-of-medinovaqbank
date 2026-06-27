@@ -13,7 +13,9 @@ import { persist } from "zustand/middleware";
  *                      question, keyed by questionId. Cleared once submitted.
  *   - `submittedAnswerId` : the answerId returned by the submit endpoint, kept so
  *                      tutor mode can fetch the clinical breakdown for it.
- *   - `bookmarked` / `flagged` : per-question UI toggles (no backend field yet).
+ *   - `bookmarked` / `flagged` : per-question UI toggles. These are an OPTIMISTIC
+ *                      local mirror only — the server (GET /questions/flags/me)
+ *                      is the source of truth and is synced in the quiz route.
  *
  * It deliberately does NOT store question content, the correct answer, scores,
  * or any session metadata — all of that is fetched on demand from the server so
@@ -42,6 +44,15 @@ interface SessionUIState {
   markSubmitted: (sessionId: string, questionId: string, answerId: string) => void;
   toggleBookmark: (sessionId: string, questionId: string) => void;
   toggleFlag: (sessionId: string, questionId: string) => void;
+  /** Explicitly set/clear a bookmark (used for optimistic + server sync). */
+  setBookmark: (sessionId: string, questionId: string, on: boolean) => void;
+  /** Explicitly set/clear a flag (used for optimistic + server sync). */
+  setFlag: (sessionId: string, questionId: string, on: boolean) => void;
+  /** Hydrate bookmarked/flagged maps from the server's source of truth. */
+  hydrateFlags: (
+    sessionId: string,
+    flags: { bookmarked: Record<string, true>; flagged: Record<string, true> },
+  ) => void;
   /** Clear all UI state for a session (e.g. after completion). */
   resetSession: (sessionId: string) => void;
 }
@@ -107,6 +118,29 @@ export const useSessionStore = create<SessionUIState>()(
         if (next[questionId]) delete next[questionId];
         else next[questionId] = true;
         set({ ui: { ...get().ui, [sessionId]: { ...cur, flagged: next } } });
+      },
+      setBookmark: (sessionId, questionId, on) => {
+        const cur = ensure(get().ui, sessionId);
+        const next = { ...cur.bookmarked };
+        if (on) next[questionId] = true;
+        else delete next[questionId];
+        set({ ui: { ...get().ui, [sessionId]: { ...cur, bookmarked: next } } });
+      },
+      setFlag: (sessionId, questionId, on) => {
+        const cur = ensure(get().ui, sessionId);
+        const next = { ...cur.flagged };
+        if (on) next[questionId] = true;
+        else delete next[questionId];
+        set({ ui: { ...get().ui, [sessionId]: { ...cur, flagged: next } } });
+      },
+      hydrateFlags: (sessionId, flags) => {
+        const cur = ensure(get().ui, sessionId);
+        set({
+          ui: {
+            ...get().ui,
+            [sessionId]: { ...cur, bookmarked: flags.bookmarked, flagged: flags.flagged },
+          },
+        });
       },
       resetSession: (sessionId) => {
         const { [sessionId]: _drop, ...rest } = get().ui;

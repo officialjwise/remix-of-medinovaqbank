@@ -40,7 +40,6 @@ import {
   type EmailTemplate,
   type AdminRole,
   type BrandingSettings,
-  type SystemSettings,
 } from "@/stores/settingsStore";
 import { useFeatureCatalogStore } from "@/stores/featureCatalogStore";
 import {
@@ -60,20 +59,16 @@ import { ApiError } from "@/api/client";
 import {
   useSettingsMap,
   useUpdateSettings,
-  useIntegrationStatus,
   useRevealSecret,
   useTestIntegration,
+  useTestAiPrompt,
   settingValue,
   settingBool,
   type IntegrationName,
   type ResolvedSetting,
   type SettingUpdate,
 } from "@/api/settings.api";
-import {
-  useAdminBranding,
-  useUpdateBranding,
-  type Branding as ApiBranding,
-} from "@/api/branding.api";
+import { useAdminBranding, useUpdateBranding, type Branding } from "@/api/branding.api";
 
 export const Route = createFileRoute("/admin/settings/system")({
   head: () => ({
@@ -156,13 +151,14 @@ function AdminSettings() {
 /* ───────────── Shared settings save helper ───────────── */
 function useSaveSettings() {
   const update = useUpdateSettings();
-  return (settings: SettingUpdate[], successMsg: string) => {
+  const save = (settings: SettingUpdate[], successMsg: string) => {
     update.mutate(settings, {
       onSuccess: () => toast.success(successMsg),
       onError: (err) =>
         toast.error(err instanceof ApiError ? err.message : "Could not save settings"),
     });
   };
+  return { save, isSaving: update.isPending };
 }
 
 /* ───────────── Tab 1 — General ───────────── */
@@ -171,7 +167,7 @@ function useSaveSettings() {
 // timezone/session limits have no backend catalog key (see gaps).
 function GeneralTab() {
   const { data: map, isLoading } = useSettingsMap();
-  const save = useSaveSettings();
+  const { save, isSaving } = useSaveSettings();
 
   const [platformName, setPlatformName] = useState("");
   const [supportEmail, setSupportEmail] = useState("");
@@ -208,6 +204,7 @@ function GeneralTab() {
             <Input value={maintenanceMessage} onChange={setMaintenanceMessage} />
           </Field>
           <SaveBar
+            saving={isSaving}
             onSave={() =>
               save(
                 [
@@ -244,6 +241,7 @@ function GeneralTab() {
             />
           </div>
           <SaveBar
+            saving={isSaving}
             onSave={() =>
               save(
                 [
@@ -275,36 +273,135 @@ function SettingsSkeleton() {
 }
 
 /* ───────────── Tab 2 — Integrations & API Keys ───────────── */
-function IntegrationsTab() {
-  const ai = useSettingsStore((s) => s.settings.ai);
-  const payment = useSettingsStore((s) => s.settings.payment);
-  const oauth = useSettingsStore((s) => s.settings.oauth);
-  const smtp = useSettingsStore((s) => s.settings.smtp);
-  const update = useSettingsStore((s) => s.update);
+// Backend-backed catalog keys (all persisted, sensitive values encrypted):
+//   integration.gemini.apiKey/model/temperature/maxTokens
+//   integration.google.clientId/clientSecret
+//   integration.paystack.secretKey/publicKey/webhookSecret
+//   integration.smtp.host/port/username/password/fromName/fromEmail
+//   integration.resend.apiKey/fromEmail
+// `isConfigured` from the resolved map drives each card's status badge — no
+// fake Math.random tests; reveal/test/save all hit the real backend.
 
-  const [aiForm, setAiForm] = useState(ai);
-  const [payForm, setPayForm] = useState(payment);
-  const [oauthForm, setOauthForm] = useState(oauth);
-  const [smtpForm, setSmtpForm] = useState(smtp);
+/** Map the backend `isConfigured` flag to the UI status badge state. */
+function configuredStatus(map: Record<string, ResolvedSetting> | undefined, keys: string[]) {
+  if (!map) return "not_configured" as IntegrationStatus;
+  return keys.every((k) => map[k]?.isConfigured) ? "connected" : "not_configured";
+}
+
+/** Run a real integration test with loading/success/error toasts. */
+function useTestConnection() {
+  const test = useTestIntegration();
+  const run = (integration: IntegrationName, label: string) => {
+    toast.loading(`Testing ${label}…`, { id: `test-${integration}` });
+    test.mutate(integration, {
+      onSuccess: (res) =>
+        res.success
+          ? toast.success(res.message || `${label} connection succeeded`, {
+              id: `test-${integration}`,
+            })
+          : toast.error(res.message || `${label} connection failed`, { id: `test-${integration}` }),
+      onError: (err) =>
+        toast.error(err instanceof ApiError ? err.message : `${label} connection failed`, {
+          id: `test-${integration}`,
+        }),
+    });
+  };
+  return { run, isTesting: test.isPending };
+}
+
+const GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
+] as const;
+
+function IntegrationsTab() {
+  const { data: map, isLoading } = useSettingsMap();
+  const { save, isSaving } = useSaveSettings();
+  const reveal = useRevealSecret();
+  const aiTest = useTestConnection();
+  const payTest = useTestConnection();
+  const oauthTest = useTestConnection();
+  const smtpTest = useTestConnection();
+  const resendTest = useTestConnection();
+  const aiPrompt = useTestAiPrompt();
+
   const [advanced, setAdvanced] = useState(false);
 
-  function testConnection<K extends "ai" | "payment" | "oauth" | "smtp">(
-    section: K,
-    setter: (updater: (prev: SystemSettings[K]) => SystemSettings[K]) => void,
-    label: string,
-  ) {
-    toast.loading(`Testing ${label}…`, { id: "test" });
-    setTimeout(() => {
-      const ok = Math.random() > 0.15;
-      const status: IntegrationStatus = ok ? "connected" : "error";
-      setter((p) => ({ ...p, status, lastTestedAt: new Date().toISOString() }));
-      update(section, { status, lastTestedAt: new Date().toISOString() } as Partial<
-        SystemSettings[K]
-      >);
-      if (ok) toast.success(`${label} connection succeeded`, { id: "test" });
-      else toast.error(`${label} connection failed`, { id: "test" });
-    }, 900);
+  // ── Gemini ──
+  const [geminiKey, setGeminiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState<string>(GEMINI_MODELS[0]);
+  const [geminiTemp, setGeminiTemp] = useState(0.4);
+  const [geminiMaxTokens, setGeminiMaxTokens] = useState(2048);
+
+  // ── Google OAuth ──
+  const [googleClientId, setGoogleClientId] = useState("");
+  const [googleClientSecret, setGoogleClientSecret] = useState("");
+
+  // ── Paystack ──
+  const [paystackPublic, setPaystackPublic] = useState("");
+  const [paystackSecret, setPaystackSecret] = useState("");
+  const [paystackWebhook, setPaystackWebhook] = useState("");
+
+  // ── SMTP ──
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState("");
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPass, setSmtpPass] = useState("");
+  const [smtpFromName, setSmtpFromName] = useState("");
+  const [smtpFromEmail, setSmtpFromEmail] = useState("");
+  const [smtpPreset, setSmtpPreset] = useState<"custom" | "sendgrid" | "mailgun" | "gmail">(
+    "custom",
+  );
+
+  // ── Resend ──
+  const [resendKey, setResendKey] = useState("");
+  const [resendFrom, setResendFrom] = useState("");
+
+  useEffect(() => {
+    if (!map) return;
+    setGeminiKey(settingValue(map, "integration.gemini.apiKey"));
+    setGeminiModel(settingValue(map, "integration.gemini.model", GEMINI_MODELS[0]));
+    setGeminiTemp(Number(settingValue(map, "integration.gemini.temperature", "0.4")) || 0);
+    setGeminiMaxTokens(Number(settingValue(map, "integration.gemini.maxTokens", "2048")) || 0);
+
+    setGoogleClientId(settingValue(map, "integration.google.clientId"));
+    setGoogleClientSecret(settingValue(map, "integration.google.clientSecret"));
+
+    setPaystackPublic(settingValue(map, "integration.paystack.publicKey"));
+    setPaystackSecret(settingValue(map, "integration.paystack.secretKey"));
+    setPaystackWebhook(settingValue(map, "integration.paystack.webhookSecret"));
+
+    setSmtpHost(settingValue(map, "integration.smtp.host"));
+    setSmtpPort(settingValue(map, "integration.smtp.port", "587"));
+    setSmtpUser(settingValue(map, "integration.smtp.username"));
+    setSmtpPass(settingValue(map, "integration.smtp.password"));
+    setSmtpFromName(settingValue(map, "integration.smtp.fromName"));
+    setSmtpFromEmail(settingValue(map, "integration.smtp.fromEmail"));
+
+    setResendKey(settingValue(map, "integration.resend.apiKey"));
+    setResendFrom(settingValue(map, "integration.resend.fromEmail"));
+  }, [map]);
+
+  /** Reveal a secret by catalog key via the audited backend endpoint. */
+  const revealKey = (key: string) => async () => (await reveal.mutateAsync(key)).value;
+
+  function runAiPrompt() {
+    toast.loading("Running Gemini on a sample question…", { id: "ai-prompt" });
+    aiPrompt.mutate(undefined, {
+      onSuccess: (res) =>
+        res.success
+          ? toast.success(res.message || "AI test prompt succeeded", { id: "ai-prompt" })
+          : toast.error(res.message || "AI test prompt failed", { id: "ai-prompt" }),
+      onError: (err) =>
+        toast.error(err instanceof ApiError ? err.message : "AI test prompt failed", {
+          id: "ai-prompt",
+        }),
+    });
   }
+
+  if (isLoading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-5">
@@ -315,12 +412,12 @@ function IntegrationsTab() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        {/* AI Provider */}
+        {/* AI Provider — Gemini */}
         <IntegrationCard
           icon={<Sparkles className="h-5 w-5 text-accent" />}
           title="AI Provider"
           desc="Generates clinical breakdowns for quiz questions."
-          status={aiForm.status}
+          status={configuredStatus(map, ["integration.gemini.apiKey"])}
         >
           <div className="flex flex-wrap gap-2">
             <Radio label="Google Gemini" checked readOnly />
@@ -328,22 +425,14 @@ function IntegrationsTab() {
           <div className="mt-5 grid gap-4 md:grid-cols-[1fr_220px]">
             <Field label="API Key">
               <SecretInput
-                value={aiForm.apiKey}
-                onChange={(v) => setAiForm({ ...aiForm, apiKey: v })}
+                value={geminiKey}
+                onChange={setGeminiKey}
+                onReveal={revealKey("integration.gemini.apiKey")}
                 placeholder="AIza…"
               />
             </Field>
             <Field label="Model">
-              <Select
-                value={aiForm.model}
-                onChange={(v) => setAiForm({ ...aiForm, model: v })}
-                options={[
-                  "gemini-1.5-flash",
-                  "gemini-1.5-pro",
-                  "gemini-2.0-flash",
-                  "gemini-2.0-pro",
-                ]}
-              />
+              <Select value={geminiModel} onChange={setGeminiModel} options={[...GEMINI_MODELS]} />
             </Field>
           </div>
 
@@ -360,91 +449,109 @@ function IntegrationsTab() {
           {advanced && (
             <div className="mt-3 grid gap-4 md:grid-cols-2">
               <Field label="Temperature">
-                <NumberInput
-                  step="0.1"
-                  value={aiForm.temperature}
-                  onChange={(v) => setAiForm({ ...aiForm, temperature: v })}
-                />
+                <NumberInput step="0.1" value={geminiTemp} onChange={setGeminiTemp} />
               </Field>
               <Field label="Max Tokens">
-                <NumberInput
-                  value={aiForm.maxTokens}
-                  onChange={(v) => setAiForm({ ...aiForm, maxTokens: v })}
-                />
+                <NumberInput value={geminiMaxTokens} onChange={setGeminiMaxTokens} />
               </Field>
             </div>
           )}
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-alt/60 p-3">
-            <div className="text-xs text-muted-foreground">
-              {aiForm.lastTestedAt
-                ? `Last tested ${new Date(aiForm.lastTestedAt).toLocaleString()}`
-                : "Not yet tested"}{" "}
-              · {aiForm.callsThisMonth.toLocaleString()} calls this month · ≈ $
-              {aiForm.estCostUsd.toFixed(2)}
-            </div>
             <button
               type="button"
-              onClick={() => testConnection("ai", setAiForm, "Gemini")}
-              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"
+              onClick={runAiPrompt}
+              disabled={aiPrompt.isPending}
+              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-50"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> {aiPrompt.isPending ? "Testing…" : "Test Prompt"}
+            </button>
+            <button
+              type="button"
+              onClick={() => aiTest.run("gemini", "Gemini")}
+              disabled={aiTest.isTesting}
+              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-50"
             >
               <TestTube2 className="h-3.5 w-3.5" /> Test Connection
             </button>
           </div>
           <SaveBar
             label="Save AI Settings"
-            onSave={() => {
-              update("ai", aiForm);
-              toast.success("AI provider saved");
-            }}
+            saving={isSaving}
+            onSave={() =>
+              save(
+                [
+                  { key: "integration.gemini.apiKey", value: geminiKey },
+                  { key: "integration.gemini.model", value: geminiModel },
+                  { key: "integration.gemini.temperature", value: String(geminiTemp) },
+                  { key: "integration.gemini.maxTokens", value: String(geminiMaxTokens) },
+                ],
+                "AI provider saved",
+              )
+            }
           />
         </IntegrationCard>
 
-        {/* OAuth */}
+        {/* Google OAuth */}
         <IntegrationCard
           icon={<KeyRound className="h-5 w-5 text-accent" />}
           title="Google OAuth"
           desc="Credentials for Sign in with Google."
-          status={oauthForm.status}
+          status={configuredStatus(map, [
+            "integration.google.clientId",
+            "integration.google.clientSecret",
+          ])}
         >
           <div className="grid gap-4">
             <Field label="Client ID">
               <SecretInput
-                value={oauthForm.clientId}
-                onChange={(v) => setOauthForm({ ...oauthForm, clientId: v })}
+                value={googleClientId}
+                onChange={setGoogleClientId}
+                onReveal={revealKey("integration.google.clientId")}
                 placeholder="…apps.googleusercontent.com"
               />
             </Field>
             <Field label="Client Secret">
               <SecretInput
-                value={oauthForm.clientSecret}
-                onChange={(v) => setOauthForm({ ...oauthForm, clientSecret: v })}
+                value={googleClientSecret}
+                onChange={setGoogleClientSecret}
+                onReveal={revealKey("integration.google.clientSecret")}
                 placeholder="GOCSPX-…"
               />
             </Field>
-            <Field label="Callback URL (read-only)">
-              <CopyField value={oauthForm.callbackUrl} />
-            </Field>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => oauthTest.run("google", "Google OAuth")}
+              disabled={oauthTest.isTesting}
+              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-50"
+            >
+              <TestTube2 className="h-3.5 w-3.5" /> Test Connection
+            </button>
           </div>
           <SaveBar
             label="Save OAuth Settings"
-            onSave={() => {
-              const status: IntegrationStatus =
-                oauthForm.clientId && oauthForm.clientSecret ? "connected" : "not_configured";
-              update("oauth", { ...oauthForm, status });
-              setOauthForm({ ...oauthForm, status });
-              toast.success("Google OAuth saved");
-            }}
+            saving={isSaving}
+            onSave={() =>
+              save(
+                [
+                  { key: "integration.google.clientId", value: googleClientId },
+                  { key: "integration.google.clientSecret", value: googleClientSecret },
+                ],
+                "Google OAuth saved",
+              )
+            }
           />
         </IntegrationCard>
       </div>
 
-      {/* Payment */}
+      {/* Payment — Paystack */}
       <IntegrationCard
         icon={<Wallet className="h-5 w-5 text-accent" />}
         title="Payment Gateway"
         desc="Card & mobile-money processing for subscriptions."
-        status={payForm.status}
+        status={configuredStatus(map, ["integration.paystack.secretKey"])}
       >
         <div className="flex flex-wrap gap-2">
           <Radio label="Paystack" checked readOnly />
@@ -452,154 +559,185 @@ function IntegrationsTab() {
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="Public Key">
             <SecretInput
-              value={payForm.publicKey}
-              onChange={(v) => setPayForm({ ...payForm, publicKey: v })}
+              value={paystackPublic}
+              onChange={setPaystackPublic}
+              onReveal={revealKey("integration.paystack.publicKey")}
               placeholder="pk_…"
             />
           </Field>
           <Field label="Secret Key">
             <SecretInput
-              value={payForm.secretKey}
-              onChange={(v) => setPayForm({ ...payForm, secretKey: v })}
+              value={paystackSecret}
+              onChange={setPaystackSecret}
+              onReveal={revealKey("integration.paystack.secretKey")}
               placeholder="sk_…"
             />
           </Field>
           <Field label="Webhook Secret">
             <SecretInput
-              value={payForm.webhookSecret}
-              onChange={(v) => setPayForm({ ...payForm, webhookSecret: v })}
+              value={paystackWebhook}
+              onChange={setPaystackWebhook}
+              onReveal={revealKey("integration.paystack.webhookSecret")}
               placeholder="whsec_…"
             />
           </Field>
-          <Field label="Webhook URL (paste into Paystack dashboard)">
-            <CopyField value={payForm.webhookUrl} />
-          </Field>
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-alt/60 p-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Mode
-            </span>
-            <Radio
-              label="Test"
-              checked={payForm.mode === "test"}
-              onClick={() => setPayForm({ ...payForm, mode: "test" })}
-            />
-            <Radio
-              label="Live"
-              checked={payForm.mode === "live"}
-              onClick={() => setPayForm({ ...payForm, mode: "live" })}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => toast.success("Test webhook delivered")}
-              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"
-            >
-              <TestTube2 className="h-3.5 w-3.5" /> Test Webhook
-            </button>
-            <button
-              type="button"
-              onClick={() => testConnection("payment", setPayForm, "Paystack")}
-              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"
-            >
-              <Wallet className="h-3.5 w-3.5" /> Test Connection
-            </button>
-          </div>
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-3 rounded-lg bg-surface-alt/60 p-3">
+          <button
+            type="button"
+            onClick={() => payTest.run("paystack", "Paystack")}
+            disabled={payTest.isTesting}
+            className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-50"
+          >
+            <Wallet className="h-3.5 w-3.5" /> Test Connection
+          </button>
         </div>
         <SaveBar
           label="Save Payment Settings"
-          onSave={() => {
-            update("payment", payForm);
-            toast.success("Payment gateway saved");
-          }}
+          saving={isSaving}
+          onSave={() =>
+            save(
+              [
+                { key: "integration.paystack.publicKey", value: paystackPublic },
+                { key: "integration.paystack.secretKey", value: paystackSecret },
+                { key: "integration.paystack.webhookSecret", value: paystackWebhook },
+              ],
+              "Payment gateway saved",
+            )
+          }
         />
       </IntegrationCard>
 
-      {/* SMTP */}
-      <IntegrationCard
-        icon={<Mail className="h-5 w-5 text-accent" />}
-        title="Email / SMTP"
-        desc="Outbound server for transactional email."
-        status={smtpForm.status}
-      >
-        <Field label="Provider Preset">
-          <Select
-            value={smtpForm.preset}
-            onChange={(v) => {
-              const presets: Record<string, { host: string; port: string; username: string }> = {
-                sendgrid: { host: "smtp.sendgrid.net", port: "587", username: "apikey" },
-                mailgun: {
-                  host: "smtp.mailgun.org",
-                  port: "587",
-                  username: "postmaster@your-domain",
-                },
-                gmail: { host: "smtp.gmail.com", port: "465", username: "you@gmail.com" },
-                custom: { host: "", port: "587", username: "" },
-              };
-              const p = presets[v] ?? presets.custom;
-              setSmtpForm({ ...smtpForm, preset: v as typeof smtpForm.preset, ...p });
-            }}
-            options={["sendgrid", "mailgun", "gmail", "custom"]}
+      <div className="grid gap-5 xl:grid-cols-2">
+        {/* SMTP */}
+        <IntegrationCard
+          icon={<Mail className="h-5 w-5 text-accent" />}
+          title="Email / SMTP"
+          desc="Outbound server for transactional email."
+          status={configuredStatus(map, ["integration.smtp.host", "integration.smtp.password"])}
+        >
+          <Field label="Provider Preset">
+            <Select
+              value={smtpPreset}
+              onChange={(v) => {
+                const presets: Record<string, { host: string; port: string; username: string }> = {
+                  sendgrid: { host: "smtp.sendgrid.net", port: "587", username: "apikey" },
+                  mailgun: {
+                    host: "smtp.mailgun.org",
+                    port: "587",
+                    username: "postmaster@your-domain",
+                  },
+                  gmail: { host: "smtp.gmail.com", port: "465", username: "you@gmail.com" },
+                  custom: { host: "", port: "587", username: "" },
+                };
+                const p = presets[v] ?? presets.custom;
+                setSmtpPreset(v as typeof smtpPreset);
+                setSmtpHost(p.host);
+                setSmtpPort(p.port);
+                setSmtpUser(p.username);
+              }}
+              options={["sendgrid", "mailgun", "gmail", "custom"]}
+            />
+          </Field>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Field label="Host">
+              <Input value={smtpHost} onChange={setSmtpHost} />
+            </Field>
+            <Field label="Port">
+              <Input value={smtpPort} onChange={setSmtpPort} />
+            </Field>
+            <Field label="Username">
+              <Input value={smtpUser} onChange={setSmtpUser} />
+            </Field>
+            <Field label="Password">
+              <SecretInput
+                value={smtpPass}
+                onChange={setSmtpPass}
+                onReveal={revealKey("integration.smtp.password")}
+                placeholder="••••••"
+              />
+            </Field>
+            <Field label="From Name">
+              <Input value={smtpFromName} onChange={setSmtpFromName} />
+            </Field>
+            <Field label="From Email">
+              <Input value={smtpFromEmail} onChange={setSmtpFromEmail} />
+            </Field>
+          </div>
+          <div className="mt-4 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => smtpTest.run("smtp", "SMTP")}
+              disabled={smtpTest.isTesting}
+              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-50"
+            >
+              <TestTube2 className="h-3.5 w-3.5" /> Test Connection
+            </button>
+          </div>
+          <SaveBar
+            label="Save SMTP Settings"
+            saving={isSaving}
+            onSave={() =>
+              save(
+                [
+                  { key: "integration.smtp.host", value: smtpHost },
+                  { key: "integration.smtp.port", value: smtpPort },
+                  { key: "integration.smtp.username", value: smtpUser },
+                  { key: "integration.smtp.password", value: smtpPass },
+                  { key: "integration.smtp.fromName", value: smtpFromName },
+                  { key: "integration.smtp.fromEmail", value: smtpFromEmail },
+                ],
+                "SMTP settings saved",
+              )
+            }
           />
-        </Field>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Field label="Host">
-            <Input value={smtpForm.host} onChange={(v) => setSmtpForm({ ...smtpForm, host: v })} />
-          </Field>
-          <Field label="Port">
-            <Input value={smtpForm.port} onChange={(v) => setSmtpForm({ ...smtpForm, port: v })} />
-          </Field>
-          <Field label="Username">
-            <Input
-              value={smtpForm.username}
-              onChange={(v) => setSmtpForm({ ...smtpForm, username: v })}
-            />
-          </Field>
-          <Field label="Password">
-            <SecretInput
-              value={smtpForm.password}
-              onChange={(v) => setSmtpForm({ ...smtpForm, password: v })}
-              placeholder="••••••"
-            />
-          </Field>
-          <Field label="From Name">
-            <Input
-              value={smtpForm.fromName}
-              onChange={(v) => setSmtpForm({ ...smtpForm, fromName: v })}
-            />
-          </Field>
-          <Field label="From Email">
-            <Input
-              value={smtpForm.fromEmail}
-              onChange={(v) => setSmtpForm({ ...smtpForm, fromEmail: v })}
-            />
-          </Field>
-        </div>
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => toast.success("Test email queued")}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt"
-          >
-            <Send className="h-3.5 w-3.5" /> Send Test Email
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const status: IntegrationStatus =
-                smtpForm.host && smtpForm.password ? "connected" : "not_configured";
-              update("smtp", { ...smtpForm, status });
-              setSmtpForm({ ...smtpForm, status });
-              toast.success("SMTP settings saved");
-            }}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
-          >
-            <Save className="h-4 w-4" /> Save
-          </button>
-        </div>
-      </IntegrationCard>
+        </IntegrationCard>
+
+        {/* Resend */}
+        <IntegrationCard
+          icon={<Send className="h-5 w-5 text-accent" />}
+          title="Resend"
+          desc="Transactional email via the Resend API."
+          status={configuredStatus(map, ["integration.resend.apiKey"])}
+        >
+          <div className="grid gap-4">
+            <Field label="API Key">
+              <SecretInput
+                value={resendKey}
+                onChange={setResendKey}
+                onReveal={revealKey("integration.resend.apiKey")}
+                placeholder="re_…"
+              />
+            </Field>
+            <Field label="From Email">
+              <Input value={resendFrom} onChange={setResendFrom} />
+            </Field>
+          </div>
+          <div className="mt-4 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => resendTest.run("resend", "Resend")}
+              disabled={resendTest.isTesting}
+              className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-3 text-xs font-semibold hover:bg-surface-alt disabled:opacity-50"
+            >
+              <TestTube2 className="h-3.5 w-3.5" /> Test Connection
+            </button>
+          </div>
+          <SaveBar
+            label="Save Resend Settings"
+            saving={isSaving}
+            onSave={() =>
+              save(
+                [
+                  { key: "integration.resend.apiKey", value: resendKey },
+                  { key: "integration.resend.fromEmail", value: resendFrom },
+                ],
+                "Resend settings saved",
+              )
+            }
+          />
+        </IntegrationCard>
+      </div>
     </div>
   );
 }
@@ -922,16 +1060,30 @@ function TemplateEditor({
 }
 
 /* ───────────── Tab 4 — Trial & Access ───────────── */
+// Numeric limits persist to the backend catalog (trial.durationDays/
+// questionLimit/gracePeriodDays). Device-binding + per-feature trial access
+// have no catalog key yet, so they remain in the local store until the backend
+// exposes them — see the gaps note.
 function TrialTab() {
-  const general = useSettingsStore((s) => s.settings.general);
+  const { data: map, isLoading } = useSettingsMap();
+  const { save, isSaving } = useSaveSettings();
   const trial = useSettingsStore((s) => s.settings.trial);
-  const update = useSettingsStore((s) => s.update);
+  const updateLocal = useSettingsStore((s) => s.update);
   const catalog = useFeatureCatalogStore((s) => s.features);
-  const [days, setDays] = useState(general.trialDays);
-  const [limit, setLimit] = useState(general.trialQuestionLimit);
-  const [grace, setGrace] = useState(trial.gracePeriodDays);
+  const [days, setDays] = useState(0);
+  const [limit, setLimit] = useState(0);
+  const [grace, setGrace] = useState(0);
   const [binding, setBinding] = useState(trial.deviceBinding);
   const [features, setFeatures] = useState(trial.features);
+
+  useEffect(() => {
+    if (!map) return;
+    setDays(Number(settingValue(map, "trial.durationDays", "0")) || 0);
+    setLimit(Number(settingValue(map, "trial.questionLimit", "0")) || 0);
+    setGrace(Number(settingValue(map, "trial.gracePeriodDays", "0")) || 0);
+  }, [map]);
+
+  if (isLoading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-5">
@@ -989,10 +1141,19 @@ function TrialTab() {
 
       <SaveBar
         label="Save Trial & Access"
+        saving={isSaving}
         onSave={() => {
-          update("general", { trialDays: days, trialQuestionLimit: limit });
-          update("trial", { gracePeriodDays: grace, deviceBinding: binding, features });
-          toast.success("Trial & access control saved");
+          // Device-binding + per-feature access have no backend catalog key yet,
+          // so they persist locally; the numeric limits persist to the backend.
+          updateLocal("trial", { deviceBinding: binding, features });
+          save(
+            [
+              { key: "trial.durationDays", value: String(days) },
+              { key: "trial.questionLimit", value: String(limit) },
+              { key: "trial.gracePeriodDays", value: String(grace) },
+            ],
+            "Trial & access control saved",
+          );
         }}
       />
     </div>
@@ -1000,10 +1161,26 @@ function TrialTab() {
 }
 
 /* ───────────── Tab — Security & Protection ───────────── */
+// Policy persists to the backend catalog (protection.enabled/strikeThreshold/
+// strikeWindowMinutes/lockoutDurationHours). `countedEvents` drives the
+// client-side detector and has no catalog key, so it stays in the local store.
 function ProtectionTab() {
+  const { data: map, isLoading } = useSettingsMap();
+  const { save, isSaving } = useSaveSettings();
   const settings = useProtectionStore((s) => s.settings);
   const updateSettings = useProtectionStore((s) => s.updateSettings);
   const [form, setForm] = useState(settings);
+
+  useEffect(() => {
+    if (!map) return;
+    setForm((f) => ({
+      ...f,
+      enabled: settingBool(map, "protection.enabled"),
+      strikeThreshold: Number(settingValue(map, "protection.strikeThreshold", "3")) || 0,
+      strikeWindowMin: Number(settingValue(map, "protection.strikeWindowMinutes", "60")) || 0,
+      lockoutHours: Number(settingValue(map, "protection.lockoutDurationHours", "24")) || 0,
+    }));
+  }, [map]);
 
   function toggleEvent(type: ProtectionEventType) {
     setForm((f) => ({
@@ -1013,6 +1190,8 @@ function ProtectionTab() {
         : [...f.countedEvents, type],
     }));
   }
+
+  if (isLoading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-5">
@@ -1105,9 +1284,19 @@ function ProtectionTab() {
 
       <SaveBar
         label="Save Protection Settings"
+        saving={isSaving}
         onSave={() => {
-          updateSettings(form);
-          toast.success("Protection settings saved");
+          // countedEvents has no catalog key — keep it in the local detector store.
+          updateSettings({ countedEvents: form.countedEvents });
+          save(
+            [
+              { key: "protection.enabled", value: String(form.enabled) },
+              { key: "protection.strikeThreshold", value: String(form.strikeThreshold) },
+              { key: "protection.strikeWindowMinutes", value: String(form.strikeWindowMin) },
+              { key: "protection.lockoutDurationHours", value: String(form.lockoutHours) },
+            ],
+            "Protection settings saved",
+          );
         }}
       />
     </div>
@@ -1236,10 +1425,69 @@ function RolesTab() {
 /* ───────────── Tab 6 — Branding ───────────── */
 const FONT_OPTIONS = ["Inter", "system-ui", "Georgia", "JetBrains Mono"];
 
+/** Map the backend (short-key) branding into the local form shape. */
+function apiToBrandingForm(b: Branding): BrandingSettings {
+  return {
+    primaryColor: b.colorPrimary,
+    accentColor: b.colorAccent,
+    successColor: b.colorSuccess,
+    warningColor: b.colorWarning,
+    logoLight: b.logoLightUrl,
+    logoDark: b.logoDarkUrl,
+    favicon: b.faviconUrl,
+    pwaIcon: b.pwaIconUrl,
+    loginBackground: b.loginBackgroundUrl,
+    headingFont: b.fontHeading,
+    bodyFont: b.fontBody,
+    emailHeaderLogo: b.emailLogoUrl,
+    emailFooterText: b.emailFooterText,
+    companyLegalName: b.legalName,
+    social: {
+      twitter: b.socialTwitter,
+      facebook: b.socialFacebook,
+      linkedin: b.socialLinkedin,
+      instagram: b.socialInstagram,
+    },
+  };
+}
+
+/** Map the local form back to the backend short-key update payload. */
+function brandingFormToApi(f: BrandingSettings): Partial<Branding> {
+  return {
+    colorPrimary: f.primaryColor,
+    colorAccent: f.accentColor,
+    colorSuccess: f.successColor,
+    colorWarning: f.warningColor,
+    logoLightUrl: f.logoLight,
+    logoDarkUrl: f.logoDark,
+    faviconUrl: f.favicon,
+    pwaIconUrl: f.pwaIcon,
+    loginBackgroundUrl: f.loginBackground,
+    fontHeading: f.headingFont,
+    fontBody: f.bodyFont,
+    emailLogoUrl: f.emailHeaderLogo,
+    emailFooterText: f.emailFooterText,
+    legalName: f.companyLegalName,
+    socialTwitter: f.social.twitter,
+    socialFacebook: f.social.facebook,
+    socialLinkedin: f.social.linkedin,
+    socialInstagram: f.social.instagram,
+  };
+}
+
 function BrandingTab() {
+  const { data: apiBranding, isLoading } = useAdminBranding();
+  const updateBranding = useUpdateBranding();
+  // Keep the local store in sync so the Email-template preview tab uses the
+  // same branding as the backend (renderBrandedEmail reads the local store).
   const branding = useSettingsStore((s) => s.settings.branding);
-  const update = useSettingsStore((s) => s.update);
+  const updateLocal = useSettingsStore((s) => s.update);
   const [form, setForm] = useState(branding);
+
+  // Seed the form from the backend once it loads.
+  useEffect(() => {
+    if (apiBranding) setForm(apiToBrandingForm(apiBranding));
+  }, [apiBranding]);
 
   // Live-apply palette colors as the admin tweaks them.
   useEffect(() => {
@@ -1257,6 +1505,19 @@ function BrandingTab() {
   function setSocial(key: keyof BrandingSettings["social"], value: string) {
     setForm((f) => ({ ...f, social: { ...f.social, [key]: value } }));
   }
+
+  function handleSave() {
+    updateBranding.mutate(brandingFormToApi(form), {
+      onSuccess: () => {
+        updateLocal("branding", form);
+        toast.success("Branding saved");
+      },
+      onError: (err) =>
+        toast.error(err instanceof ApiError ? err.message : "Could not save branding"),
+    });
+  }
+
+  if (isLoading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-5">
@@ -1475,13 +1736,7 @@ function BrandingTab() {
         </div>
       </Card>
 
-      <SaveBar
-        label="Save Branding"
-        onSave={() => {
-          update("branding", form);
-          toast.success("Branding saved");
-        }}
-      />
+      <SaveBar label="Save Branding" saving={updateBranding.isPending} onSave={handleSave} />
     </div>
   );
 }
@@ -2141,19 +2396,36 @@ function SecretInput({
   value,
   onChange,
   placeholder,
+  onReveal,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  /** When provided, reveal fetches the decrypted secret from the backend (audited). */
+  onReveal?: () => Promise<string | null>;
 }) {
   const [reveal, setReveal] = useState(false);
   const [editing, setEditing] = useState(!value);
+  const [revealing, setRevealing] = useState(false);
+  // When the backend supplies a decrypted secret, hold it here (component state only).
+  const [revealed, setRevealed] = useState<string | null>(null);
 
   useEffect(() => {
     if (!reveal) return;
-    const t = setTimeout(() => setReveal(false), 5000);
+    const t = setTimeout(() => {
+      setReveal(false);
+      setRevealed(null);
+    }, 5000);
     return () => clearTimeout(t);
   }, [reveal]);
+
+  // Once the admin edits, the typed value is the new secret — drop any revealed copy.
+  useEffect(() => {
+    if (editing) {
+      setReveal(false);
+      setRevealed(null);
+    }
+  }, [editing]);
 
   const masked = value
     ? value.length > 4
@@ -2161,19 +2433,44 @@ function SecretInput({
       : "••••"
     : "";
 
+  async function toggleReveal() {
+    if (reveal) {
+      setReveal(false);
+      setRevealed(null);
+      return;
+    }
+    if (onReveal) {
+      setRevealing(true);
+      try {
+        const secret = await onReveal();
+        setRevealed(secret ?? "");
+        setReveal(true);
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : "Could not reveal secret");
+      } finally {
+        setRevealing(false);
+      }
+    } else {
+      setReveal(true);
+    }
+  }
+
+  const display = editing ? value : reveal ? (revealed ?? value) : masked;
+
   return (
     <div className="flex items-center gap-2">
       <input
         readOnly={!editing}
-        value={reveal || editing ? value : masked}
+        value={display}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={`h-10 flex-1 rounded-lg border border-border px-3 font-mono text-sm ${editing ? "bg-surface" : "bg-surface-alt/60 text-muted-foreground"}`}
       />
       <button
         type="button"
-        onClick={() => setReveal((r) => !r)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground hover:text-foreground"
+        onClick={toggleReveal}
+        disabled={revealing || editing}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground hover:text-foreground disabled:opacity-50"
         aria-label={reveal ? "Hide" : "Reveal"}
       >
         {reveal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -2266,15 +2563,24 @@ function FileUpload({
   );
 }
 
-function SaveBar({ label = "Save Changes", onSave }: { label?: string; onSave: () => void }) {
+function SaveBar({
+  label = "Save Changes",
+  onSave,
+  saving = false,
+}: {
+  label?: string;
+  onSave: () => void;
+  saving?: boolean;
+}) {
   return (
     <div className="mt-6 flex items-center justify-end">
       <button
         type="button"
         onClick={onSave}
-        className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
+        disabled={saving}
+        className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <Save className="h-4 w-4" /> {label}
+        <Save className="h-4 w-4" /> {saving ? "Saving…" : label}
       </button>
     </div>
   );

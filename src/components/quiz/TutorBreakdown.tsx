@@ -139,7 +139,7 @@ export function TutorBreakdown({
                     {correctOpt.label}. {correctOpt.text}
                   </p>
                 )}
-                <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+                <p className="mt-2 text-sm leading-relaxed text-foreground">
                   {breakdown.whyCorrect}
                 </p>
               </div>
@@ -155,7 +155,7 @@ export function TutorBreakdown({
                   <p className="text-[11px] font-bold uppercase tracking-wide text-error">
                     Your choice{selectedLabel ? ` · ${selectedLabel}` : ""} was incorrect
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+                  <p className="mt-2 text-sm leading-relaxed text-foreground">
                     {breakdown.whyStudentWasWrong}
                   </p>
                 </div>
@@ -170,7 +170,7 @@ export function TutorBreakdown({
                 <h4 className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
                   <BookOpen className="h-3.5 w-3.5" /> Why each other option is wrong
                 </h4>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="mt-0.5 text-xs text-foreground/80">
                   And the exact clinical scenario that would flip each distractor into the right
                   answer.
                 </p>
@@ -193,12 +193,12 @@ export function TutorBreakdown({
                           {o.label}
                         </span>
                         <div className="space-y-1.5 pt-0.5">
-                          <p className="text-sm leading-relaxed text-foreground/90">
+                          <p className="text-sm leading-relaxed text-foreground">
                             <span className="font-bold text-error">Why it's wrong — </span>
                             {o.reason}
                           </p>
                           {scenario && (
-                            <p className="text-sm leading-relaxed text-muted-foreground">
+                            <p className="text-sm leading-relaxed text-foreground/80">
                               <span className="font-bold text-primary">
                                 When it would be correct —{" "}
                               </span>

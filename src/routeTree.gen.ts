@@ -32,6 +32,7 @@ import { Route as AdminUploadsRouteImport } from './routes/admin.uploads'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
 import { Route as AdminTrafficRouteImport } from './routes/admin.traffic'
 import { Route as AdminSubscriptionsRouteImport } from './routes/admin.subscriptions'
+import { Route as AdminSpecialtiesRouteImport } from './routes/admin.specialties'
 import { Route as AdminSessionsRouteImport } from './routes/admin.sessions'
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 import { Route as AdminRestrictionsRouteImport } from './routes/admin.restrictions'
@@ -202,6 +203,11 @@ const AdminTrafficRoute = AdminTrafficRouteImport.update({
 const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
   id: '/subscriptions',
   path: '/subscriptions',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSpecialtiesRoute = AdminSpecialtiesRouteImport.update({
+  id: '/specialties',
+  path: '/specialties',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSessionsRoute = AdminSessionsRouteImport.update({
@@ -539,6 +545,7 @@ export interface FileRoutesByFullPath {
   '/admin/restrictions': typeof AdminRestrictionsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/sessions': typeof AdminSessionsRoute
+  '/admin/specialties': typeof AdminSpecialtiesRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRouteWithChildren
   '/admin/traffic': typeof AdminTrafficRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -618,6 +625,7 @@ export interface FileRoutesByTo {
   '/admin/restrictions': typeof AdminRestrictionsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/sessions': typeof AdminSessionsRoute
+  '/admin/specialties': typeof AdminSpecialtiesRoute
   '/admin/traffic': typeof AdminTrafficRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/uploads': typeof AdminUploadsRoute
@@ -699,6 +707,7 @@ export interface FileRoutesById {
   '/admin/restrictions': typeof AdminRestrictionsRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/sessions': typeof AdminSessionsRoute
+  '/admin/specialties': typeof AdminSpecialtiesRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRouteWithChildren
   '/admin/traffic': typeof AdminTrafficRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -782,6 +791,7 @@ export interface FileRouteTypes {
     | '/admin/restrictions'
     | '/admin/roles'
     | '/admin/sessions'
+    | '/admin/specialties'
     | '/admin/subscriptions'
     | '/admin/traffic'
     | '/admin/transactions'
@@ -861,6 +871,7 @@ export interface FileRouteTypes {
     | '/admin/restrictions'
     | '/admin/roles'
     | '/admin/sessions'
+    | '/admin/specialties'
     | '/admin/traffic'
     | '/admin/transactions'
     | '/admin/uploads'
@@ -941,6 +952,7 @@ export interface FileRouteTypes {
     | '/admin/restrictions'
     | '/admin/roles'
     | '/admin/sessions'
+    | '/admin/specialties'
     | '/admin/subscriptions'
     | '/admin/traffic'
     | '/admin/transactions'
@@ -1166,6 +1178,13 @@ declare module '@tanstack/react-router' {
       path: '/subscriptions'
       fullPath: '/admin/subscriptions'
       preLoaderRoute: typeof AdminSubscriptionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/specialties': {
+      id: '/admin/specialties'
+      path: '/specialties'
+      fullPath: '/admin/specialties'
+      preLoaderRoute: typeof AdminSpecialtiesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/sessions': {
@@ -1664,6 +1683,7 @@ interface AdminRouteChildren {
   AdminRestrictionsRoute: typeof AdminRestrictionsRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminSessionsRoute: typeof AdminSessionsRoute
+  AdminSpecialtiesRoute: typeof AdminSpecialtiesRoute
   AdminSubscriptionsRoute: typeof AdminSubscriptionsRouteWithChildren
   AdminTrafficRoute: typeof AdminTrafficRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
@@ -1705,6 +1725,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminRestrictionsRoute: AdminRestrictionsRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminSessionsRoute: AdminSessionsRoute,
+  AdminSpecialtiesRoute: AdminSpecialtiesRoute,
   AdminSubscriptionsRoute: AdminSubscriptionsRouteWithChildren,
   AdminTrafficRoute: AdminTrafficRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,

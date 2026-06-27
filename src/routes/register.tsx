@@ -1,11 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Eye, EyeOff, Check, UserPlus, Loader2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Eye, EyeOff, Check, UserPlus, Loader2, ChevronDown, Search } from "lucide-react";
 import { AuthSplit, AuthDivider, GoogleButton } from "@/components/auth/AuthSplit";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { authApi, establishSession } from "@/api/auth.api";
 import { ApiError } from "@/api/client";
 import { usePublicSettings } from "@/api/settings-public.api";
+import { useSpecialties } from "@/api/specialties.api";
+import { COUNTRIES, DEFAULT_COUNTRY_CODE, findCountry } from "@/lib/countries";
+import { countryFlag } from "@/lib/flags";
+import { useClickOutside } from "@/hooks/useClickOutside";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -21,19 +25,13 @@ export const Route = createFileRoute("/register")({
   component: RegisterPage,
 });
 
-const SPECIALTIES = [
+/** Tiny inline fallback for first paint / offline, before useSpecialties() loads. */
+const FALLBACK_SPECIALTIES = [
   "Medical Student",
   "General Practice",
   "Internal Medicine",
   "Surgery",
   "Pediatrics",
-  "Obstetrics & Gynecology",
-  "Emergency Medicine",
-  "Anesthesia",
-  "Psychiatry",
-  "Radiology",
-  "Pathology",
-  "Family Medicine",
   "Other",
 ];
 
@@ -43,15 +41,25 @@ function RegisterPage() {
   const trialDays = publicSettings?.trialDays ?? 7;
   const trialQuestionLimit = publicSettings?.trialQuestionLimit ?? 10;
 
+  const { data: specialtiesData } = useSpecialties();
+  const specialtyOptions = useMemo(
+    () => specialtiesData?.map((s) => s.name) ?? FALLBACK_SPECIALTIES,
+    [specialtiesData],
+  );
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [specialty, setSpecialty] = useState(SPECIALTIES[0]);
+  const [specialty, setSpecialty] = useState("");
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The first available specialty acts as the default once the list resolves.
+  const selectedSpecialty = specialty || specialtyOptions[0] || "";
 
   function handleGoogle() {
     // Full-page redirect to the backend OAuth entry point (new users land in onboarding).
@@ -64,6 +72,9 @@ function RegisterPage() {
 
     if (!name.trim()) return setError("Please enter your full name.");
     if (!email.trim()) return setError("Please enter your email address.");
+    if (!selectedSpecialty) return setError("Please select your specialty / level.");
+    const country = findCountry(countryCode);
+    if (!country) return setError("Please select your country.");
     if (password.length < 8) return setError("Password must be at least 8 characters.");
     if (password !== confirm) return setError("Passwords do not match.");
     if (!agree) return setError("Please accept the Terms of Service and Privacy Policy.");
@@ -74,7 +85,8 @@ function RegisterPage() {
         name: name.trim(),
         email: email.trim(),
         password,
-        specialty,
+        specialty: selectedSpecialty,
+        country: country.name,
       });
       const user = await establishSession(tokens);
       navigate({ to: user.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard" });
@@ -162,16 +174,23 @@ function RegisterPage() {
           </label>
           <select
             id="specialty"
-            value={specialty}
+            value={selectedSpecialty}
             onChange={(e) => setSpecialty(e.target.value)}
             className="mt-1.5 block w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
           >
-            {SPECIALTIES.map((s) => (
+            {specialtyOptions.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground" htmlFor="country">
+            Country
+          </label>
+          <CountryCombobox value={countryCode} onChange={setCountryCode} />
         </div>
 
         <div>
@@ -262,5 +281,104 @@ function RegisterPage() {
         </Link>
       </p>
     </AuthSplit>
+  );
+}
+
+/** Searchable country picker (zero-dependency). Trigger shows flag + name; the
+ *  popover holds a filter input and a scrollable list of flag + name options. */
+function CountryCombobox({ value, onChange }: { value: string; onChange: (code: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const ref = useClickOutside<HTMLDivElement>(() => {
+    setOpen(false);
+    setFilter("");
+  });
+
+  const selected = findCountry(value);
+
+  const filtered = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q);
+  }, [filter]);
+
+  function toggle() {
+    setOpen((o) => {
+      const next = !o;
+      if (next) setTimeout(() => inputRef.current?.focus(), 0);
+      return next;
+    });
+  }
+
+  function pick(code: string) {
+    onChange(code);
+    setOpen(false);
+    setFilter("");
+  }
+
+  return (
+    <div className="relative mt-1.5" ref={ref}>
+      <button
+        id="country"
+        type="button"
+        onClick={toggle}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          {selected ? (
+            <>
+              <span className="text-base leading-none">{countryFlag(selected.code)}</span>
+              <span className="truncate text-foreground">{selected.name}</span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">Select your country</span>
+          )}
+        </span>
+        <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-card-hover)]">
+          <div className="relative border-b border-border p-2">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Search countries…"
+              className="block w-full rounded-md border border-border bg-surface py-2 pl-9 pr-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            />
+          </div>
+          <ul role="listbox" className="max-h-60 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-muted-foreground">No countries match.</li>
+            ) : (
+              filtered.map((c) => {
+                const active = c.code === value;
+                return (
+                  <li key={c.code} role="option" aria-selected={active}>
+                    <button
+                      type="button"
+                      onClick={() => pick(c.code)}
+                      className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm transition-colors hover:bg-surface-alt ${
+                        active ? "bg-primary/10 font-semibold text-primary" : "text-foreground"
+                      }`}
+                    >
+                      <span className="text-base leading-none">{countryFlag(c.code)}</span>
+                      <span className="truncate">{c.name}</span>
+                      {active && <Check className="ml-auto h-4 w-4 flex-shrink-0 text-primary" />}
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

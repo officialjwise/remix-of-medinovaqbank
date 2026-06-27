@@ -30,9 +30,27 @@ export interface OnboardingStepInput {
   data?: Record<string, unknown>;
 }
 
+/** POST /auth/login — 2FA-enabled accounts get a challenge instead of tokens. */
+export interface TwoFactorChallenge {
+  twoFactorRequired: true;
+  challengeToken: string;
+}
+
+/** /auth/login may resolve to a token pair OR a 2FA challenge. */
+export type LoginResult = AuthTokens | TwoFactorChallenge;
+
+/** Narrow a login result to the 2FA-challenge branch. */
+export function isTwoFactorChallenge(result: LoginResult): result is TwoFactorChallenge {
+  return "twoFactorRequired" in result && result.twoFactorRequired === true;
+}
+
 export const authApi = {
   login: (email: string, password: string) =>
-    apiClient.post<AuthTokens>("/auth/login", { email, password }),
+    apiClient.post<LoginResult>("/auth/login", { email, password }),
+
+  /** Exchange a 2FA challenge token + 6-digit code for a token pair. */
+  verifyTwoFactor: (challengeToken: string, code: string) =>
+    apiClient.post<AuthTokens>("/auth/2fa/verify", { challengeToken, code }),
 
   register: (input: RegisterInput) => apiClient.post<AuthTokens>("/auth/register", input),
 

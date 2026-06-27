@@ -10,10 +10,6 @@
  * Backend wire types + boundary mapper + TanStack Query hooks live HERE (not in
  * the shared @/api/types|mappers) to avoid cross-domain collisions, per project
  * convention. Plan CRUD lives in plans.api.ts — NOT duplicated here.
- *
- * GAPS (backend SubscriptionResponseDto does not provide these):
- *   - user name / email / paystack reference are NOT on the DTO (only userId).
- *     The list screen shows userId; name/email are left blank (gap recorded).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
@@ -32,6 +28,8 @@ export type BackendSubscriptionStatus = "active" | "expired" | "cancelled" | "tr
 export interface BackendSubscription {
   id: string;
   userId: string;
+  userName: string | null;
+  userEmail: string | null;
   plan: BackendSubscriptionPlan;
   status: BackendSubscriptionStatus;
   amountPaid: number;
@@ -63,6 +61,8 @@ export const STATUS_LABELS: Record<BackendSubscriptionStatus, string> = {
 export interface AdminSubscription {
   id: string;
   userId: string;
+  userName: string | null;
+  userEmail: string | null;
   plan: BackendSubscriptionPlan;
   planLabel: string;
   status: BackendSubscriptionStatus;
@@ -80,6 +80,8 @@ export function mapSubscription(s: BackendSubscription): AdminSubscription {
   return {
     id: s.id,
     userId: s.userId,
+    userName: s.userName,
+    userEmail: s.userEmail,
     plan: s.plan,
     planLabel: PLAN_LABELS[s.plan] ?? s.plan,
     status: s.status,

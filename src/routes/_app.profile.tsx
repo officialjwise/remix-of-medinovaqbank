@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   Award,
@@ -37,6 +37,7 @@ import {
   useRemoveAvatar,
   useChangePassword,
 } from "@/api/profile.api";
+import { useSpecialties } from "@/api/specialties.api";
 
 export const Route = createFileRoute("/_app/profile")({
   head: () => ({
@@ -45,20 +46,14 @@ export const Route = createFileRoute("/_app/profile")({
   component: ProfilePage,
 });
 
-const SPECIALTIES = [
+/** Tiny inline fallback for first paint / offline, before useSpecialties() loads. */
+const FALLBACK_SPECIALTIES = [
   "General Practice",
   "Surgery",
-  "Cardiology",
-  "Neurology",
-  "Pharmacology",
-  "Pathology",
-  "Radiology",
-  "Obstetrics & Gynaecology",
-  "Paediatrics",
-  "Psychiatry",
   "Internal Medicine",
+  "Paediatrics",
   "Other",
-] as const;
+];
 
 const COUNTRIES = [
   "Ghana",
@@ -103,6 +98,7 @@ function ProfilePage() {
 
   const { data: profile } = useProfile();
   const { data: stats } = useUserStats();
+  const { data: specialtiesData } = useSpecialties();
   const updateProfile = useUpdateProfile();
   const uploadAvatar = useUploadAvatar();
   const removeAvatar = useRemoveAvatar();
@@ -112,6 +108,13 @@ function ProfilePage() {
   const [specialty, setSpecialty] = useState("General Practice");
   const [institution, setInstitution] = useState("");
   const [country, setCountry] = useState("Ghana");
+
+  // Active specialties from the backend (fallback for first paint), with the
+  // user's current value merged in so a deactivated/legacy choice is never lost.
+  const specialtyOptions = useMemo(() => {
+    const base = specialtiesData?.map((s) => s.name) ?? FALLBACK_SPECIALTIES;
+    return specialty && !base.includes(specialty) ? [specialty, ...base] : base;
+  }, [specialtiesData, specialty]);
 
   // Hydrate form fields from the live profile once it loads.
   useEffect(() => {
@@ -380,7 +383,7 @@ function ProfilePage() {
                   onChange={(e) => setSpecialty(e.target.value)}
                   className={INPUT}
                 >
-                  {SPECIALTIES.map((s) => (
+                  {specialtyOptions.map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>

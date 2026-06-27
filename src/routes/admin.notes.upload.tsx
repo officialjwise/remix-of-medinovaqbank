@@ -12,7 +12,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useNotesStore, TIER_LABELS, type NoteTier } from "@/stores/notesStore";
+import { useUploadNote, TIER_LABELS, type NoteTier } from "@/api/admin-notes.api";
 import { useExamTypes } from "@/api/exam-types.api";
 import { useCategories } from "@/api/categories.api";
 import { cn } from "@/lib/utils";
@@ -29,17 +29,6 @@ export const Route = createFileRoute("/admin/notes/upload")({
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
-const COVER_COLORS = [
-  "#0E7C7B",
-  "#2BC97F",
-  "#0EA5E9",
-  "#7C3AED",
-  "#A855F7",
-  "#EC4899",
-  "#F97316",
-  "#E11D48",
-];
-
 const TIER_OPTIONS: {
   value: NoteTier;
   icon: typeof ShieldCheck;
@@ -47,7 +36,7 @@ const TIER_OPTIONS: {
   tone: string;
 }[] = [
   {
-    value: "trial_paid",
+    value: "trial_and_paid",
     icon: ShieldCheck,
     blurb: "Visible to everyone. You can hide individual topics from trial users later.",
     tone: "text-success",
@@ -59,7 +48,7 @@ const TIER_OPTIONS: {
     tone: "text-warning",
   },
   {
-    value: "hidden",
+    value: "none",
     icon: EyeOff,
     blurb: "Hidden from everyone — keep it as a draft until you're ready.",
     tone: "text-error",
@@ -74,30 +63,28 @@ function formatBytes(bytes: number): string {
 
 function UploadNotePage() {
   const navigate = useNavigate();
-  const add = useNotesStore((s) => s.add);
+  const upload = useUploadNote();
   const { data: categories = [] } = useCategories();
   const { data: examTypes = [] } = useExamTypes();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [examType, setExamType] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [examTypeId, setExamTypeId] = useState("");
+  const [tier, setTier] = useState<NoteTier>("trial_and_paid");
 
   // Categories load async; default to the first once available.
   useEffect(() => {
-    if (!category && categories.length > 0) setCategory(categories[0].name);
-  }, [categories, category]);
+    if (!categoryId && categories.length > 0) setCategoryId(categories[0].id);
+  }, [categories, categoryId]);
   // Exam types load async; default to the first once available.
   useEffect(() => {
-    if (!examType && examTypes.length > 0) setExamType(examTypes[0].name);
-  }, [examTypes, examType]);
-  const [coverColor, setCoverColor] = useState(COVER_COLORS[0]);
-  const [tier, setTier] = useState<NoteTier>("trial_paid");
+    if (!examTypeId && examTypes.length > 0) setExamTypeId(examTypes[0].id);
+  }, [examTypes, examTypeId]);
 
   const onPick = (f: File) => {
     if (f.type !== "application/pdf" && !/\.pdf$/i.test(f.name)) {
@@ -120,51 +107,37 @@ function UploadNotePage() {
       toast.error("Select a PDF to upload");
       return;
     }
-    if (!category) {
+    if (!categoryId) {
       toast.error("Choose a category");
       return;
     }
-    if (!examType) {
+    if (!examTypeId) {
       toast.error("Choose an exam type");
       return;
     }
 
-    setSubmitting(true);
-
-    // Mock PDF → page-image processing. Page count is derived for the demo.
-    const pageCount = 8 + (file.size % 5 || 1);
-    const mid = Math.ceil(pageCount / 2);
-
-    const id = add({
-      title: title.trim(),
-      description: description.trim(),
-      category,
-      examType,
-      coverColor,
-      tier,
-      pageCount,
-      topics: [
-        { id: "t1", name: "Core concepts", pageStart: 1, pageEnd: mid, hiddenForTrial: false },
-        {
-          id: "t2",
-          name: "Advanced",
-          pageStart: mid + 1,
-          pageEnd: pageCount,
-          hiddenForTrial: false,
+    upload.mutate(
+      {
+        file,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        categoryId,
+        examTypeId,
+        accessTier: tier,
+      },
+      {
+        onSuccess: (note) => {
+          toast.success("Upload received — converting pages…");
+          navigate({ to: "/admin/notes/$noteId", params: { noteId: note.id } });
         },
-      ],
-      active: true,
-      source: [],
-    });
-
-    toast.success("Upload received — converting pages…");
-    // Give the user a moment to read the processing state, then jump to manage.
-    setTimeout(() => {
-      navigate({ to: "/admin/notes/$noteId", params: { noteId: id } });
-    }, 1400);
+        onError: (err) => {
+          toast.error(err instanceof Error ? err.message : "Upload failed");
+        },
+      },
+    );
   };
 
-  if (submitting) {
+  if (upload.isPending) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-center justify-center py-24 text-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -310,12 +283,12 @@ function UploadNotePage() {
               </p>
             ) : (
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
                 className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
               >
                 {categories.map((c) => (
-                  <option key={c.id} value={c.name}>
+                  <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
                 ))}
@@ -334,12 +307,12 @@ function UploadNotePage() {
               </p>
             ) : (
               <select
-                value={examType}
-                onChange={(e) => setExamType(e.target.value)}
+                value={examTypeId}
+                onChange={(e) => setExamTypeId(e.target.value)}
                 className="h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm"
               >
                 {examTypes.map((et) => (
-                  <option key={et.id} value={et.name}>
+                  <option key={et.id} value={et.id}>
                     {et.name}
                   </option>
                 ))}
@@ -347,26 +320,6 @@ function UploadNotePage() {
             )}
           </Field>
         </div>
-
-        <Field label="Cover colour">
-          <div className="flex flex-wrap items-center gap-2">
-            {COVER_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCoverColor(c)}
-                aria-label={`Cover colour ${c}`}
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-surface transition",
-                  coverColor === c ? "ring-foreground" : "ring-transparent hover:ring-border",
-                )}
-                style={{ background: c }}
-              >
-                {coverColor === c && <Check className="h-4 w-4 text-white" />}
-              </button>
-            ))}
-          </div>
-        </Field>
       </section>
 
       {/* Access tier */}
@@ -419,9 +372,15 @@ function UploadNotePage() {
         </Link>
         <button
           onClick={submit}
-          className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-5 text-sm font-bold text-white shadow-md hover:opacity-95"
+          disabled={upload.isPending}
+          className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-5 text-sm font-bold text-white shadow-md hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <FileUp className="h-4 w-4" /> Upload & Process
+          {upload.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FileUp className="h-4 w-4" />
+          )}{" "}
+          Upload & Process
         </button>
       </div>
     </div>

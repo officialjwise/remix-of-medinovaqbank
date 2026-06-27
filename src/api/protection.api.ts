@@ -14,12 +14,12 @@
  * Backend wire types + boundary mappers + TanStack Query hooks live HERE.
  *
  * GAPS (backend DTOs do not provide these):
- *   - Restrictions/events/top-offenders/flags expose only `userId` — NO user
- *     name/email. Screens that previously showed a name fall back to userId.
+ *   - Restrictions/events/flags expose only `userId` — NO user name/email.
+ *     Screens that previously showed a name fall back to userId. (Top-offenders
+ *     now carries userName + userEmail; see BackendTopOffender.)
  *   - Restriction status is derived client-side from isActive + restrictedUntil
  *     + liftedAt (no single status field on the DTO).
  *   - Events carry no geo "location"; only ipAddress is available.
- *   - Top-offenders has no name/email; only userId + counts.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
@@ -221,6 +221,8 @@ export interface ProtectionSummary {
 // ── Top offenders ──
 export interface BackendTopOffender {
   userId: string;
+  userName: string | null;
+  userEmail: string | null;
   eventCount: number;
   screenshotAttempts: number;
   lastEventAt: string | null;
@@ -228,6 +230,8 @@ export interface BackendTopOffender {
 
 export interface TopOffender {
   userId: string;
+  userName: string | null;
+  userEmail: string | null;
   count: number;
   screenshotAttempts: number;
   lastEventAt: string | null;
@@ -236,6 +240,8 @@ export interface TopOffender {
 export function mapTopOffender(o: BackendTopOffender): TopOffender {
   return {
     userId: o.userId,
+    userName: o.userName,
+    userEmail: o.userEmail,
     count: o.eventCount,
     screenshotAttempts: o.screenshotAttempts,
     lastEventAt: o.lastEventAt,

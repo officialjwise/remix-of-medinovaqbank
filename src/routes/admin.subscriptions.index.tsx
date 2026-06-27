@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Eye, MoreHorizontal, X, Calendar, Ban } from "lucide-react";
+import { Eye, X, Calendar, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
@@ -159,7 +159,6 @@ function AdminSubscriptions() {
 }
 
 function SubscriptionRow({ row }: { row: AdminSubscription }) {
-  const [open, setOpen] = useState(false);
   const [details, setDetails] = useState(false);
   const [extend, setExtend] = useState(false);
   const [cancel, setCancel] = useState(false);
@@ -172,8 +171,21 @@ function SubscriptionRow({ row }: { row: AdminSubscription }) {
   return (
     <div className="grid grid-cols-1 gap-2 border-b border-border px-5 py-3 last:border-b-0 md:grid-cols-[1.6fr_120px_100px_110px_110px_110px_60px] md:items-center md:gap-4">
       <div className="min-w-0">
-        <p className="truncate font-mono text-xs font-semibold text-foreground">{row.userId}</p>
-        <p className="truncate text-[11px] text-muted-foreground">User ID</p>
+        {row.userName || row.userEmail ? (
+          <>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {row.userName ?? row.userEmail}
+            </p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {row.userName ? (row.userEmail ?? "") : ""}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="truncate font-mono text-xs font-semibold text-foreground">{row.userId}</p>
+            <p className="truncate text-[11px] text-muted-foreground">User ID</p>
+          </>
+        )}
       </div>
       <span className="text-sm text-foreground">{row.planLabel}</span>
       <span className="text-right font-mono text-sm font-bold tabular-nums text-foreground">
@@ -184,48 +196,24 @@ function SubscriptionRow({ row }: { row: AdminSubscription }) {
       <span>
         <StatusPill status={row.status} label={row.statusLabel} />
       </span>
-      <div className="relative ml-auto">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-alt hover:text-foreground"
-          aria-label="Actions"
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 z-40 mt-1 w-52 overflow-hidden rounded-lg border border-border bg-surface shadow-xl">
-              <MenuItem
-                icon={<Eye className="h-4 w-4" />}
-                label="View Details"
-                onClick={() => {
-                  setDetails(true);
-                  setOpen(false);
-                }}
-              />
-              <MenuItem
-                icon={<Calendar className="h-4 w-4" />}
-                label="Extend Subscription"
-                onClick={() => {
-                  setExtend(true);
-                  setOpen(false);
-                }}
-              />
-              {isCancellable && (
-                <MenuItem
-                  icon={<Ban className="h-4 w-4" />}
-                  label="Cancel Subscription"
-                  destructive
-                  onClick={() => {
-                    setCancel(true);
-                    setOpen(false);
-                  }}
-                />
-              )}
-            </div>
-          </>
+      <div className="flex items-center justify-end gap-1">
+        <ActionIcon
+          label="View details"
+          onClick={() => setDetails(true)}
+          icon={<Eye className="h-4 w-4" />}
+        />
+        <ActionIcon
+          label="Extend subscription"
+          onClick={() => setExtend(true)}
+          icon={<Calendar className="h-4 w-4" />}
+        />
+        {isCancellable && (
+          <ActionIcon
+            label="Cancel subscription"
+            onClick={() => setCancel(true)}
+            icon={<Ban className="h-4 w-4" />}
+            destructive
+          />
         )}
       </div>
 
@@ -262,14 +250,14 @@ function SubscriptionRow({ row }: { row: AdminSubscription }) {
         cancelLabel="Keep Active"
         variant="destructive"
         typedConfirmation="CANCEL"
-        onConfirm={() => {
-          cancelMut.mutate(row.id, {
-            onSuccess: () => {
-              toast.success("Subscription cancelled");
-              setCancel(false);
-            },
-            onError: (e) => toast.error((e as Error).message),
-          });
+        onConfirm={async () => {
+          try {
+            await cancelMut.mutateAsync(row.id);
+            toast.success("Subscription cancelled");
+            setCancel(false);
+          } catch (e) {
+            toast.error((e as Error).message);
+          }
         }}
         onCancel={() => setCancel(false)}
       />
@@ -277,7 +265,7 @@ function SubscriptionRow({ row }: { row: AdminSubscription }) {
   );
 }
 
-function MenuItem({
+function ActionIcon({
   icon,
   label,
   onClick,
@@ -292,10 +280,15 @@ function MenuItem({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-surface-alt ${destructive ? "text-error" : "text-foreground"}`}
+      aria-label={label}
+      title={label}
+      className={`rounded-md p-1.5 transition-colors hover:bg-surface-alt ${
+        destructive
+          ? "text-muted-foreground hover:text-error"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
     >
       {icon}
-      {label}
     </button>
   );
 }
@@ -426,7 +419,14 @@ function DetailsModal({ row, onClose }: { row: AdminSubscription; onClose: () =>
           </button>
         </header>
         <div className="space-y-2 p-5 text-sm">
-          <DetailRow label="User ID" value={row.userId} mono />
+          {row.userName || row.userEmail ? (
+            <>
+              {row.userName && <DetailRow label="Name" value={row.userName} />}
+              {row.userEmail && <DetailRow label="Email" value={row.userEmail} />}
+            </>
+          ) : (
+            <DetailRow label="User ID" value={row.userId} mono />
+          )}
           <DetailRow label="Plan" value={row.planLabel} />
           <DetailRow label="Amount" value={`${row.currency} ${row.amountPaid}`} />
           <DetailRow label="Start" value={row.startDate.slice(0, 10)} />
