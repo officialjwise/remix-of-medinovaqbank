@@ -120,6 +120,85 @@ export interface SessionListResult {
   totalPages: number;
 }
 
+// ── Admin quiz-session monitor (mirrors AdminQuizSessionResponseDto). ──
+export interface BackendAdminQuizSession {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  bankId: string;
+  bankName: string | null;
+  mode: "tutor" | "quiz";
+  status: "in_progress" | "completed" | "abandoned";
+  totalQuestions: number;
+  answeredCount: number;
+  correctCount: number;
+  scorePercentage: number | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+/** Frontend view model for the admin "Quiz Sessions" tab. */
+export interface AdminQuizSession {
+  id: string;
+  publicId: string;
+  userId: string;
+  userName: string;
+  initials: string;
+  bankId: string;
+  bankName: string;
+  mode: "TUTOR" | "QUIZ";
+  scorePct: number;
+  questionsAnswered: number;
+  totalQuestions: number;
+  status: "completed" | "in-progress" | "abandoned";
+  durationMin: number;
+  date: string;
+}
+
+export interface AdminQuizSessionResult {
+  sessions: AdminQuizSession[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+function initialsOf(label: string): string {
+  const parts = label.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+export function mapAdminQuizSession(s: BackendAdminQuizSession): AdminQuizSession {
+  const label = s.userName?.trim() || s.userEmail?.trim() || "Unknown user";
+  const startMs = s.startedAt ? new Date(s.startedAt).getTime() : null;
+  const endMs = s.completedAt ? new Date(s.completedAt).getTime() : Date.now();
+  return {
+    id: s.id,
+    publicId: s.id.slice(0, 8),
+    userId: s.userId,
+    userName: label,
+    initials: initialsOf(label),
+    bankId: s.bankId,
+    bankName: s.bankName?.trim() || "—",
+    mode: s.mode === "tutor" ? "TUTOR" : "QUIZ",
+    scorePct: Math.round(s.scorePercentage ?? 0),
+    questionsAnswered: s.answeredCount,
+    totalQuestions: s.totalQuestions,
+    status:
+      s.status === "in_progress"
+        ? "in-progress"
+        : s.status === "abandoned"
+          ? "abandoned"
+          : "completed",
+    durationMin: startMs ? Math.max(0, Math.round((endMs - startMs) / 60_000)) : 0,
+    date: s.completedAt ?? s.createdAt,
+  };
+}
+
 export const adminSessionsApi = {
   /** Active sessions across all users (paginated). */
   async listActive(params: SessionListParams = {}): Promise<SessionListResult> {
@@ -150,6 +229,36 @@ export const adminSessionsApi = {
     };
   },
 
+  /** Full device-session history across users (active + ended), newest first. */
+  async listHistory(params: SessionListParams = {}): Promise<SessionListResult> {
+    const { data, meta } = await apiClient.getPaginated<BackendDeviceSession>(
+      "/admin/sessions/history",
+      { params: toQuery({ limit: 50, ...params }) },
+    );
+    return {
+      sessions: data.map(mapSession),
+      total: meta.total,
+      page: meta.page,
+      limit: meta.limit,
+      totalPages: meta.totalPages ?? 1,
+    };
+  },
+
+  /** Every user's quiz sessions, newest first (cross-user monitor). */
+  async listQuizSessions(params: SessionListParams = {}): Promise<AdminQuizSessionResult> {
+    const { data, meta } = await apiClient.getPaginated<BackendAdminQuizSession>(
+      "/admin/quiz-sessions",
+      { params: toQuery({ limit: 50, ...params }) },
+    );
+    return {
+      sessions: data.map(mapAdminQuizSession),
+      total: meta.total,
+      page: meta.page,
+      limit: meta.limit,
+      totalPages: meta.totalPages ?? 1,
+    };
+  },
+
   /** Force-terminate a session (marks it inactive). */
   async terminate(sessionId: string): Promise<void> {
     await apiClient.post<null>(`/admin/sessions/${sessionId}/terminate`);
@@ -166,9 +275,27 @@ export const sessionKeys = {
   all: ["admin-sessions"] as const,
   active: (params: SessionListParams) => [...sessionKeys.all, "active", params] as const,
   suspicious: (params: SessionListParams) => [...sessionKeys.all, "suspicious", params] as const,
+  history: (params: SessionListParams) => [...sessionKeys.all, "history", params] as const,
+  quiz: (params: SessionListParams) => [...sessionKeys.all, "quiz", params] as const,
 };
 
 // ── Hooks ──
+
+export function useSessionHistory(params: SessionListParams = {}) {
+  return useQuery({
+    queryKey: sessionKeys.history(params),
+    queryFn: () => adminSessionsApi.listHistory(params),
+    staleTime: 15_000,
+  });
+}
+
+export function useAdminQuizSessions(params: SessionListParams = {}) {
+  return useQuery({
+    queryKey: sessionKeys.quiz(params),
+    queryFn: () => adminSessionsApi.listQuizSessions(params),
+    staleTime: 15_000,
+  });
+}
 
 export function useActiveSessions(params: SessionListParams = {}) {
   return useQuery({

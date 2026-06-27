@@ -22,9 +22,12 @@ import { useDebounce } from "@/hooks/useDebounce";
 import {
   useActiveSessions,
   useSuspiciousSessions,
+  useSessionHistory,
+  useAdminQuizSessions,
   useTerminateSession,
   sessionKeys,
   type DeviceSession,
+  type AdminQuizSession,
 } from "@/api/admin-sessions.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRealtimeStream } from "@/lib/realtime";
@@ -58,23 +61,6 @@ export interface LoginSession {
   status: "active" | "ended";
   trial: boolean;
   suspicious?: boolean;
-}
-
-export interface AdminQuizSession {
-  id: string;
-  publicId: string;
-  userId: string;
-  userName: string;
-  initials: string;
-  bankId: string;
-  bankName: string;
-  mode: "TUTOR" | "QUIZ";
-  scorePct: number;
-  questionsAnswered: number;
-  totalQuestions: number;
-  status: "completed" | "in-progress" | "abandoned";
-  durationMin: number;
-  date: string;
 }
 
 export const Route = createFileRoute("/admin/sessions")({
@@ -497,7 +483,10 @@ function AdminSessionsPage() {
         />
       )}
       {tab === "All Sessions" && (
-        <AllSessionsView onView={(s) => setDrawer({ kind: "login", data: s })} />
+        <AllSessionsView
+          onView={(s) => setDrawer({ kind: "device", data: s })}
+          onForceLogout={setForceLogout}
+        />
       )}
       {tab === "Quiz Sessions" && (
         <QuizSessionsView onView={(s) => setDrawer({ kind: "quiz", data: s })} />
@@ -555,10 +544,18 @@ function ActiveSessionsView({
   query,
   onView,
   onForceLogout,
+  countNoun = "active",
+  loadingMessage = "Loading active sessions…",
+  emptyMessage = "No active sessions match these filters.",
+  errorMessage = "Failed to load active sessions.",
 }: {
   query: ActiveSessionsQuery;
   onView: (s: DeviceSession) => void;
   onForceLogout: (s: DeviceSession) => void;
+  countNoun?: string;
+  loadingMessage?: string;
+  emptyMessage?: string;
+  errorMessage?: string;
 }) {
   const [searchRaw, setSearchRaw] = useState("");
   const [activity, setActivity] = useState("All");
@@ -599,7 +596,9 @@ function ActiveSessionsView({
             v === "All" ? "All activity" : activityLabel(v as LoginSession["activity"], "")
           }
         />
-        <span className="ml-auto text-xs text-muted-foreground">{rows.length} active</span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {rows.length} {countNoun}
+        </span>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface">
@@ -621,21 +620,21 @@ function ActiveSessionsView({
               {isLoading ? (
                 <tr>
                   <td colSpan={8}>
-                    <EmptyState message="Loading active sessions…" />
+                    <EmptyState message={loadingMessage} />
                   </td>
                 </tr>
               ) : isError ? (
                 <tr>
                   <td colSpan={8}>
                     <div className="px-6 py-16 text-center text-sm text-error">
-                      {error instanceof Error ? error.message : "Failed to load active sessions."}
+                      {error instanceof Error ? error.message : errorMessage}
                     </div>
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={8}>
-                    <EmptyState message="No active sessions match these filters." />
+                    <EmptyState message={emptyMessage} />
                   </td>
                 </tr>
               ) : (
@@ -731,13 +730,27 @@ function ActiveSessionsView({
 /* All Sessions                                                        */
 /* ------------------------------------------------------------------ */
 
-// GAP: no historical login-session list endpoint exists yet. Until one does,
-// this tab renders an empty state (live sessions are under "Active Sessions").
-function AllSessionsView(_props: { onView: (s: LoginSession) => void }) {
+// All device sessions across users (active + ended), backed by
+// GET /admin/sessions/history. Reuses the active-sessions table renderer since
+// the row shape is identical (the Status column distinguishes Active vs Ended).
+function AllSessionsView({
+  onView,
+  onForceLogout,
+}: {
+  onView: (s: DeviceSession) => void;
+  onForceLogout: (s: DeviceSession) => void;
+}) {
+  const query = useSessionHistory();
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-      <EmptyState message="Historical session history isn't available yet. Use the Active Sessions tab for live device monitoring." />
-    </div>
+    <ActiveSessionsView
+      query={query}
+      onView={onView}
+      onForceLogout={onForceLogout}
+      countNoun="sessions"
+      loadingMessage="Loading session history…"
+      emptyMessage="No sessions match these filters."
+      errorMessage="Failed to load session history."
+    />
   );
 }
 
@@ -751,11 +764,133 @@ function scoreTone(pct: number): "success" | "warning" | "error" {
   return "error";
 }
 
-// GAP: no admin quiz-session list endpoint exists yet — renders an empty state.
-function QuizSessionsView(_props: { onView: (s: AdminQuizSession) => void }) {
+function quizStatusTone(status: AdminQuizSession["status"]): "success" | "warning" | "muted" {
+  if (status === "completed") return "success";
+  if (status === "in-progress") return "warning";
+  return "muted";
+}
+
+const QUIZ_STATUS_OPTIONS = ["All", "completed", "in-progress", "abandoned"];
+
+// All users' quiz sessions, backed by GET /admin/quiz-sessions.
+function QuizSessionsView({ onView }: { onView: (s: AdminQuizSession) => void }) {
+  const [searchRaw, setSearchRaw] = useState("");
+  const [status, setStatus] = useState("All");
+  const search = useDebounce(searchRaw, 250);
+  const { data, isLoading, isError, error } = useAdminQuizSessions();
+
+  const rows = useMemo(() => {
+    const sessions = data?.sessions ?? [];
+    const q = search.trim().toLowerCase();
+    return sessions.filter((s) => {
+      if (status !== "All" && s.status !== status) return false;
+      if (!q) return true;
+      return s.userName.toLowerCase().includes(q) || s.bankName.toLowerCase().includes(q);
+    });
+  }, [data, search, status]);
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-      <EmptyState message="Per-user quiz session history isn't available yet." />
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchBox value={searchRaw} onChange={setSearchRaw} placeholder="Search by user or bank…" />
+        <FilterSelect
+          value={status}
+          onChange={setStatus}
+          options={QUIZ_STATUS_OPTIONS}
+          optionLabels={(v) => (v === "All" ? "All statuses" : v)}
+        />
+        <span className="ml-auto text-xs text-muted-foreground">{rows.length} sessions</span>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-sm">
+            <thead className="border-b border-border bg-surface-alt/40">
+              <tr>
+                <th className={th}>User</th>
+                <th className={th}>Bank</th>
+                <th className={th}>Mode</th>
+                <th className={th}>Score</th>
+                <th className={th}>Progress</th>
+                <th className={th}>Status</th>
+                <th className={th}>Duration</th>
+                <th className={th}>Date</th>
+                <th className={`${th} text-right`}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={9}>
+                    <EmptyState message="Loading quiz sessions…" />
+                  </td>
+                </tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan={9}>
+                    <div className="px-6 py-16 text-center text-sm text-error">
+                      {error instanceof Error ? error.message : "Failed to load quiz sessions."}
+                    </div>
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={9}>
+                    <EmptyState message="No quiz sessions match these filters." />
+                  </td>
+                </tr>
+              ) : (
+                rows.map((s) => (
+                  <tr
+                    key={s.id}
+                    className="border-b border-border last:border-0 transition-colors hover:bg-surface-alt/30"
+                  >
+                    <td className={td}>
+                      <div className="flex items-center gap-3">
+                        <Avatar initials={s.initials} />
+                        <span className="truncate font-semibold text-foreground">{s.userName}</span>
+                      </div>
+                    </td>
+                    <td className={`${td} text-foreground`}>{s.bankName}</td>
+                    <td className={td}>
+                      <Pill tone="muted">{s.mode}</Pill>
+                    </td>
+                    <td className={td}>
+                      {s.status === "in-progress" ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <Pill tone={scoreTone(s.scorePct)}>{s.scorePct}%</Pill>
+                      )}
+                    </td>
+                    <td className={`${td} tabular-nums text-foreground`}>
+                      {s.questionsAnswered}/{s.totalQuestions}
+                    </td>
+                    <td className={td}>
+                      <Pill tone={quizStatusTone(s.status)}>{s.status}</Pill>
+                    </td>
+                    <td className={`${td} tabular-nums text-foreground`}>
+                      {minutesToHm(s.durationMin)}
+                    </td>
+                    <td className={`${td} text-muted-foreground`}>
+                      {new Date(s.date).toLocaleDateString()}
+                    </td>
+                    <td className={`${td} text-right`}>
+                      <button
+                        type="button"
+                        onClick={() => onView(s)}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
