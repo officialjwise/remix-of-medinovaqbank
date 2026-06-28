@@ -69,32 +69,37 @@ function QuizPage() {
   const total = questions.length;
 
   // ── Free-trial question gate ──────────────────────────────────────────────
-  // Trial users may only view/answer up to their question allowance. Freeze the
-  // allowance for this session on first load (answered-so-far + remaining quota)
-  // so it doesn't jitter as `questionsLeft` refetches after each answer. Anything
-  // beyond `accessibleCount` is locked: not viewable, not navigable.
-  const { isTrial, questionsTotal, questionsLeft } = useTrial();
+  // Any user WITHOUT an active paid subscription (trial, expired trial, or none)
+  // may only view/answer up to their question allowance — keying on "is trial"
+  // alone missed users whose trial is exhausted (status flips to EXPIRED). Freeze
+  // the allowance for this session on first load (answered-so-far + remaining
+  // quota) so it doesn't jitter as the quota refetches. Anything beyond
+  // `accessibleCount` is locked: not viewable, not navigable.
+  const { subscription } = useTrial();
+  const isPaid = subscription?.status === "ACTIVE";
+  const trialLimit = subscription?.trialQuestionsTotal ?? 10;
+  const trialRemaining = Math.max(0, subscription?.trialQuestionsLeft ?? trialLimit);
   const trialFreeze = useRef<{ id: string; allowance: number } | null>(null);
-  if (isTrial && state) {
+  if (!isPaid && state) {
     if (trialFreeze.current?.id !== state.session.id) {
       trialFreeze.current = {
         id: state.session.id,
-        allowance: state.answeredQuestionIds.length + Math.max(0, questionsLeft),
+        allowance: state.answeredQuestionIds.length + trialRemaining,
       };
     }
   }
   const accessibleCount =
-    isTrial && trialFreeze.current
+    !isPaid && trialFreeze.current
       ? Math.min(total, Math.max(0, trialFreeze.current.allowance))
       : total;
-  const trialWall = isTrial && accessibleCount < total;
+  const trialWall = !isPaid && accessibleCount < total;
 
   const notifyTrialLimit = useCallback(() => {
     toast.error(
-      `You've reached your free trial limit of ${questionsTotal} questions. Upgrade to unlock the rest.`,
+      `You've reached your free trial limit of ${trialLimit} questions. Upgrade to unlock the rest.`,
       { id: "trial-limit" },
     );
-  }, [questionsTotal]);
+  }, [trialLimit]);
 
   // Whole-session timer (counts up).
   useEffect(() => {
