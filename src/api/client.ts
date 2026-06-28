@@ -97,7 +97,7 @@ function isAuthEndpoint(path: string): boolean {
 // ── Single-flight refresh on 401. ──
 let refreshing: Promise<boolean> | null = null;
 
-async function runRefresh(): Promise<boolean> {
+export async function runRefresh(): Promise<boolean> {
   if (!refreshing) {
     refreshing = (async () => {
       const { refreshToken, setTokens } = useAuthStore.getState();

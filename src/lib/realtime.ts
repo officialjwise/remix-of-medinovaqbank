@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import { BASE_URL } from "@/api/client";
+import { BASE_URL, runRefresh } from "@/api/client";
 
 export type RealtimeEventHandler = (data: Record<string, unknown>) => void;
 
@@ -47,7 +47,13 @@ export function useRealtimeStream(
       }
       source.onerror = () => {
         source?.close();
-        if (!stopped) retry = setTimeout(connect, 5000);
+        if (stopped) return;
+        // SSE can't use the request layer's 401 refresh interceptor, so an
+        // expired access token would 401-loop forever. Trigger a token refresh:
+        // on success the store's accessToken changes and this effect re-runs with
+        // a fresh token; otherwise the 5s reconnect is a backoff fallback.
+        void runRefresh();
+        retry = setTimeout(connect, 5000);
       };
     };
 
