@@ -28,6 +28,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
+import { FONT_NAMES, fontStack } from "@/lib/fonts";
 import {
   useProtectionStore,
   EVENT_LABELS,
@@ -1463,7 +1464,9 @@ function RolesTab() {
 }
 
 /* ───────────── Tab 6 — Branding ───────────── */
-const FONT_OPTIONS = ["Inter", "system-ui", "Georgia", "JetBrains Mono"];
+// Selectable app fonts — single source of truth in @/lib/fonts (used by both
+// these dropdowns and the runtime BrandingProvider that loads + applies them).
+const FONT_OPTIONS = FONT_NAMES;
 
 /** Map the backend (short-key) branding into the local form shape. */
 function apiToBrandingForm(b: Branding): BrandingSettings {
@@ -1601,12 +1604,15 @@ function BrandingTab() {
           </div>
           <div className="mt-4 rounded-xl border border-border bg-surface-alt/40 p-4">
             <p
-              style={{ fontFamily: form.headingFont }}
+              style={{ fontFamily: fontStack(form.headingFont) }}
               className="text-lg font-bold text-foreground"
             >
               The quick brown fox — heading
             </p>
-            <p style={{ fontFamily: form.bodyFont }} className="mt-1 text-sm text-muted-foreground">
+            <p
+              style={{ fontFamily: fontStack(form.bodyFont) }}
+              className="mt-1 text-sm text-muted-foreground"
+            >
               Body copy renders in {form.bodyFont}. Master Medicine. Pass with Confidence.
             </p>
           </div>

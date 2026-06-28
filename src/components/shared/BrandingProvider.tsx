@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { usePublicBranding } from "@/api/branding.api";
+import { fontStack, fontGoogleSpec } from "@/lib/fonts";
 
 /**
  * Applies the admin-configured branding to the whole app at runtime: brand
@@ -25,23 +26,24 @@ export function BrandingProvider() {
     set("--success", b.colorSuccess);
     set("--warning", b.colorWarning);
 
-    // Fonts — apply as CSS variables (styles.css consumes --font-sans / --font-heading).
-    if (b.fontBody)
-      root.style.setProperty(
-        "--font-sans",
-        `"${b.fontBody}", ui-sans-serif, system-ui, sans-serif`,
-      );
-    if (b.fontHeading)
-      root.style.setProperty(
-        "--font-heading",
-        `"${b.fontHeading}", ui-sans-serif, system-ui, sans-serif`,
-      );
+    // Fonts — apply the registry's full CSS stack to the variables styles.css
+    // consumes (--font-sans body, --font-heading headings). The stack controls
+    // the serif/sans fallback chain (e.g. Cambria -> Gelasio -> serif).
+    const bodyStack = fontStack(b.fontBody);
+    if (bodyStack) root.style.setProperty("--font-sans", bodyStack);
+    const headingStack = fontStack(b.fontHeading);
+    if (headingStack) root.style.setProperty("--font-heading", headingStack);
 
-    // Load the chosen font families from Google Fonts (deduped) so they render.
-    const families = Array.from(new Set([b.fontHeading, b.fontBody].filter(Boolean)));
-    if (families.length > 0) {
-      const href = `https://fonts.googleapis.com/css2?${families
-        .map((f) => `family=${encodeURIComponent(f)}:wght@400;500;600;700;800`)
+    // Load ONLY the real web fonts the selection needs (deduped). System fonts
+    // (system-ui, Georgia) have no spec and are skipped — requesting them from
+    // Google Fonts 400s and would break the whole stylesheet. Cambria maps to
+    // its Gelasio web fallback here.
+    const specs = Array.from(
+      new Set([fontGoogleSpec(b.fontHeading), fontGoogleSpec(b.fontBody)].filter(Boolean)),
+    );
+    if (specs.length > 0) {
+      const href = `https://fonts.googleapis.com/css2?${specs
+        .map((s) => `family=${s}`)
         .join("&")}&display=swap`;
       let link = document.getElementById("branding-fonts") as HTMLLinkElement | null;
       if (!link) {
