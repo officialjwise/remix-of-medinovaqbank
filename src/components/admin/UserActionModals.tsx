@@ -87,9 +87,7 @@ export function EditUserModal({
     specialty: user.specialty ?? "",
     institution: user.institution ?? "",
     role: user.role ?? "USER",
-    status: user.status ?? "active",
   });
-  const [saving, setSaving] = useState(false);
 
   return (
     <Shell
@@ -105,19 +103,16 @@ export function EditUserModal({
             Cancel
           </button>
           <button
-            disabled={saving}
             onClick={() => {
               if (!form.name.trim()) return toast.error("Name is required");
-              setSaving(true);
-              setTimeout(() => {
-                onSave(form);
-                toast.success("User updated");
-                onClose();
-              }, 400);
+              // Hand the patch to the parent, which drives the real mutations
+              // (profile + the dedicated role endpoint) and toasts the result.
+              onSave(form);
+              onClose();
             }}
             className="h-10 rounded-lg bg-gradient-to-r from-primary to-accent px-5 text-sm font-bold text-white disabled:opacity-60"
           >
-            {saving ? "Saving…" : "Save changes"}
+            Save changes
           </button>
         </>
       }
@@ -133,8 +128,10 @@ export function EditUserModal({
         <Labeled label="Email">
           <input
             value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className={inputCls}
+            readOnly
+            disabled
+            title="Email can't be changed here"
+            className={`${inputCls} cursor-not-allowed opacity-60`}
           />
         </Labeled>
         <Labeled label="Specialty">
@@ -152,28 +149,32 @@ export function EditUserModal({
           />
         </Labeled>
         <Labeled label="Role">
-          <select
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-            className={inputCls}
-          >
-            {["USER", "SUPER_ADMIN"].map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
-        </Labeled>
-        <Labeled label="Status">
-          <select
-            value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value })}
-            className={inputCls}
-          >
-            {["active", "trial", "expired", "suspended", "none"].map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
+          {user.role === "SUPER_ADMIN" ? (
+            <input
+              value="SUPER_ADMIN"
+              readOnly
+              disabled
+              title="Super admin is managed outside the dashboard"
+              className={`${inputCls} cursor-not-allowed opacity-60`}
+            />
+          ) : (
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              className={inputCls}
+            >
+              {["USER", "ADMIN"].map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          )}
         </Labeled>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Super admin is provisioned outside the dashboard and can&apos;t be set here.
+        Account status (suspend / ban / reactivate) is managed from the dedicated
+        actions on the user&apos;s profile.
+      </p>
     </Shell>
   );
 }

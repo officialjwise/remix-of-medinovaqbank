@@ -33,7 +33,7 @@ import { apiClient, BASE_URL, type QueryParams } from "@/api/client";
 import { useAuthStore } from "@/stores/authStore";
 
 // ── Backend enums (mirror src/database/entities/enums.ts). ──
-export type BackendUserRole = "user" | "super_admin";
+export type BackendUserRole = "user" | "admin" | "super_admin";
 export type BackendUserStatus = "active" | "suspended" | "banned";
 export type BackendAuthProvider = "google" | "local";
 export type BackendSessionMode = "tutor" | "quiz";
@@ -43,7 +43,9 @@ export type BackendSubscriptionPlan = string;
 export type BackendSubscriptionStatus = "active" | "expired" | "cancelled" | "trial";
 
 // ── Frontend display unions. ──
-export type DisplayRole = "USER" | "SUPER_ADMIN";
+export type DisplayRole = "USER" | "ADMIN" | "SUPER_ADMIN";
+/** Roles an admin may assign from the dashboard (super_admin is out-of-band). */
+export const ASSIGNABLE_DISPLAY_ROLES: DisplayRole[] = ["USER", "ADMIN"];
 
 // ── Backend wire shapes. ──
 export interface BackendUser {
@@ -167,11 +169,13 @@ export interface AdminUserDetailVM {
 
 const ROLE_TO_DISPLAY: Record<BackendUserRole, DisplayRole> = {
   user: "USER",
+  admin: "ADMIN",
   super_admin: "SUPER_ADMIN",
 };
 
 const DISPLAY_TO_ROLE: Record<DisplayRole, BackendUserRole> = {
   USER: "user",
+  ADMIN: "admin",
   SUPER_ADMIN: "super_admin",
 };
 

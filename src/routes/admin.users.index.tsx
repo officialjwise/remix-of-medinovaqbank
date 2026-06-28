@@ -38,12 +38,14 @@ import {
   useAdminUserStats,
   useUpdateAdminUser,
   useDeleteAdminUser,
+  useUpdateAdminUserRole,
   useSuspendUser,
   useReactivateUser,
   useBanUser,
   useFlagUser,
   useBulkUserAction,
   exportUsersCsv,
+  toBackendRole,
   type AdminUserVM,
   type AdminUserStatus,
   type DisplayRole,
@@ -105,7 +107,9 @@ function RolePill({ role }: { role: DisplayRole }) {
   const tone =
     role === "SUPER_ADMIN"
       ? "bg-primary/10 text-primary border border-primary/20"
-      : "bg-surface-alt text-muted-foreground border border-border";
+      : role === "ADMIN"
+        ? "bg-accent/10 text-accent border border-accent/20"
+        : "bg-surface-alt text-muted-foreground border border-border";
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}
@@ -140,7 +144,13 @@ function AdminUsers() {
 
   const listParams = useMemo<AdminUserListParams>(() => {
     const roleFilter: BackendUserRole | undefined =
-      role === "All" ? undefined : role === "SUPER_ADMIN" ? "super_admin" : "user";
+      role === "All"
+        ? undefined
+        : role === "SUPER_ADMIN"
+          ? "super_admin"
+          : role === "ADMIN"
+            ? "admin"
+            : "user";
     return {
       search: search || undefined,
       role: roleFilter,
@@ -272,7 +282,7 @@ function AdminUsers() {
           label="Role"
           value={role}
           onChange={(v) => setRole(v as typeof role)}
-          options={["All", "USER", "SUPER_ADMIN"]}
+          options={["All", "USER", "ADMIN", "SUPER_ADMIN"]}
         />
         <FilterSelect
           label="Account"
@@ -519,6 +529,7 @@ function RowActions({
   const [modal, setModal] = useState<null | "edit" | "email" | "flag">(null);
 
   const updateMutation = useUpdateAdminUser();
+  const updateRole = useUpdateAdminUserRole();
   const suspendMutation = useSuspendUser();
   const reactivateMutation = useReactivateUser();
   const banMutation = useBanUser();
@@ -632,7 +643,7 @@ function RowActions({
         <EditUserModal
           user={user}
           onClose={() => setModal(null)}
-          onSave={(patch) =>
+          onSave={(patch) => {
             updateMutation.mutate(
               {
                 id: user.id,
@@ -646,8 +657,20 @@ function RowActions({
                 onSuccess: () => toast.success("Profile updated"),
                 onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
               },
-            )
-          }
+            );
+            // Role changes go through the dedicated /role endpoint.
+            if (patch.role && patch.role !== user.role) {
+              updateRole.mutate(
+                { id: user.id, role: toBackendRole(patch.role as DisplayRole) },
+                {
+                  onSuccess: () =>
+                    toast.success(`Role changed to ${(patch.role as string).replace("_", " ")}`),
+                  onError: (e) =>
+                    toast.error(e instanceof Error ? e.message : "Role change failed"),
+                },
+              );
+            }
+          }}
         />
       )}
       {modal === "email" && <ComposeEmailModal user={user} onClose={() => setModal(null)} />}

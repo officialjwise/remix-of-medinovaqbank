@@ -133,7 +133,9 @@ function RolePill({ role }: { role: DisplayRole }) {
   const tone =
     role === "SUPER_ADMIN"
       ? "bg-primary/10 text-primary border border-primary/20"
-      : "bg-surface-alt text-muted-foreground border border-border";
+      : role === "ADMIN"
+        ? "bg-accent/10 text-accent border border-accent/20"
+        : "bg-surface-alt text-muted-foreground border border-border";
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}
@@ -347,14 +349,20 @@ function UserDetail() {
               </p>
             ) : (
               <>
-                <ActionBtn
-                  icon={Shield}
-                  onClick={() =>
-                    handleRoleChange(user.role === "SUPER_ADMIN" ? "USER" : "SUPER_ADMIN")
-                  }
-                >
-                  {user.role === "SUPER_ADMIN" ? "Demote to user" : "Promote to admin"}
-                </ActionBtn>
+                {user.role === "SUPER_ADMIN" ? (
+                  <p className="rounded-lg bg-surface-alt px-3 py-2.5 text-center text-xs text-muted-foreground">
+                    Super admin — managed outside the dashboard.
+                  </p>
+                ) : (
+                  <ActionBtn
+                    icon={Shield}
+                    onClick={() =>
+                      handleRoleChange(user.role === "ADMIN" ? "USER" : "ADMIN")
+                    }
+                  >
+                    {user.role === "ADMIN" ? "Demote to user" : "Promote to admin"}
+                  </ActionBtn>
+                )}
                 <ActionBtn
                   icon={Flag}
                   tone={user.isFlagged ? "warning" : "default"}
@@ -476,13 +484,17 @@ function UserDetail() {
             status: user.status,
           }}
           onClose={() => setActionModal(null)}
-          onSave={(patch) =>
+          onSave={(patch) => {
             handleEditSave({
               name: patch.name ?? user.name,
               specialty: patch.specialty ?? user.specialty,
               institution: patch.institution ?? user.institution,
-            })
-          }
+            });
+            // Role lives behind its own endpoint — fire it when it changed.
+            if (patch.role && patch.role !== user.role) {
+              handleRoleChange(patch.role as DisplayRole);
+            }
+          }}
         />
       )}
       {actionModal === "email" && (
