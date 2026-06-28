@@ -7,7 +7,8 @@ import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
   useAdminQuestions,
-  useDeleteQuestion,
+  useBulkDeleteQuestions,
+  useBulkSetActiveQuestions,
   useQuestionBanksLite,
   useToggleQuestionActive,
   type AdminQuestion,
@@ -45,9 +46,12 @@ function AdminQuestions() {
   const [topicFilter, setTopicFilter] = useState("All");
 
   const { data: banks } = useQuestionBanksLite();
-  const { data: questionsData } = useAdminQuestions({ limit: 100 });
+  // Active only — deleted/deactivated questions are hidden here (manage/restore
+  // them from the per-bank questions page's "Inactive" filter).
+  const { data: questionsData } = useAdminQuestions({ limit: 100, isActive: true });
   const toggleActive = useToggleQuestionActive();
-  const deleteQuestion = useDeleteQuestion();
+  const bulkDeleteMut = useBulkDeleteQuestions();
+  const bulkSetActiveMut = useBulkSetActiveQuestions();
 
   const allQuestions: Row[] = useMemo(
     () =>
@@ -80,6 +84,7 @@ function AdminQuestions() {
   const rows = useMemo(() => {
     return allQuestions
       .filter((q) => !deleted.has(q.id))
+      .filter((q) => q.isActive)
       .filter((q) => {
         if (bankFilter !== "All" && q.bankId !== bankFilter) return false;
         if (imageFilter !== "All" && q.hasImage !== (imageFilter === "Yes")) return false;
@@ -140,7 +145,9 @@ function AdminQuestions() {
       ids.forEach((id) => (active ? next.delete(id) : next.add(id)));
       return next;
     });
-    Promise.all(ids.map((id) => toggleActive.mutateAsync({ id, isActive: active })))
+    // One request for the whole selection — avoids the per-id PATCH storm (429).
+    bulkSetActiveMut
+      .mutateAsync({ ids, isActive: active })
       .then(() =>
         toast.success(
           `${ids.length} question${ids.length === 1 ? "" : "s"} ${active ? "activated" : "deactivated"}`,
@@ -154,7 +161,9 @@ function AdminQuestions() {
   function bulkDelete() {
     const ids = [...selected];
     setDeleted((prev) => new Set([...prev, ...ids]));
-    Promise.all(ids.map((id) => deleteQuestion.mutateAsync(id)))
+    // One request for the whole selection — avoids the per-id DELETE storm (429).
+    bulkDeleteMut
+      .mutateAsync(ids)
       .then(() => toast.success(`Deleted ${ids.length} question${ids.length === 1 ? "" : "s"}`))
       .catch((err) =>
         toast.error(err instanceof Error ? err.message : "Some questions could not be deleted"),

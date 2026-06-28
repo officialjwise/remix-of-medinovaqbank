@@ -344,6 +344,27 @@ export const questionsApi = {
     return mapQuestion(data);
   },
 
+  /**
+   * Soft-delete many questions in ONE request. Replaces firing a DELETE per id
+   * (which tripped the throttler on multi-select). Returns the server's counts.
+   */
+  async bulkRemove(ids: string[]): Promise<{ deleted: number; skipped: number }> {
+    return apiClient.post<{ deleted: number; skipped: number }>("/admin/questions/bulk-delete", {
+      questionIds: ids,
+    });
+  },
+
+  /** Bulk activate/deactivate in ONE request (replaces a PATCH per id). */
+  async bulkSetActive(
+    ids: string[],
+    isActive: boolean,
+  ): Promise<{ updated: number; skipped: number }> {
+    return apiClient.post<{ updated: number; skipped: number }>("/admin/questions/bulk-status", {
+      questionIds: ids,
+      isActive,
+    });
+  },
+
   /** Upload a question/option image; returns the stored URL. */
   async uploadImage(file: File): Promise<string> {
     const form = new FormData();
@@ -478,6 +499,25 @@ export function useBulkUploadQuestions() {
   return useMutation({
     mutationFn: ({ bankId, file }: { bankId: string; file: File }) =>
       questionsApi.bulkUpload(bankId, file),
+    onSuccess: invalidate,
+  });
+}
+
+/** Soft-delete many questions in one request (single invalidate, no 429 storm). */
+export function useBulkDeleteQuestions() {
+  const invalidate = useInvalidateQuestions();
+  return useMutation({
+    mutationFn: (ids: string[]) => questionsApi.bulkRemove(ids),
+    onSuccess: invalidate,
+  });
+}
+
+/** Bulk activate/deactivate in one request (single invalidate, no 429 storm). */
+export function useBulkSetActiveQuestions() {
+  const invalidate = useInvalidateQuestions();
+  return useMutation({
+    mutationFn: ({ ids, isActive }: { ids: string[]; isActive: boolean }) =>
+      questionsApi.bulkSetActive(ids, isActive),
     onSuccess: invalidate,
   });
 }

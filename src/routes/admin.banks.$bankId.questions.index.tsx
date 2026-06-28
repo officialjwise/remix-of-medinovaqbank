@@ -21,6 +21,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 import {
   downloadQuestionTemplate,
   useAdminQuestions,
+  useBulkDeleteQuestions,
+  useBulkSetActiveQuestions,
   useDeleteQuestion,
   useQuestionBanksLite,
   useToggleQuestionActive,
@@ -58,9 +60,20 @@ function AdminBankQuestions() {
   const { data: banks } = useQuestionBanksLite();
   const bank = banks?.find((b) => b.id === bankId);
 
-  const { data: questionsData } = useAdminQuestions({ bankId, limit: 100 });
+  // Status drives the server-side active filter so deleted/deactivated questions
+  // are hidden by default (admins opt into "Inactive" to view/restore them).
+  const [status, setStatus] = useState<"All" | "Active" | "Inactive">("Active");
+  const statusActive: boolean | undefined =
+    status === "Active" ? true : status === "Inactive" ? false : undefined;
+  const { data: questionsData } = useAdminQuestions({
+    bankId,
+    limit: 100,
+    isActive: statusActive,
+  });
   const toggleActive = useToggleQuestionActive();
   const deleteQuestion = useDeleteQuestion();
+  const bulkDeleteMut = useBulkDeleteQuestions();
+  const bulkSetActiveMut = useBulkSetActiveQuestions();
 
   const all: Row[] = useMemo(
     () => (questionsData?.data ?? []).map((q) => ({ ...q, answered: q.timesAnswered })),
@@ -71,7 +84,6 @@ function AdminBankQuestions() {
   const debouncedQuery = useDebounce(query, 250);
   const [difficulty, setDifficulty] = useState("All");
   const [topic, setTopic] = useState("All");
-  const [status, setStatus] = useState<"All" | "Active" | "Inactive">("All");
   const [imageFilter, setImageFilter] = useState<"All" | "Yes" | "No">("All");
   const [rateBucket, setRateBucket] = useState<"All" | "high" | "mid" | "low">("All");
   const [sort, setSort] = useState<Sort>("manual");
@@ -146,7 +158,7 @@ function AdminBankQuestions() {
     !debouncedQuery.trim() &&
     difficulty === "All" &&
     topic === "All" &&
-    status === "All" &&
+    status !== "Inactive" &&
     imageFilter === "All" &&
     rateBucket === "All";
 
@@ -195,7 +207,9 @@ function AdminBankQuestions() {
       ids.forEach((id) => (active ? next.delete(id) : next.add(id)));
       return next;
     });
-    Promise.all(ids.map((id) => toggleActive.mutateAsync({ id, isActive: active })))
+    // One request for the whole selection — avoids the per-id PATCH storm (429).
+    bulkSetActiveMut
+      .mutateAsync({ ids, isActive: active })
       .then(() =>
         toast.success(
           `${ids.length} question${ids.length === 1 ? "" : "s"} ${active ? "activated" : "deactivated"}`,
@@ -209,7 +223,9 @@ function AdminBankQuestions() {
   function bulkDelete() {
     const ids = [...selected];
     setDeleted((prev) => new Set([...prev, ...ids]));
-    Promise.all(ids.map((id) => deleteQuestion.mutateAsync(id)))
+    // One request for the whole selection — avoids the per-id DELETE storm (429).
+    bulkDeleteMut
+      .mutateAsync(ids)
       .then(() => toast.success(`Deleted ${ids.length} question${ids.length === 1 ? "" : "s"}`))
       .catch((err) =>
         toast.error(err instanceof Error ? err.message : "Some questions could not be deleted"),

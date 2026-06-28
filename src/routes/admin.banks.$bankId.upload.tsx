@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import {
   ArrowLeft,
   Download,
@@ -9,6 +9,7 @@ import {
   Check,
   AlertCircle,
   ArrowRight,
+  Sparkles,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import {
   useBulkUploadQuestions,
   useQuestionBanksLite,
 } from "@/api/questions.api";
+import { useBreakdownStatus, useGenerateBreakdowns } from "@/api/admin-explanations.api";
 
 export const Route = createFileRoute("/admin/banks/$bankId/upload")({
   head: () => ({
@@ -249,6 +251,53 @@ function AdminBankUpload() {
   const [result, setResult] = useState<UploadResult | null>(null);
   const [preview, setPreview] = useState<PreviewRow[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── Clinical-breakdown generation (shown on the Done step) ──
+  const [generatingBreakdowns, setGeneratingBreakdowns] = useState(false);
+  const generateBreakdowns = useGenerateBreakdowns();
+  const breakdownStatus = useBreakdownStatus(bankId, {
+    enabled: step === "done",
+    poll: generatingBreakdowns,
+  });
+  const bd = breakdownStatus.data;
+  const bdTotal = bd?.total ?? 0;
+  const bdDone = bd?.withBreakdown ?? 0;
+  const bdMissing = bd?.missing ?? 0;
+  const bdPct = bdTotal > 0 ? Math.round((bdDone / bdTotal) * 100) : 0;
+  const bdBusy = generatingBreakdowns || generateBreakdowns.isPending;
+
+  // Settle "generating" when every breakdown is filled — or stop polling if it
+  // stalls (the timer is re-armed on each bit of progress, so it only fires
+  // after ~45s with no new breakdown, e.g. Gemini unavailable).
+  useEffect(() => {
+    if (!generatingBreakdowns) return;
+    if (bdTotal > 0 && bdMissing === 0) {
+      setGeneratingBreakdowns(false);
+      toast.success("Clinical breakdowns generated", { id: "gen-breakdowns" });
+      return;
+    }
+    const timer = setTimeout(() => {
+      setGeneratingBreakdowns(false);
+      toast("Generation paused — click Generate to finish the rest.", { id: "gen-breakdowns" });
+    }, 45000);
+    return () => clearTimeout(timer);
+  }, [generatingBreakdowns, bdTotal, bdMissing, bdDone]);
+
+  const onGenerateBreakdowns = () => {
+    generateBreakdowns.mutate(
+      { bankId, limit: 1000 },
+      {
+        onSuccess: () => {
+          setGeneratingBreakdowns(true);
+          toast.success("Generating clinical breakdowns…", { id: "gen-breakdowns" });
+        },
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : "Could not start generation", {
+            id: "gen-breakdowns",
+          }),
+      },
+    );
+  };
 
   const previewStats = useMemo(() => {
     const valid = preview.filter((r) => r.errors.length === 0).length;
@@ -655,6 +704,57 @@ function AdminBankUpload() {
                     <span className="text-sm text-error font-medium">{e.reason}</span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Clinical breakdowns — generate AI explanations for this bank */}
+          <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+                  <Sparkles className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Clinical Breakdowns</p>
+                  <p className="text-xs text-muted-foreground">
+                    {breakdownStatus.isLoading
+                      ? "Checking coverage…"
+                      : bdTotal > 0
+                        ? `${bdDone} / ${bdTotal} questions have a breakdown`
+                        : "No active questions in this bank yet"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onGenerateBreakdowns}
+                disabled={bdBusy || bdTotal === 0 || bdMissing === 0}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-accent px-4 text-sm font-bold text-white shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {bdBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {bdBusy
+                  ? "Generating…"
+                  : bdTotal > 0 && bdMissing === 0
+                    ? "All generated"
+                    : "Generate breakdowns"}
+              </button>
+            </div>
+            {bdTotal > 0 && (
+              <div className="mt-4">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-surface-alt">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary to-accent transition-all"
+                    style={{ width: `${bdPct}%` }}
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {bdPct}% complete
+                  {bdBusy ? " · generating in the background…" : ""}
+                </p>
               </div>
             )}
           </div>

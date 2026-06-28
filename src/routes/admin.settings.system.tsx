@@ -317,11 +317,15 @@ function useTestConnection() {
   return { run, isTesting: test.isPending };
 }
 
+// Verified available on the Generative Language API (ListModels). Pro models are
+// preferred for clinical accuracy; flash tiers are cheaper/faster fallbacks.
 const GEMINI_MODELS = [
+  "gemini-3.1-pro-preview",
+  "gemini-3-pro-preview",
+  "gemini-3.5-flash",
+  "gemini-2.5-pro",
   "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
+  "gemini-2.5-flash-lite",
 ] as const;
 
 function IntegrationsTab() {
