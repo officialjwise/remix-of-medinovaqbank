@@ -49,9 +49,13 @@ export function TutorBreakdown({
   const correctOpt = options.find((o) => o.id === correctOptionId);
   const answeredWrong = selectedOptionId !== null && isCorrect === false;
 
-  // Index the "when would be correct" scenarios by option label for quick join.
-  const wouldByLabel = new Map(
-    (breakdown?.whenWouldBeCorrect ?? []).map((w) => [w.label, w.scenario]),
+  // The AI sometimes returns a full "B: option text" in `label` rather than a
+  // bare letter, so normalise to the leading option letter for joining/display.
+  const letterOf = (label: string): string => label.trim().charAt(0).toUpperCase();
+
+  // Index the "when would be correct" scenarios by option letter for quick join.
+  const wouldByLetter = new Map(
+    (breakdown?.whenWouldBeCorrect ?? []).map((w) => [letterOf(w.label), w.scenario]),
   );
 
   return (
@@ -177,8 +181,10 @@ export function TutorBreakdown({
               </div>
               <ul className="mt-3 space-y-3">
                 {breakdown.whyOthersAreWrong.map((o) => {
-                  const chosenWrong = selectedLabel === o.label;
-                  const scenario = wouldByLabel.get(o.label);
+                  const letter = letterOf(o.label);
+                  const opt = options.find((op) => op.label.toUpperCase() === letter);
+                  const chosenWrong = (selectedLabel ?? "").toUpperCase() === letter;
+                  const scenario = wouldByLetter.get(letter);
                   return (
                     <li
                       key={o.label}
@@ -190,9 +196,12 @@ export function TutorBreakdown({
                     >
                       <div className="flex items-start gap-2.5">
                         <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-error/10 text-xs font-bold text-error">
-                          {o.label}
+                          {letter}
                         </span>
-                        <div className="space-y-1.5 pt-0.5">
+                        <div className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+                          {opt && (
+                            <p className="text-sm font-semibold text-foreground">{opt.text}</p>
+                          )}
                           <p className="text-sm leading-relaxed text-foreground">
                             <span className="font-bold text-error">Why it's wrong — </span>
                             {o.reason}

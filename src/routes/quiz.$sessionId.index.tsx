@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bookmark,
@@ -13,12 +13,14 @@ import {
   Keyboard,
   LayoutGrid,
   Loader2,
+  Lock,
   SkipForward,
   Timer,
   X,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTrial } from "@/hooks/useTrial";
 import {
   useCompleteSession,
   useSessionState,
@@ -66,15 +68,43 @@ function QuizPage() {
   const questions = state?.questions ?? [];
   const total = questions.length;
 
+  // ── Free-trial question gate ──────────────────────────────────────────────
+  // Trial users may only view/answer up to their question allowance. Freeze the
+  // allowance for this session on first load (answered-so-far + remaining quota)
+  // so it doesn't jitter as `questionsLeft` refetches after each answer. Anything
+  // beyond `accessibleCount` is locked: not viewable, not navigable.
+  const { isTrial, questionsTotal, questionsLeft } = useTrial();
+  const trialFreeze = useRef<{ id: string; allowance: number } | null>(null);
+  if (isTrial && state) {
+    if (trialFreeze.current?.id !== state.session.id) {
+      trialFreeze.current = {
+        id: state.session.id,
+        allowance: state.answeredQuestionIds.length + Math.max(0, questionsLeft),
+      };
+    }
+  }
+  const accessibleCount =
+    isTrial && trialFreeze.current
+      ? Math.min(total, Math.max(0, trialFreeze.current.allowance))
+      : total;
+  const trialWall = isTrial && accessibleCount < total;
+
+  const notifyTrialLimit = useCallback(() => {
+    toast.error(
+      `You've reached your free trial limit of ${questionsTotal} questions. Upgrade to unlock the rest.`,
+      { id: "trial-limit" },
+    );
+  }, [questionsTotal]);
+
   // Whole-session timer (counts up).
   useEffect(() => {
     const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Start the session at the first unanswered question.
+  // Start the session at the first unanswered question (clamped to the trial gate).
   useEffect(() => {
-    if (state) setIndex(Math.min(state.currentIndex, Math.max(0, total - 1)));
+    if (state) setIndex(Math.min(state.currentIndex, Math.max(0, accessibleCount - 1)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.session.id]);
 
@@ -89,7 +119,9 @@ function QuizPage() {
   const selectedOptionId = qid ? ui?.selected[qid] : undefined;
   const result = qid ? results[qid] : undefined;
   const isSubmitted = qid ? !!ui?.submitted[qid] : false;
-  const isLast = index === total - 1;
+  // "Last" for navigation = last *accessible* question (so trial users finish at
+  // their gate instead of advancing into locked questions).
+  const isLast = index >= accessibleCount - 1;
   const isTutor = state?.session.mode === "TUTOR";
 
   const answeredSet = useMemo(
@@ -142,13 +174,21 @@ function QuizPage() {
   );
 
   const go = useCallback(
-    (delta: number) => setIndex((i) => Math.min(total - 1, Math.max(0, i + delta))),
-    [total],
+    // Forward movement is capped at the last accessible question for trial users.
+    (delta: number) => setIndex((i) => Math.min(accessibleCount - 1, Math.max(0, i + delta))),
+    [accessibleCount],
   );
-  const jump = useCallback((i: number) => {
-    setIndex(i);
-    setNavOpen(false);
-  }, []);
+  const jump = useCallback(
+    (i: number) => {
+      if (i >= accessibleCount) {
+        notifyTrialLimit();
+        return;
+      }
+      setIndex(i);
+      setNavOpen(false);
+    },
+    [accessibleCount, notifyTrialLimit],
+  );
 
   const finish = useCallback(() => {
     complete.mutate(undefined, {
@@ -577,6 +617,21 @@ function QuizPage() {
                   </>
                 )}
 
+                {trialWall && isLast && (
+                  <div className="mt-5 flex flex-col gap-2 rounded-xl border border-warning/30 bg-warning/5 p-4 sm:flex-row sm:items-center">
+                    <Lock className="h-5 w-5 flex-shrink-0 text-warning" />
+                    <p className="text-sm text-foreground">
+                      <span className="font-bold">Free trial limit reached.</span> You can answer{" "}
+                      {accessibleCount} of {total} questions on the free trial. Finish to see your
+                      results, or{" "}
+                      <Link to="/subscription" className="font-semibold text-primary underline">
+                        upgrade
+                      </Link>{" "}
+                      to unlock the remaining {total - accessibleCount}.
+                    </p>
+                  </div>
+                )}
+
                 <div className="mt-8 flex items-center justify-between border-t border-border pt-5">
                   <button
                     type="button"
@@ -621,6 +676,8 @@ function QuizPage() {
               bookmarked={ui?.bookmarked ?? {}}
               currentIndex={index}
               onJump={jump}
+              lockedFromIndex={accessibleCount}
+              onLocked={notifyTrialLimit}
             />
             <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-surface-alt px-3 py-2.5 text-sm">
               <span className="inline-flex items-center gap-1.5 text-muted-foreground">
@@ -663,6 +720,8 @@ function QuizPage() {
               bookmarked={ui?.bookmarked ?? {}}
               currentIndex={index}
               onJump={jump}
+              lockedFromIndex={accessibleCount}
+              onLocked={notifyTrialLimit}
             />
             <button
               type="button"
@@ -692,6 +751,8 @@ function RuntimeNavigator({
   bookmarked,
   currentIndex,
   onJump,
+  lockedFromIndex = Number.POSITIVE_INFINITY,
+  onLocked,
 }: {
   questions: QuizQuestion[];
   answeredSet: Set<string>;
@@ -700,8 +761,13 @@ function RuntimeNavigator({
   bookmarked: Record<string, true>;
   currentIndex: number;
   onJump: (i: number) => void;
+  /** First index that is locked behind the free-trial gate (read-only). */
+  lockedFromIndex?: number;
+  /** Called when a locked tile is clicked, to surface the trial-limit message. */
+  onLocked?: () => void;
 }) {
   const answered = questions.filter((q) => answeredSet.has(q.id)).length;
+  const accessible = Math.min(questions.length, lockedFromIndex);
 
   return (
     <div>
@@ -710,11 +776,26 @@ function RuntimeNavigator({
           Navigator
         </span>
         <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
-          {answered}/{questions.length}
+          {answered}/{accessible}
         </span>
       </div>
       <div className="grid grid-cols-5 gap-1.5">
         {questions.map((q, i) => {
+          const locked = i >= lockedFromIndex;
+          if (locked) {
+            return (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => onLocked?.()}
+                aria-label={`Question ${i + 1} — locked (free trial limit)`}
+                title="Locked — free trial limit reached"
+                className="relative flex h-9 w-full cursor-not-allowed items-center justify-center rounded-lg border border-dashed border-border bg-surface-alt/40 text-muted-foreground/50"
+              >
+                <Lock className="h-3.5 w-3.5" />
+              </button>
+            );
+          }
           const isCurrent = i === currentIndex;
           const isAnswered = answeredSet.has(q.id);
           const res = results[q.id];
