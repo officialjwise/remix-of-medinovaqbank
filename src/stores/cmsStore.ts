@@ -152,26 +152,15 @@ const DEFAULT_CMS: CmsContent = {
         body: "USMLE, PLAB, MRCP, the Ghana Medical & Dental Council exam and more.",
       },
     ],
-    testimonials: [
-      {
-        id: "t1",
-        name: "Dr. Akua M.",
-        role: "Internal Medicine",
-        quote:
-          "The clinical breakdowns are better than any textbook. I went from the 60th to the 90th percentile in six weeks.",
-      },
-      {
-        id: "t2",
-        name: "Dr. Kwame O.",
-        role: "Surgery",
-        quote:
-          "Quiz mode feels exactly like the real exam. The analytics told me precisely what to revise.",
-      },
-    ],
+    // No seeded testimonials — real, consented ones are added via the admin CMS.
+    // Both render sites guard on `testimonials.length > 0`, so the section is
+    // simply hidden until then.
+    testimonials: [],
   },
   contact: {
     email: "support@medinovaqbank.com",
-    phone: "+233 20 000 0000",
+    // Left blank until a verified support number exists; UI omits the phone card.
+    phone: "",
     address: "Accra, Ghana",
   },
 };
@@ -196,6 +185,8 @@ export const useCmsStore = create<CmsState>()(
       setAbout: (about) => set((s) => ({ cms: { ...s.cms, about } })),
       setContact: (contact) => set((s) => ({ cms: { ...s.cms, contact } })),
     }),
-    { name: "medinova-cms-v2", version: 1 },
+    // version bumped to 2 so clients that cached the old seeded testimonials /
+    // placeholder phone drop them and pick up the cleaned defaults.
+    { name: "medinova-cms-v2", version: 2 },
   ),
 );

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Stethoscope, ShieldCheck, Star } from "lucide-react";
+import { Stethoscope, ShieldCheck } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -9,10 +9,11 @@ interface Props {
   brandHighlight?: ReactNode;
 }
 
+// Honest, non-numeric product props — no fabricated counts or ratings.
 const STATS = [
-  { value: "12K+", label: "Exam questions" },
-  { value: "25K+", label: "Practitioners" },
-  { value: "4.9★", label: "Avg. rating" },
+  { value: "Tutor + Quiz", label: "Study modes" },
+  { value: "AI", label: "Clinical breakdowns" },
+  { value: "Live", label: "Performance analytics" },
 ];
 
 export function AuthSplit({
@@ -83,24 +84,11 @@ export function AuthSplit({
 
           {brandHighlight ?? (
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-              <div className="flex gap-0.5 text-accent">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="h-3.5 w-3.5 fill-current" />
-                ))}
-              </div>
-              <p className="mt-3 text-sm italic leading-relaxed text-white/85">
-                "Best prep tool I've used. The clinical explanations alone are worth it — every
-                answer feels like a tutorial."
+              <p className="text-sm font-semibold text-white">Built for serious exam prep</p>
+              <p className="mt-2 text-sm leading-relaxed text-white/75">
+                Detailed clinical breakdowns, tutor and quiz modes, and real-time analytics —
+                so every question doubles as a lesson.
               </p>
-              <div className="mt-4 flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent to-primary text-xs font-bold text-white">
-                  AM
-                </span>
-                <div>
-                  <p className="text-xs font-semibold text-white">Dr. Akua Mensah</p>
-                  <p className="text-[11px] text-white/55">Internal Medicine · KBTH</p>
-                </div>
-              </div>
             </div>
           )}
         </div>

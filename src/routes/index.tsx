@@ -23,15 +23,6 @@ import { useCmsStore } from "@/stores/cmsStore";
 import { useExamTypes } from "@/api/exam-types.api";
 import { usePublicBanks } from "@/api/banks.api";
 
-const institutions = [
-  "Korle Bu Teaching Hospital",
-  "KNUST School of Medicine",
-  "University of Ghana Medical School",
-  "Komfo Anokye Teaching Hospital",
-  "37 Military Hospital",
-  "Tamale Teaching Hospital",
-];
-
 const heroAvatars = ["AM", "KO", "EA", "YB", "AD"];
 
 export const Route = createFileRoute("/")({
@@ -55,17 +46,10 @@ export const Route = createFileRoute("/")({
 });
 
 const trustBadges = [
-  "5,000+ Questions",
+  "Board-style Questions",
   "Clinical Breakdowns",
   "Ghana Medical Standard",
   "Real-time Analytics",
-];
-
-const stats = [
-  { value: "6,000+", label: "Practitioners studying" },
-  { value: "5,000+", label: "Board-style questions" },
-  { value: "9", label: "Question banks" },
-  { value: "88%", label: "Median pass confidence" },
 ];
 
 const howItWorks = [
@@ -93,6 +77,15 @@ function LandingPage() {
   const { data: activeExams = [] } = useExamTypes();
   const { data: banksData } = usePublicBanks({ limit: 100 });
   const banks = banksData?.banks ?? [];
+
+  // Honest, live-derived stats — no fabricated counts/claims. Numbers grow as
+  // real content is added; non-numeric props describe the actual product.
+  const stats = [
+    { value: banks.length > 0 ? String(banks.length) : "—", label: "Question banks" },
+    { value: activeExams.length > 0 ? String(activeExams.length) : "—", label: "Exam tracks" },
+    { value: "Tutor + Quiz", label: "Study modes" },
+    { value: "AI", label: "Clinical breakdowns" },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -199,26 +192,6 @@ function LandingPage() {
                   {s.label}
                 </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* INSTITUTIONS TRUST BAND */}
-      <section className="border-b border-border bg-surface py-10">
-        <div className="container-page">
-          <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Trusted by students &amp; doctors at
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-            {institutions.map((name) => (
-              <span
-                key={name}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground/80"
-              >
-                <Stethoscope className="h-4 w-4 text-[#0E7C7B]" />
-                {name}
-              </span>
             ))}
           </div>
         </div>

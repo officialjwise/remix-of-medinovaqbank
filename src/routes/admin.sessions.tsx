@@ -394,11 +394,6 @@ function AdminSessionsPage() {
   const activeCount = activeQuery.data?.total ?? activeQuery.data?.sessions.length ?? 0;
   const suspiciousCount = suspiciousQuery.data?.total ?? suspiciousQuery.data?.sessions.length ?? 0;
 
-  // GAP: backend has no "sessions today" / "quiz in progress" aggregates on the
-  // sessions module — shown as 0 until those endpoints exist (no mock).
-  const sessionsToday = 0;
-  const quizInProgress = 0;
-
   const handleTerminate = () => {
     if (!forceLogout) return;
     terminate.mutate(forceLogout.id, {
@@ -421,7 +416,7 @@ function AdminSessionsPage() {
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <KpiCard
           label="Active Sessions"
           value={activeQuery.isLoading ? "…" : activeCount}
@@ -429,20 +424,6 @@ function AdminSessionsPage() {
           tone="success"
           live
           accent="live now"
-        />
-        <KpiCard
-          label="Sessions Today"
-          value={sessionsToday}
-          icon={Globe}
-          tone="primary"
-          accent="logins in last 24h"
-        />
-        <KpiCard
-          label="Quizzes In Progress"
-          value={quizInProgress}
-          icon={Monitor}
-          tone="warning"
-          accent="currently being taken"
         />
         <KpiCard
           label="Suspicious Flags"

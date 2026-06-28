@@ -1,7 +1,14 @@
 import { getDeviceFingerprint } from "@/lib/device";
 import { useAuthStore } from "@/stores/authStore";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
+// Fail the build loudly rather than silently shipping a localhost API URL: a
+// production bundle MUST be built with VITE_API_URL set. The localhost default
+// is for local dev only.
+const RAW_API_URL = import.meta.env.VITE_API_URL;
+if (import.meta.env.PROD && !RAW_API_URL) {
+  throw new Error("VITE_API_URL must be set for production builds");
+}
+const BASE_URL = RAW_API_URL ?? "http://localhost:3000/api/v1";
 
 /** Standard backend response envelope. */
 interface Envelope<T> {

@@ -6,7 +6,6 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
-  Download,
   FileText,
   Lock,
   Search,
@@ -60,36 +59,11 @@ interface AuditEntry {
   severity: "info" | "warning" | "critical";
 }
 
-const verbs = [
-  "created",
-  "updated",
-  "deleted",
-  "suspended",
-  "reactivated",
-  "exported",
-  "logged in",
-  "rotated",
-];
-const targets = [
-  "bank:cardiology-essentials",
-  "user:akua.mensah@example.gh",
-  "plan:12-months",
-  "subscription:sub_4f2",
-  "api-key:mqb_live_8a3f",
-  "settings:ai",
-  "settings:system",
-];
-
-const seed: AuditEntry[] = Array.from({ length: 30 }, (_, i) => ({
-  id: `a-${i + 1}`,
-  actor: ["You (super.admin)", "kofi.admin", "ama.admin", "system"][i % 4],
-  actorRole: i % 4 === 0 ? "SUPER_ADMIN" : i % 4 === 3 ? "SYSTEM" : "SUPER_ADMIN",
-  action: verbs[i % verbs.length],
-  target: targets[i % targets.length],
-  ip: ["41.66.xxx.xx", "154.160.xxx.xx", "—"][i % 3],
-  at: new Date(Date.now() - i * 47 * 60 * 1000).toISOString(),
-  severity: (i % 9 === 0 ? "critical" : i % 4 === 0 ? "warning" : "info") as AuditEntry["severity"],
-}));
+// No global admin activity-log feed endpoint exists yet (per-user history lives
+// at GET /admin/users/:id/activity, and the real global view is /admin/activity-logs),
+// so this tab renders no fabricated rows — it shows an empty state until a global
+// feed is wired.
+const seed: AuditEntry[] = [];
 
 const sevStyle: Record<AuditEntry["severity"], string> = {
   info: "bg-surface-alt text-muted-foreground",
@@ -211,12 +185,6 @@ function ActivityLogTab() {
             <option value="critical">Critical</option>
           </select>
         </div>
-        <button
-          onClick={() => alert("CSV export — mock")}
-          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"
-        >
-          <Download className="h-4 w-4" /> Export
-        </button>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
