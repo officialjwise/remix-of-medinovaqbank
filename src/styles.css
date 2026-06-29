@@ -132,6 +132,19 @@
   --chart-4: oklch(0.72 0.15 70);
   --chart-5: oklch(0.58 0.22 27);
 
+  /* Categorical series palette (pie / line / bar fills + strokes). Light values;
+     .dark brightens each one so series read on a near-black surface. */
+  --chart-c1: #0e7c7b;
+  --chart-c2: #2bc97f;
+  --chart-c3: #3b82f6;
+  --chart-c4: #e89a1a;
+  --chart-c5: #7c3aed;
+  --chart-c6: #e11d48;
+  --chart-c7: #15a89c;
+  --chart-c8: #6366f1;
+  /* Grid line color for charts — a touch stronger than the UI border. */
+  --chart-grid: rgba(15, 23, 42, 0.1);
+
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.22 0.03 210);
   --sidebar-primary: oklch(0.48 0.12 195);
@@ -179,6 +192,24 @@
   --border-strong: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.1);
   --ring: #34d399;
+
+  /* Charts — brighter categorical series + a lifted grid so lines/bars/pies
+     stay legible on the near-black dark surface. */
+  --chart-c1: #2dd4bf;
+  --chart-c2: #4ade80;
+  --chart-c3: #60a5fa;
+  --chart-c4: #fbbf24;
+  --chart-c5: #a78bfa;
+  --chart-c6: #fb7185;
+  --chart-c7: #5eead4;
+  --chart-c8: #818cf8;
+  --chart-grid: rgba(255, 255, 255, 0.1);
+
+  --chart-1: oklch(0.74 0.13 195);
+  --chart-2: oklch(0.82 0.18 152);
+  --chart-3: oklch(0.74 0.16 168);
+  --chart-4: oklch(0.83 0.15 70);
+  --chart-5: oklch(0.72 0.2 27);
 }
 
 @layer base {
@@ -299,6 +330,65 @@
   animation: streak-pop 0.5s ease-out;
 }
 
+/* ── Landing "AI design" motion — drifting aurora orbs, animated gradient text,
+   gentle float. All additive and disabled under prefers-reduced-motion. ── */
+@keyframes aurora-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(40px, -30px) scale(1.12);
+  }
+  66% {
+    transform: translate(-30px, 25px) scale(0.92);
+  }
+}
+.animate-aurora {
+  animation: aurora-float 16s ease-in-out infinite;
+}
+.animate-aurora-slow {
+  animation: aurora-float 24s ease-in-out infinite reverse;
+}
+
+@keyframes gradient-pan {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.text-gradient-animate {
+  background-image: linear-gradient(90deg, #0e7c7b, #2bc97f, #7be0b0, #2bc97f, #0e7c7b);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: gradient-pan 6s ease infinite;
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+.animate-float-y {
+  animation: float-y 6s ease-in-out infinite;
+}
+
+/* Faint dotted grid overlay for hero/CTA "tech" texture. */
+.bg-grid-dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
 @keyframes shimmer {
   100% {
     transform: translateX(100%);
@@ -328,7 +418,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shimmer::after {
+  .shimmer::after,
+  .animate-aurora,
+  .animate-aurora-slow,
+  .animate-float-y,
+  .text-gradient-animate {
     animation: none;
   }
 }

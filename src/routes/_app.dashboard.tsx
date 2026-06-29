@@ -66,8 +66,17 @@ export const Route = createFileRoute("/_app/dashboard")({
 // Mon-first weekday labels for the weekly-activity strip.
 const WEEK_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
-/** Donut palette — cycled per subject so colors are stable for a given order. */
-const DONUT_PALETTE = ["#0E7C7B", "#2BC97F", "#2563EB", "#7C3AED", "#D97706", "#EC4899", "#06B6D4"];
+/** Donut palette — cycled per subject so colors are stable for a given order.
+ *  Theme-aware (see --chart-c* in styles.css) so it reads in light AND dark. */
+const DONUT_PALETTE = [
+  "var(--chart-c1)",
+  "var(--chart-c2)",
+  "var(--chart-c3)",
+  "var(--chart-c5)",
+  "var(--chart-c4)",
+  "var(--chart-c6)",
+  "var(--chart-c7)",
+];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

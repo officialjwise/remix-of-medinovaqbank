@@ -74,14 +74,16 @@ const tooltipStyle = {
   boxShadow: "var(--shadow-card-hover)",
 };
 
+// Theme-aware series colours (see --chart-c* in styles.css) so every chart's
+// lines/bars/areas brighten in dark mode instead of staying dark on near-black.
 const palette = {
-  teal: "#0E7C7B",
-  emerald: "#2BC97F",
-  blue: "#3B82F6",
-  amber: "#E89A1A",
-  violet: "#7C3AED",
-  rose: "#E11D48",
-  success: "#1FA968",
+  teal: "var(--chart-c1)",
+  emerald: "var(--chart-c2)",
+  blue: "var(--chart-c3)",
+  amber: "var(--chart-c4)",
+  violet: "var(--chart-c5)",
+  rose: "var(--chart-c6)",
+  success: "var(--chart-c2)",
 } as const;
 
 const cardClass = "rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]";

@@ -269,16 +269,20 @@ export function difficultyLabel(key: string): string {
   return DIFFICULTY_LABELS[key] ?? key;
 }
 
-/** Stable palette reused for pie/category fills. */
+/**
+ * Stable categorical palette for pie/line/bar series. These are theme-aware CSS
+ * vars (see --chart-c* in styles.css), so every chart's series brighten in dark
+ * mode for legibility instead of staying dark on a near-black surface.
+ */
 export const CHART_PALETTE = [
-  "#0E7C7B",
-  "#2BC97F",
-  "#3B82F6",
-  "#E89A1A",
-  "#7C3AED",
-  "#E11D48",
-  "#15A89C",
-  "#6366F1",
+  "var(--chart-c1)",
+  "var(--chart-c2)",
+  "var(--chart-c3)",
+  "var(--chart-c4)",
+  "var(--chart-c5)",
+  "var(--chart-c6)",
+  "var(--chart-c7)",
+  "var(--chart-c8)",
 ] as const;
 
 // ───────────────────────────────────────────────────────────────────────────

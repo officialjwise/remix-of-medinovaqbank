@@ -49,16 +49,17 @@ const TOOLTIP_STYLE = {
   color: "var(--color-foreground)",
 } as const;
 
+// Theme-aware (see --chart-c* in styles.css) so subject series read in dark mode.
 const SUBJECT_HEX = [
-  "#0E7C7B",
-  "#2BC97F",
-  "#3B82F6",
-  "#E89A1A",
-  "#7C3AED",
-  "#E11D48",
-  "#15A89C",
-  "#6366F1",
-  "#F472B6",
+  "var(--chart-c1)",
+  "var(--chart-c2)",
+  "var(--chart-c3)",
+  "var(--chart-c4)",
+  "var(--chart-c5)",
+  "var(--chart-c6)",
+  "var(--chart-c7)",
+  "var(--chart-c8)",
+  "var(--chart-c2)",
 ];
 
 /** Upgrade teaser rendered in place of a gated section. */
@@ -365,8 +366,8 @@ function AnalyticsContent({
               <AreaChart data={timeline} margin={{ top: 10, right: 24, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="scoreTrend" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0E7C7B" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#0E7C7B" stopOpacity={0.03} />
+                    <stop offset="0%" stopColor="var(--chart-c1)" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="var(--chart-c1)" stopOpacity={0.03} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="var(--color-border)" />
@@ -381,10 +382,10 @@ function AnalyticsContent({
                 <Area
                   type="monotone"
                   dataKey="pct"
-                  stroke="#0E7C7B"
+                  stroke="var(--chart-c1)"
                   strokeWidth={2.5}
                   fill="url(#scoreTrend)"
-                  dot={{ r: 3, fill: "#0E7C7B" }}
+                  dot={{ r: 3, fill: "var(--chart-c1)" }}
                   isAnimationActive={false}
                 />
                 <ReferenceLine
@@ -467,8 +468,8 @@ function PercentileSection({ percentile }: { percentile: ReturnType<typeof useMy
             <AreaChart data={curve} margin={{ top: 24, right: 24, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="bellLeft" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0E7C7B" stopOpacity={0.55} />
-                  <stop offset="95%" stopColor="#0E7C7B" stopOpacity={0.05} />
+                  <stop offset="0%" stopColor="var(--chart-c1)" stopOpacity={0.55} />
+                  <stop offset="95%" stopColor="var(--chart-c1)" stopOpacity={0.05} />
                 </linearGradient>
                 <linearGradient id="bellRight" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--color-muted-foreground)" stopOpacity={0.35} />
@@ -501,7 +502,7 @@ function PercentileSection({ percentile }: { percentile: ReturnType<typeof useMy
               <Area
                 type="monotone"
                 dataKey="left"
-                stroke="#0E7C7B"
+                stroke="var(--chart-c1)"
                 fill="url(#bellLeft)"
                 strokeWidth={2}
                 isAnimationActive={false}
@@ -520,12 +521,12 @@ function PercentileSection({ percentile }: { percentile: ReturnType<typeof useMy
               />
               <ReferenceLine
                 x={p.userScore}
-                stroke="#0E7C7B"
+                stroke="var(--chart-c1)"
                 strokeWidth={2.5}
                 label={{
                   value: `Your Score: ${Math.round(p.userScore)}%`,
                   position: "top",
-                  fill: "#0E7C7B",
+                  fill: "var(--chart-c1)",
                   fontSize: 12,
                   fontWeight: 800,
                 }}
@@ -542,7 +543,7 @@ function PercentileSection({ percentile }: { percentile: ReturnType<typeof useMy
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[#0E7C7B]" /> Your score
+          <span className="h-2.5 w-2.5 rounded-sm bg-[var(--chart-c1)]" /> Your score
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-px w-4 bg-muted-foreground" /> Average

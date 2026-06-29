@@ -99,16 +99,23 @@ function LandingPage() {
           background: "linear-gradient(135deg, #06302E 0%, #0E7C7B 45%, #1A9F7A 100%)",
         }}
       >
+        {/* Drifting aurora orbs + dotted grid give the "AI" / alive feel. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full opacity-40 blur-3xl"
+          className="animate-aurora pointer-events-none absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full opacity-40 blur-3xl"
           style={{ background: "#2BC97F" }}
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-40 left-1/3 h-[420px] w-[420px] rounded-full opacity-25 blur-3xl"
+          className="animate-aurora-slow pointer-events-none absolute -bottom-40 left-1/3 h-[420px] w-[420px] rounded-full opacity-25 blur-3xl"
           style={{ background: "#7BE0B0" }}
         />
+        <div
+          aria-hidden
+          className="animate-aurora pointer-events-none absolute -left-24 top-1/3 h-[300px] w-[300px] rounded-full opacity-20 blur-3xl"
+          style={{ background: "#37E0C8", animationDelay: "-6s" }}
+        />
+        <div aria-hidden className="bg-grid-dots pointer-events-none absolute inset-0 opacity-60" />
 
         <div className="container-page grid items-center gap-14 py-20 md:py-28 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-6">
@@ -160,7 +167,7 @@ function LandingPage() {
                   ))}
                 </div>
                 <p className="mt-0.5 text-xs font-medium text-white/75">
-                  Join 6,000+ practitioners preparing smarter
+                  Built with practitioners, for practitioners
                 </p>
               </div>
             </div>
@@ -179,7 +186,9 @@ function LandingPage() {
           </div>
 
           <div className="lg:col-span-6">
-            <RotatingHero />
+            <div className="animate-float-y">
+              <RotatingHero />
+            </div>
           </div>
         </div>
 
@@ -204,7 +213,7 @@ function LandingPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0E7C7B]">
             Why Medinovaqbank
           </p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-gradient-animate sm:text-4xl">
             Everything you need to walk into the exam confident
           </h2>
         </div>
@@ -215,7 +224,7 @@ function LandingPage() {
             return (
               <div
                 key={f.id}
-                className="group rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]"
+                className="group rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-card)] transition-all hover:-translate-y-1 hover:border-[#2BC97F]/40 hover:shadow-[0_14px_44px_-14px_rgb(43_201_127_/_0.4)]"
               >
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#0E7C7B]/10 to-[#2BC97F]/15 text-[#0E7C7B] transition-transform group-hover:scale-110">
                   <Icon className="h-5 w-5" />
@@ -644,12 +653,18 @@ function LandingPage() {
 
       {/* CTA BANNER */}
       <section
-        className="text-white"
+        className="relative overflow-hidden text-white"
         style={{
           background: "linear-gradient(135deg, #06302E 0%, #0E7C7B 50%, #1A9F7A 100%)",
         }}
       >
-        <div className="container-page flex flex-col items-center gap-6 py-16 text-center md:flex-row md:justify-between md:text-left">
+        <div
+          aria-hidden
+          className="animate-aurora pointer-events-none absolute -right-32 -top-24 h-[360px] w-[360px] rounded-full opacity-30 blur-3xl"
+          style={{ background: "#2BC97F" }}
+        />
+        <div aria-hidden className="bg-grid-dots pointer-events-none absolute inset-0 opacity-50" />
+        <div className="container-page relative flex flex-col items-center gap-6 py-16 text-center md:flex-row md:justify-between md:text-left">
           <div>
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Ready to start?</h2>
             <p className="mt-2 text-sm text-white/75">
