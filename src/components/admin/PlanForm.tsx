@@ -48,7 +48,7 @@ export const emptyPlan: PlanFormValues = {
   active: true,
   features: [
     { id: "f1", text: "Full access to every question bank", included: true },
-    { id: "f2", text: "AI clinical breakdowns on every answer", included: true },
+    { id: "f2", text: "Expert clinical breakdowns on every answer", included: true },
     { id: "f3", text: "Performance analytics dashboard", included: true },
   ],
 };

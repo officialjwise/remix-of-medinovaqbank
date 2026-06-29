@@ -32,7 +32,7 @@ function CreatePlan() {
     subscribers: 0,
     bullets: [
       { id: "b1", text: "Full access to every question bank", included: true },
-      { id: "b2", text: "AI clinical breakdowns on every answer", included: true },
+      { id: "b2", text: "Expert clinical breakdowns on every answer", included: true },
       { id: "b3", text: "Performance analytics dashboard", included: true },
     ],
     catalogFeatures: Object.fromEntries(

@@ -12,7 +12,7 @@ interface Props {
 // Honest, non-numeric product props — no fabricated counts or ratings.
 const STATS = [
   { value: "Tutor + Quiz", label: "Study modes" },
-  { value: "AI", label: "Clinical breakdowns" },
+  { value: "Expert", label: "Clinical breakdowns" },
   { value: "Live", label: "Performance analytics" },
 ];
 

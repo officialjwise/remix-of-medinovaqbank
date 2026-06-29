@@ -77,6 +77,7 @@ function LandingPage() {
   const { data: activeExams = [] } = useExamTypes();
   const { data: banksData } = usePublicBanks({ limit: 100 });
   const banks = banksData?.banks ?? [];
+  const totalQuestions = banks.reduce((sum, b) => sum + (b.questionCount ?? 0), 0);
 
   // Honest, live-derived stats — no fabricated counts/claims. Numbers grow as
   // real content is added; non-numeric props describe the actual product.
@@ -84,7 +85,7 @@ function LandingPage() {
     { value: banks.length > 0 ? String(banks.length) : "—", label: "Question banks" },
     { value: activeExams.length > 0 ? String(activeExams.length) : "—", label: "Exam tracks" },
     { value: "Tutor + Quiz", label: "Study modes" },
-    { value: "AI", label: "Clinical breakdowns" },
+    { value: "Expert", label: "Clinical breakdowns" },
   ];
 
   return (
@@ -447,10 +448,13 @@ function LandingPage() {
             Question banks
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            {banks.length > 0 ? `${banks.length} specialties, ` : ""}thousands of vignettes
+            {totalQuestions > 0
+              ? `${totalQuestions.toLocaleString()} board-style questions`
+              : "Board-style question banks"}
+            {banks.length > 0 ? ` across ${banks.length} specialties` : ""}
           </h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            Board-style cases across every core rotation — each with clinical breakdowns and
+            Board-style cases across every core rotation — each with an expert clinical breakdown and
             analytics.
           </p>
         </div>

@@ -78,7 +78,7 @@ const SEED: AppNotification[] = [
     audience: "admin",
     type: "api_error",
     title: "Gemini quota at 80%",
-    body: "Monthly AI quota is approaching its limit.",
+    body: "Monthly usage quota is approaching its limit.",
     createdAt: ago(700),
     read: true,
     href: "/admin/settings/system",

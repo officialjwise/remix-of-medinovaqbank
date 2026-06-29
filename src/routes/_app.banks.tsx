@@ -277,7 +277,7 @@ function UpgradeModal({ onClose }: { onClose: () => void }) {
           Upgrade to unlock all question banks
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          Get unlimited access to every bank, AI tutor explanations, and full analytics.
+          Get unlimited access to every bank, expert tutor explanations, and full analytics.
         </p>
         <div className="mt-5 flex gap-2">
           <button
