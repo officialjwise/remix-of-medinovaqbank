@@ -33,6 +33,7 @@ export type BackendRestrictionReason = "content_protection" | "manual";
 export interface BackendRestriction {
   id: string;
   userId: string;
+  userPublicId: string | null;
   reason: BackendRestrictionReason;
   restrictedAt: string;
   restrictedUntil: string;
@@ -54,6 +55,7 @@ export const RESTRICTION_REASON_LABELS: Record<BackendRestrictionReason, string>
 export interface Restriction {
   id: string;
   userId: string;
+  userPublicId: string | null;
   reason: BackendRestrictionReason;
   reasonLabel: string;
   /** True when reason is manual (admin-applied). */
@@ -82,6 +84,7 @@ export function mapRestriction(r: BackendRestriction): Restriction {
   return {
     id: r.id,
     userId: r.userId,
+    userPublicId: r.userPublicId,
     reason: r.reason,
     reasonLabel: RESTRICTION_REASON_LABELS[r.reason] ?? r.reason,
     manual: r.reason === "manual",
@@ -130,6 +133,7 @@ export type BackendProtectionContext = "quiz_session" | "high_yield_note";
 export interface BackendProtectionEvent {
   id: string;
   userId: string;
+  userPublicId: string | null;
   eventType: BackendProtectionEventType;
   context: BackendProtectionContext;
   contextId: string | null;
@@ -156,6 +160,7 @@ export const ALL_EVENT_TYPES = Object.keys(EVENT_TYPE_LABELS) as BackendProtecti
 export interface ProtectionEvent {
   id: string;
   userId: string;
+  userPublicId: string | null;
   type: BackendProtectionEventType;
   typeLabel: string;
   isScreenshot: boolean;
@@ -178,6 +183,7 @@ export function mapProtectionEvent(e: BackendProtectionEvent): ProtectionEvent {
   return {
     id: e.id,
     userId: e.userId,
+    userPublicId: e.userPublicId,
     type: e.eventType,
     typeLabel: EVENT_TYPE_LABELS[e.eventType] ?? e.eventType,
     isScreenshot: e.eventType === "screenshot_attempt",
@@ -221,6 +227,7 @@ export interface ProtectionSummary {
 // ── Top offenders ──
 export interface BackendTopOffender {
   userId: string;
+  userPublicId: string | null;
   userName: string | null;
   userEmail: string | null;
   eventCount: number;
@@ -230,6 +237,7 @@ export interface BackendTopOffender {
 
 export interface TopOffender {
   userId: string;
+  userPublicId: string | null;
   userName: string | null;
   userEmail: string | null;
   count: number;
@@ -240,6 +248,7 @@ export interface TopOffender {
 export function mapTopOffender(o: BackendTopOffender): TopOffender {
   return {
     userId: o.userId,
+    userPublicId: o.userPublicId,
     userName: o.userName,
     userEmail: o.userEmail,
     count: o.eventCount,

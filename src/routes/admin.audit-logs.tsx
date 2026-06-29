@@ -532,7 +532,7 @@ function ProtectionViolationsTab() {
                     </tr>
                   ) : (
                     pageRows.map((e) => (
-                      <ViolationRow key={e.id} e={e} onClick={() => goToUser(e.userId)} />
+                      <ViolationRow key={e.id} e={e} onClick={() => goToUser(e.userPublicId ?? e.userId)} />
                     ))
                   )}
                 </tbody>
@@ -590,7 +590,7 @@ function ProtectionViolationsTab() {
                 <button
                   key={o.userId}
                   type="button"
-                  onClick={() => goToUser(o.userId)}
+                  onClick={() => goToUser(o.userPublicId ?? o.userId)}
                   className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface-alt/40 px-3 py-2 text-left transition-colors hover:bg-surface-alt"
                 >
                   <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-surface text-[11px] font-bold text-muted-foreground">

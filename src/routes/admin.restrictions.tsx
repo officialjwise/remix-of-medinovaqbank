@@ -349,7 +349,7 @@ function RestrictionsContent() {
                           )}
                           <button
                             type="button"
-                            onClick={() => goToUser(r.userId)}
+                            onClick={() => goToUser(r.userPublicId ?? r.userId)}
                             className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-alt"
                           >
                             <Eye className="h-3.5 w-3.5" />
