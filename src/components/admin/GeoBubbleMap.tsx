@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { WORLD_LAND_PATH } from "./world-land";
 
 export interface GeoPoint {
   lat: number;
@@ -59,6 +60,18 @@ export function GeoBubbleMap({ points, max }: GeoBubbleMapProps) {
       >
         {/* ocean / surface backdrop */}
         <rect x="0" y="0" width="360" height="180" rx="4" fill="var(--color-surface-alt)" />
+
+        {/* land masses (Natural Earth 110m, pre-projected) */}
+        <path
+          d={WORLD_LAND_PATH}
+          fill="var(--color-primary)"
+          fillOpacity={0.16}
+          fillRule="evenodd"
+          stroke="var(--color-primary)"
+          strokeOpacity={0.4}
+          strokeWidth={0.15}
+          strokeLinejoin="round"
+        />
 
         {/* graticule */}
         <g stroke="var(--color-border)" strokeWidth={0.3} opacity={0.6}>
