@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { isAdminRole } from "@/lib/roles";
 import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, GraduationCap, Stethoscope, Target } from "lucide-react";
 import { toast } from "sonner";
@@ -122,7 +123,7 @@ function Onboarding() {
       const tokens = await authApi.onboardingComplete(onboardingToken);
       const user = await establishSession(tokens);
       toast.success("Welcome to Medinovaqbank!");
-      navigate({ to: user.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard" });
+      navigate({ to: isAdminRole(user.role) ? "/admin/dashboard" : "/dashboard" });
     } catch (err) {
       toast.error(
         err instanceof ApiError ? err.message : "Could not finish setting up your account.",

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useMemo, useState } from "react";
 import {
   Area,
@@ -52,6 +53,7 @@ import {
 } from "@/api/admin-analytics.api";
 
 export const Route = createFileRoute("/admin/analytics")({
+  beforeLoad: () => requirePermission("analytics.read"),
   head: () => ({
     meta: [{ title: "Admin · Analytics — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -64,6 +65,7 @@ export interface LoginSession {
 }
 
 export const Route = createFileRoute("/admin/sessions")({
+  beforeLoad: () => requirePermission("sessions.read"),
   head: () => ({
     meta: [{ title: "Admin · Sessions — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

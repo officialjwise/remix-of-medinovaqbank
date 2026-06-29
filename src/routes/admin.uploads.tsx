@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useState } from "react";
 import { ArrowRight, Download, FileSpreadsheet, FileUp, Library, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminBanks } from "@/api/banks.api";
 
 export const Route = createFileRoute("/admin/uploads")({
+  beforeLoad: () => requirePermission("questions.create"),
   head: () => ({
     meta: [
       { title: "Admin · Bulk Uploads — Medinovaqbank" },

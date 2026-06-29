@@ -10,11 +10,19 @@ interface AuthState {
   isAuthenticated: boolean;
   /** Server-sourced subscription/trial status (never fabricated client-side). */
   subscription: Subscription | null;
-  /** Establish a session from a token pair + the user fetched via /auth/me. */
-  login: (accessToken: string, refreshToken: string, user: User) => void;
+  /** Effective RBAC permission keys (from /auth/me) — drives permission UI. */
+  permissions: string[];
+  /** Establish a session from a token pair + the user/permissions from /auth/me. */
+  login: (
+    accessToken: string,
+    refreshToken: string,
+    user: User,
+    permissions?: string[],
+  ) => void;
   /** Rotate tokens (used by the client's refresh flow). */
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;
+  setPermissions: (permissions: string[]) => void;
   setSubscription: (s: Subscription | null) => void;
   logout: () => void;
 }
@@ -27,10 +35,12 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       subscription: null,
-      login: (accessToken, refreshToken, user) =>
-        set({ accessToken, refreshToken, user, isAuthenticated: true }),
+      permissions: [],
+      login: (accessToken, refreshToken, user, permissions = []) =>
+        set({ accessToken, refreshToken, user, permissions, isAuthenticated: true }),
       setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
       setUser: (user) => set({ user }),
+      setPermissions: (permissions) => set({ permissions }),
       setSubscription: (subscription) => set({ subscription }),
       logout: () =>
         set({
@@ -39,16 +49,20 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           isAuthenticated: false,
           subscription: null,
+          permissions: [],
         }),
     }),
     {
       name: "medinova-auth",
-      // Persist identity + tokens only; subscription is always re-fetched.
+      // Persist identity + tokens + permissions so permission-gated UI renders
+      // correctly on first paint (before /auth/me re-fetch); subscription is
+      // always re-fetched.
       partialize: (s) => ({
         user: s.user,
         accessToken: s.accessToken,
         refreshToken: s.refreshToken,
         isAuthenticated: s.isAuthenticated,
+        permissions: s.permissions,
       }),
     },
   ),

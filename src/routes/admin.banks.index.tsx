@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useMemo, useState } from "react";
 import { Edit, Plus, Trash2, FileText, Upload, Search, X } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import {
 } from "@/api/banks.api";
 
 export const Route = createFileRoute("/admin/banks/")({
+  beforeLoad: () => requirePermission("question-banks.read"),
   head: () => ({
     meta: [{ title: "Admin · Banks — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

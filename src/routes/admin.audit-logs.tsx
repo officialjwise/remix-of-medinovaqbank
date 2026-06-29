@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import React, { useMemo, useState } from "react";
 import {
   Activity,
@@ -38,6 +39,7 @@ function formatTimestamp(value: string | number | Date): string {
 }
 
 export const Route = createFileRoute("/admin/audit-logs")({
+  beforeLoad: () => requirePermission("audit-logs.read"),
   head: () => ({
     meta: [{ title: "Admin · Audit Logs — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

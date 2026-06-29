@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { isAdminRole } from "@/lib/roles";
 import { useEffect, useState } from "react";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -69,7 +70,7 @@ function AuthCallbackPage() {
           expiresIn: 0,
         });
         if (cancelled) return;
-        navigate({ to: user.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard" });
+        navigate({ to: isAdminRole(user.role) ? "/admin/dashboard" : "/dashboard" });
       } catch {
         if (!cancelled) navigate({ to: "/login" });
       }
@@ -107,7 +108,7 @@ function TwoFactorPrompt({ challengeToken }: { challengeToken: string }) {
       const tokens = await authApi.verifyTwoFactor(challengeToken, code.trim());
       const user = await establishSession(tokens);
       toast.success("Welcome back!");
-      navigate({ to: user.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard" });
+      navigate({ to: isAdminRole(user.role) ? "/admin/dashboard" : "/dashboard" });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Invalid or expired code.";
       setError(message);

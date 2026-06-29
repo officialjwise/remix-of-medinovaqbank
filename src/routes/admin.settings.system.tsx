@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useEffect, useRef, useState } from "react";
 import {
   Copy,
@@ -80,6 +81,7 @@ import {
 } from "@/api/branding.api";
 
 export const Route = createFileRoute("/admin/settings/system")({
+  beforeLoad: () => requirePermission("settings.read"),
   head: () => ({
     meta: [{ title: "Admin · Settings — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

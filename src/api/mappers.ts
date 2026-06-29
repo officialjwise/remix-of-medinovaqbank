@@ -8,17 +8,21 @@ import type { AuthTokens, BackendRole, BackendSubscriptionSummary, BackendUser }
 
 /** Backend lowercase role → frontend uppercase union. */
 export function mapRole(role: BackendRole | string): UserRole {
-  return role === "super_admin" ? "SUPER_ADMIN" : "USER";
+  if (role === "super_admin") return "SUPER_ADMIN";
+  if (role === "admin") return "ADMIN";
+  return "USER";
 }
 
 /** Frontend role → backend casing (for the rare write path). */
 export function toBackendRole(role: UserRole): BackendRole {
-  return role === "SUPER_ADMIN" ? "super_admin" : "user";
+  if (role === "SUPER_ADMIN") return "super_admin";
+  if (role === "ADMIN") return "admin";
+  return "user";
 }
 
 /** Display-only public id derived from the internal uuid (uuid stays internal). */
 export function publicIdFor(uuid: string, role: UserRole): string {
-  const prefix = role === "SUPER_ADMIN" ? "ADM" : "U";
+  const prefix = role === "USER" ? "U" : "ADM";
   const n = parseInt(uuid.replace(/[^0-9a-f]/gi, "").slice(0, 6) || "0", 16)
     .toString()
     .padStart(6, "0");
@@ -35,6 +39,7 @@ export function mapUser(u: BackendUser): User {
     avatarUrl: u.avatar ?? undefined,
     specialty: u.specialty ?? undefined,
     role,
+    roleKey: u.roleKey ?? null,
     createdAt: u.createdAt,
   };
 }

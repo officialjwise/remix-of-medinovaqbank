@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { isAdminRole } from "@/lib/roles";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuthStore } from "@/stores/authStore";
@@ -53,7 +54,7 @@ function AppLayout() {
   }, [fetchedSubscription, setSubscription]);
 
   // When maintenance mode is on, non-admins see the maintenance page.
-  const isAdmin = user?.role === "SUPER_ADMIN";
+  const isAdmin = isAdminRole(user?.role);
 
   useEffect(() => {
     // Device binding only applies to trial users, and only when the admin policy is on.

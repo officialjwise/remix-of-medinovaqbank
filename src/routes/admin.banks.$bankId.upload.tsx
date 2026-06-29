@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useRef, useState, useMemo, useEffect } from "react";
 import {
   ArrowLeft,
@@ -22,6 +23,7 @@ import {
 import { useBreakdownStatus, useGenerateBreakdowns } from "@/api/admin-explanations.api";
 
 export const Route = createFileRoute("/admin/banks/$bankId/upload")({
+  beforeLoad: () => requirePermission("questions.create"),
   head: () => ({
     meta: [
       { title: "Admin · Bulk Upload — Medinovaqbank" },

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useMemo, useState } from "react";
 import {
   Plus,
@@ -29,6 +30,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useDebounce } from "@/hooks/useDebounce";
 
 export const Route = createFileRoute("/admin/notes/")({
+  beforeLoad: () => requirePermission("notes.read"),
   head: () => ({
     meta: [
       { title: "Admin · High-Yield Notes — Medinovaqbank" },

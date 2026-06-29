@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useMemo, useState } from "react";
 import { Eye, X, Calendar, Ban } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import {
 } from "@/api/admin-subscriptions.api";
 
 export const Route = createFileRoute("/admin/subscriptions/")({
+  beforeLoad: () => requirePermission("subscriptions.read"),
   head: () => ({
     meta: [
       { title: "Admin · Subscriptions — Medinovaqbank" },

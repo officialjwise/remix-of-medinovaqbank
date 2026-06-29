@@ -1,4 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useEffect, useState } from "react";
 import { Brain, Eye, EyeOff, Loader2, Sparkles, TestTube2, Radio } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
@@ -14,12 +15,7 @@ import {
 } from "@/api/settings.api";
 
 export const Route = createFileRoute("/admin/ai-settings")({
-  beforeLoad: () => {
-    if (typeof window === "undefined") return;
-    if (useAuthStore.getState().user?.role !== "SUPER_ADMIN") {
-      throw redirect({ to: "/admin/dashboard" });
-    }
-  },
+  beforeLoad: () => requirePermission("ai-settings.read"),
   head: () => ({
     meta: [
       { title: "Admin · AI Settings — Medinovaqbank" },

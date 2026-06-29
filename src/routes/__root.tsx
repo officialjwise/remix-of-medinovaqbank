@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { refreshSession } from "@/api/auth.api";
 import { Toaster } from "@/components/ui/sonner";
 import { AccountStatusWatcher } from "@/components/shared/AccountStatusWatcher";
 import { BrandingProvider } from "@/components/shared/BrandingProvider";
@@ -135,6 +136,12 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Re-sync role/permissions from /auth/me once on load so permission-gated UI
+  // is correct after a role change and older persisted sessions get upgraded.
+  useEffect(() => {
+    void refreshSession();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

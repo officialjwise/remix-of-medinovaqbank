@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { isAdminRole } from "@/lib/roles";
 import { useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, Check, UserPlus, Loader2, ChevronDown, Search } from "lucide-react";
 import { AuthSplit, AuthDivider, GoogleButton } from "@/components/auth/AuthSplit";
@@ -89,7 +90,7 @@ function RegisterPage() {
         country: country.name,
       });
       const user = await establishSession(tokens);
-      navigate({ to: user.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard" });
+      navigate({ to: isAdminRole(user.role) ? "/admin/dashboard" : "/dashboard" });
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not create your account. Please try again.",

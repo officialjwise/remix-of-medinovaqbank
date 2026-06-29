@@ -7,7 +7,7 @@
  * Grows per feature as endpoints are wired.
  */
 
-export type BackendRole = "user" | "super_admin";
+export type BackendRole = "user" | "admin" | "super_admin";
 
 /** POST /auth/login | /auth/register | /auth/refresh | onboarding/complete */
 export interface AuthTokens {
@@ -24,6 +24,8 @@ export interface BackendUser {
   name: string;
   avatar?: string | null;
   role: BackendRole;
+  /** Assigned custom RBAC role key, or null for the built-in role. */
+  roleKey?: string | null;
   provider?: string;
   specialty?: string | null;
   institution?: string | null;
@@ -58,6 +60,8 @@ export interface BackendSubscriptionSummary {
 /** GET /auth/me — AuthMeResponseDto */
 export interface BackendAuthMe {
   user: BackendUser;
+  /** Effective RBAC permission keys for the caller (drives permission-based UI). */
+  permissions?: string[];
   subscription?: {
     active: boolean;
     plan?: string | null;

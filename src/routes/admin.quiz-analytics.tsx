@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useMemo } from "react";
 import {
   Bar,
@@ -26,6 +27,7 @@ import {
 } from "@/api/admin-analytics.api";
 
 export const Route = createFileRoute("/admin/quiz-analytics")({
+  beforeLoad: () => requirePermission("quiz-sessions.read"),
   head: () => ({
     meta: [
       { title: "Admin · Quiz Analytics — Medinovaqbank" },

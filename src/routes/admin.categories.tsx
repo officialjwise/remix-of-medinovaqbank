@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useMemo, useState } from "react";
 import { Plus, Search, Tag, Trash2, Edit3, ChevronDown, X, Check, FolderTree } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -20,6 +21,7 @@ import {
 const EMPTY_SUBS: Subcategory[] = [];
 
 export const Route = createFileRoute("/admin/categories")({
+  beforeLoad: () => requirePermission("categories.read"),
   head: () => ({
     meta: [{ title: "Admin · Categories — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

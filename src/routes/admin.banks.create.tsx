@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useState } from "react";
 import { ArrowLeft, Plus, Save, X } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +8,7 @@ import { useCategories } from "@/api/categories.api";
 import { useCreateBank, toBackendDifficulty, type DisplayDifficulty } from "@/api/banks.api";
 
 export const Route = createFileRoute("/admin/banks/create")({
+  beforeLoad: () => requirePermission("question-banks.create"),
   head: () => ({
     meta: [
       { title: "Admin · Create Bank — Medinovaqbank" },

@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { QuestionForm, emptyQuestion } from "@/components/admin/QuestionForm";
 import { questionsApi, useCreateQuestion, useQuestionBanksLite } from "@/api/questions.api";
 
 export const Route = createFileRoute("/admin/questions/create")({
+  beforeLoad: () => requirePermission("questions.create"),
   validateSearch: (search: Record<string, unknown>) => ({
     bankId: typeof search.bankId === "string" ? search.bankId : undefined,
   }),

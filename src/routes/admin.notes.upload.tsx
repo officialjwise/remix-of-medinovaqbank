@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -18,6 +19,7 @@ import { useCategories } from "@/api/categories.api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/notes/upload")({
+  beforeLoad: () => requirePermission("notes.create"),
   head: () => ({
     meta: [
       { title: "Admin · Upload Note — Medinovaqbank" },

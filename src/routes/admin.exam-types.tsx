@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useMemo, useState } from "react";
 import {
   Plus,
@@ -31,6 +32,7 @@ import {
 } from "@/api/exam-types.api";
 
 export const Route = createFileRoute("/admin/exam-types")({
+  beforeLoad: () => requirePermission("exam-types.read"),
   head: () => ({
     meta: [{ title: "Admin · Exam Types — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

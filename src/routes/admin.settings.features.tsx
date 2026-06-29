@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useState } from "react";
 import { ArrowLeft, Plus, Pencil, Trash2, ToggleRight, Hash, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import {
 } from "@/api/features.api";
 
 export const Route = createFileRoute("/admin/settings/features")({
+  beforeLoad: () => requirePermission("features.read"),
   head: () => ({
     meta: [
       { title: "Admin · Feature Catalog — Medinovaqbank" },

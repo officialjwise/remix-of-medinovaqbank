@@ -16,7 +16,6 @@ import {
   Receipt,
   ScrollText,
   Settings,
-  ShieldCheck,
   Tag,
   UploadCloud,
   UserCog,
@@ -39,6 +38,7 @@ import { ReactNode, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuthStore } from "@/stores/authStore";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useBranding } from "@/hooks/useBranding";
 import { useClickOutside } from "@/hooks/useClickOutside";
@@ -48,44 +48,46 @@ import { AvatarMenu } from "@/components/layout/header/AvatarMenu";
 import { useAdminBanks } from "@/api/banks.api";
 import { useAdminUsers } from "@/api/admin-users.api";
 
+// `perm` gates a nav item by RBAC permission (super_admin sees all; the built-in
+// admin role + custom roles see only what they're granted). Items without a
+// `perm` are always shown to admin-rank users (e.g. the dashboard landing).
 const sectionPlatform = [
   { to: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
-  { to: "/admin/analytics", label: "Platform Analytics", icon: BarChart3 },
-  { to: "/admin/traffic", label: "Traffic & Geography", icon: Globe2 },
-  { to: "/admin/quiz-analytics", label: "Quiz Analytics", icon: TrendingUp },
+  { to: "/admin/analytics", label: "Platform Analytics", icon: BarChart3, perm: "analytics.read" },
+  { to: "/admin/traffic", label: "Traffic & Geography", icon: Globe2, perm: "traffic.read" },
+  { to: "/admin/quiz-analytics", label: "Quiz Analytics", icon: TrendingUp, perm: "quiz-sessions.read" },
 ] as const;
 
 const sectionContent = [
-  { to: "/admin/banks", label: "Question Banks", icon: Library },
-  { to: "/admin/questions", label: "Questions", icon: BookOpen },
-  { to: "/admin/categories", label: "Categories & Subjects", icon: Tag },
-  { to: "/admin/exam-types", label: "Exam Types", icon: GraduationCap },
-  { to: "/admin/specialties", label: "Specialties", icon: Stethoscope },
-  { to: "/admin/notes", label: "High-Yield Notes", icon: NotebookText },
-  { to: "/admin/uploads", label: "Bulk Uploads", icon: UploadCloud },
-  { to: "/admin/flags", label: "Flagged Questions", icon: Flag },
+  { to: "/admin/banks", label: "Question Banks", icon: Library, perm: "question-banks.read" },
+  { to: "/admin/questions", label: "Questions", icon: BookOpen, perm: "questions.read" },
+  { to: "/admin/categories", label: "Categories & Subjects", icon: Tag, perm: "categories.read" },
+  { to: "/admin/exam-types", label: "Exam Types", icon: GraduationCap, perm: "exam-types.read" },
+  { to: "/admin/specialties", label: "Specialties", icon: Stethoscope, perm: "specialties.read" },
+  { to: "/admin/notes", label: "High-Yield Notes", icon: NotebookText, perm: "notes.read" },
+  { to: "/admin/uploads", label: "Bulk Uploads", icon: UploadCloud, perm: "questions.create" },
+  { to: "/admin/flags", label: "Flagged Questions", icon: Flag, perm: "flags.read" },
 ] as const;
 
 const sectionUsers = [
-  { to: "/admin/users", label: "All Users", icon: Users },
-  { to: "/admin/sessions", label: "Session Management", icon: MonitorPlay },
-  { to: "/admin/roles", label: "Roles & Permissions", icon: ShieldCheck, superOnly: true },
+  { to: "/admin/users", label: "All Users", icon: Users, perm: "users.read" },
+  { to: "/admin/sessions", label: "Session Management", icon: MonitorPlay, perm: "sessions.read" },
 ] as const;
 
 const sectionBilling = [
-  { to: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard },
-  { to: "/admin/subscriptions/plans", label: "Subscription Plans", icon: Folder, superOnly: true },
-  { to: "/admin/settings/features", label: "Feature Catalog", icon: Layers, superOnly: true },
-  { to: "/admin/transactions", label: "Transactions", icon: Receipt },
-  { to: "/admin/reports", label: "Revenue Reports", icon: FileText },
+  { to: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard, perm: "subscriptions.read" },
+  { to: "/admin/subscriptions/plans", label: "Subscription Plans", icon: Folder, perm: "plans.read" },
+  { to: "/admin/settings/features", label: "Feature Catalog", icon: Layers, perm: "features.read" },
+  { to: "/admin/transactions", label: "Transactions", icon: Receipt, perm: "transactions.read" },
+  { to: "/admin/reports", label: "Revenue Reports", icon: FileText, perm: "reports.read" },
 ] as const;
 
 const sectionSystem = [
-  { to: "/admin/settings/system", label: "System Settings", icon: Settings, superOnly: true },
-  { to: "/admin/restrictions", label: "Restrictions", icon: ShieldAlert, superOnly: true },
-  { to: "/admin/api", label: "API Keys", icon: Key, superOnly: true },
-  { to: "/admin/notifications", label: "Notifications", icon: Bell },
-  { to: "/admin/audit-logs", label: "Activity Logs", icon: Activity },
+  { to: "/admin/settings/system", label: "System Settings", icon: Settings, perm: "settings.read" },
+  { to: "/admin/restrictions", label: "Restrictions", icon: ShieldAlert, perm: "restrictions.read" },
+  { to: "/admin/api", label: "API Keys", icon: Key, perm: "api-keys.read" },
+  { to: "/admin/notifications", label: "Notifications", icon: Bell, perm: "notifications.read" },
+  { to: "/admin/audit-logs", label: "Activity Logs", icon: Activity, perm: "audit-logs.read" },
 ] as const;
 
 const allItems = [
@@ -99,12 +101,19 @@ const allItems = [
 export function AdminShell({ children }: { children: ReactNode }) {
   useBranding();
   const { user, logout } = useAuthStore();
+  const { has } = useMyPermissions();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   const isSuper = user?.role === "SUPER_ADMIN";
+  // Show the custom role name when assigned, else the built-in rank label.
+  const roleLabel = isSuper
+    ? "Super Admin"
+    : user?.roleKey
+      ? user.roleKey.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : "Admin";
 
   function handleLogout() {
     logout();
@@ -147,7 +156,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     );
   }
 
-  type NavSpec = { to: string; label: string; icon: typeof LayoutDashboard; superOnly?: boolean };
+  type NavSpec = { to: string; label: string; icon: typeof LayoutDashboard; perm?: string };
 
   function Section({
     title,
@@ -158,7 +167,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     items: readonly NavSpec[];
     collapsed: boolean;
   }) {
-    const list = items.filter((i) => isSuper || !i.superOnly);
+    const list = items.filter((i) => !i.perm || has(i.perm));
     if (!list.length) return null;
     return (
       <div className="mb-5">
@@ -221,7 +230,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 {user?.name ?? "Administrator"}
               </p>
               <span className="mt-0.5 inline-flex rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
-                {isSuper ? "Super Admin" : "Admin"}
+                {roleLabel}
               </span>
             </div>
           </div>
@@ -301,7 +310,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           onMenu={() => setMobileOpen(true)}
           onToggleCollapse={() => setCollapsed((c) => !c)}
           collapsed={collapsed}
-          isSuper={isSuper}
+          roleLabel={roleLabel}
           onLogout={handleLogout}
           userName={user?.name ?? "Administrator"}
           userEmail={user?.email ?? ""}
@@ -320,7 +329,7 @@ function AdminHeader({
   onMenu,
   onToggleCollapse,
   collapsed,
-  isSuper,
+  roleLabel,
   onLogout,
   userName,
   userEmail,
@@ -330,7 +339,7 @@ function AdminHeader({
   onMenu: () => void;
   onToggleCollapse: () => void;
   collapsed: boolean;
-  isSuper: boolean;
+  roleLabel: string;
   onLogout: () => void;
   userName: string;
   userEmail: string;
@@ -403,7 +412,7 @@ function AdminHeader({
             name={userName}
             email={userEmail}
             avatarUrl={userAvatar}
-            roleLabel={isSuper ? "Super Admin" : "Admin"}
+            roleLabel={roleLabel}
             items={[
               { label: "Profile", icon: UserCog, to: "/admin/profile" },
               { label: "System Settings", icon: Settings, to: "/admin/settings/system" },
@@ -420,13 +429,18 @@ function AdminHeader({
 function QuickActionsMenu() {
   const [open, setOpen] = useState(false);
   const ref = useClickOutside<HTMLDivElement>(() => setOpen(false));
-  const actions: { label: string; to: string; icon: typeof Plus }[] = [
-    { label: "Add Question Bank", to: "/admin/banks/create", icon: Library },
-    { label: "Add Question", to: "/admin/questions/create", icon: BookOpen },
-    { label: "Bulk Upload", to: "/admin/uploads", icon: UploadCloud },
-    { label: "Create Plan", to: "/admin/settings/plans/create", icon: Folder },
-    { label: "Add Exam Type", to: "/admin/exam-types", icon: GraduationCap },
-  ];
+  const { has } = useMyPermissions();
+  const actions = (
+    [
+      { label: "Add Question Bank", to: "/admin/banks/create", icon: Library, perm: "question-banks.create" },
+      { label: "Add Question", to: "/admin/questions/create", icon: BookOpen, perm: "questions.create" },
+      { label: "Bulk Upload", to: "/admin/uploads", icon: UploadCloud, perm: "questions.create" },
+      { label: "Create Plan", to: "/admin/subscriptions/plans/create", icon: Folder, perm: "plans.create" },
+      { label: "Add Exam Type", to: "/admin/exam-types", icon: GraduationCap, perm: "exam-types.create" },
+    ] as { label: string; to: string; icon: typeof Plus; perm: string }[]
+  ).filter((a) => has(a.perm));
+  // Nothing to create → hide the menu entirely.
+  if (!actions.length) return null;
   return (
     <div className="relative" ref={ref}>
       <button

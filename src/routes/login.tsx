@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { isAdminRole } from "@/lib/roles";
 import { useState } from "react";
 import { Eye, EyeOff, LogIn, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -37,7 +38,7 @@ function LoginPage() {
   const [code, setCode] = useState("");
 
   function routeByRole(user: User) {
-    navigate({ to: user.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard" });
+    navigate({ to: isAdminRole(user.role) ? "/admin/dashboard" : "/dashboard" });
   }
 
   function handleGoogle() {

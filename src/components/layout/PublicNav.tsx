@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isAdminRole } from "@/lib/roles";
 import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -45,7 +46,7 @@ export function PublicNav() {
           <ThemeToggle />
           {isAuthenticated ? (
             <Link
-              to={user?.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard"}
+              to={isAdminRole(user?.role) ? "/admin/dashboard" : "/dashboard"}
               className="hidden rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_rgb(43_201_127_/_0.4)] transition-transform hover:-translate-y-0.5 sm:inline-flex"
             >
               Open dashboard
@@ -99,7 +100,7 @@ export function PublicNav() {
             <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3">
               {isAuthenticated ? (
                 <Link
-                  to={user?.role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard"}
+                  to={isAdminRole(user?.role) ? "/admin/dashboard" : "/dashboard"}
                   onClick={() => setOpen(false)}
                   className="rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 py-2.5 text-center text-sm font-semibold text-white"
                 >

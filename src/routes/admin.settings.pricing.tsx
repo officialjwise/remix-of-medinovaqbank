@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ArrowRight } from "lucide-react";
 import { useAdminPlans } from "@/api/plans.api";
 
 export const Route = createFileRoute("/admin/settings/pricing")({
+  beforeLoad: () => requirePermission("plans.read"),
   head: () => ({
     meta: [{ title: "Admin · Pricing — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

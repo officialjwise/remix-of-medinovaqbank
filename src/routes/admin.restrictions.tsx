@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/api/protection.api";
 
 export const Route = createFileRoute("/admin/restrictions")({
+  beforeLoad: () => requirePermission("restrictions.read"),
   head: () => ({
     meta: [
       { title: "Admin · Restrictions — Medinovaqbank" },

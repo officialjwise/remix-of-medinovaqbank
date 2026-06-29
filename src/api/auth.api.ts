@@ -66,10 +66,10 @@ export const authApi = {
 
   logout: () => apiClient.post<null>("/auth/logout"),
 
-  /** Current user (mapped). Throws if unauthenticated. */
-  async getMe(): Promise<User> {
+  /** Current user + effective permissions (mapped). Throws if unauthenticated. */
+  async getMe(): Promise<{ user: User; permissions: string[] }> {
     const data = await apiClient.get<BackendAuthMe>("/auth/me");
-    return mapUser(data.user);
+    return { user: mapUser(data.user), permissions: data.permissions ?? [] };
   },
 
   /** Profile via /users/me (mapped). */
@@ -112,8 +112,10 @@ export async function establishSession(tokens: AuthTokens): Promise<User> {
   const store = useAuthStore.getState();
   // Set tokens first so the /auth/me request is authenticated.
   store.setTokens(tokens.accessToken, tokens.refreshToken);
-  const user = await authApi.getMe();
-  useAuthStore.getState().login(tokens.accessToken, tokens.refreshToken, user);
+  const { user, permissions } = await authApi.getMe();
+  useAuthStore
+    .getState()
+    .login(tokens.accessToken, tokens.refreshToken, user, permissions);
 
   // Subscription is best-effort — a failure must never block sign-in.
   try {
@@ -123,4 +125,23 @@ export async function establishSession(tokens: AuthTokens): Promise<User> {
     /* leave subscription null; surfaces fetch lazily elsewhere */
   }
   return user;
+}
+
+/**
+ * Re-sync the persisted session (role, roleKey, permissions) from /auth/me on
+ * app load. Keeps an already-logged-in user's permission-gated UI correct after
+ * a role/permission change, and upgrades older persisted sessions that predate
+ * the ADMIN role / permission set. Silent best-effort: never throws.
+ */
+export async function refreshSession(): Promise<void> {
+  const store = useAuthStore.getState();
+  if (!store.isAuthenticated || !store.accessToken) return;
+  try {
+    const { user, permissions } = await authApi.getMe();
+    const s = useAuthStore.getState();
+    s.setUser(user);
+    s.setPermissions(permissions);
+  } catch {
+    /* leave the persisted session as-is; the client handles 401 refresh/logout */
+  }
 }

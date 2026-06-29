@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { Check, Clock, Layers, Pencil, Plus, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminPlans, useTogglePlan, type Plan } from "@/api/plans.api";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
 export const Route = createFileRoute("/admin/subscriptions/plans/")({
+  beforeLoad: () => requirePermission("plans.read"),
   head: () => ({
     meta: [
       { title: "Admin · Subscription Plans — Medinovaqbank" },

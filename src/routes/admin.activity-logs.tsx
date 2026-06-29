@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import React, { useState } from "react";
 import { Activity, ChevronLeft, ChevronRight, Download, Loader2, Search } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -10,6 +11,7 @@ import {
 } from "@/api/activity-logs.api";
 
 export const Route = createFileRoute("/admin/activity-logs")({
+  beforeLoad: () => requirePermission("audit-logs.read"),
   head: () => ({
     meta: [
       { title: "Admin · Activity Logs — Medinovaqbank" },

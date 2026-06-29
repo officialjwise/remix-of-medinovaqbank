@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useMemo, useState } from "react";
 import {
   Users,
@@ -54,6 +55,7 @@ import {
 } from "@/api/admin-users.api";
 
 export const Route = createFileRoute("/admin/users/")({
+  beforeLoad: () => requirePermission("users.read"),
   head: () => ({
     meta: [{ title: "Admin · Users — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

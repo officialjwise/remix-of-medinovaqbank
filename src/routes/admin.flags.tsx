@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useState } from "react";
 import { Flag, Eye, Check, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -6,6 +7,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useFlags, useReviewFlag, type FlagReview } from "@/api/flags.api";
 
 export const Route = createFileRoute("/admin/flags")({
+  beforeLoad: () => requirePermission("flags.read"),
   head: () => ({
     meta: [
       { title: "Admin · Flagged Questions — Medinovaqbank" },

@@ -1,4 +1,4 @@
-export type UserRole = "USER" | "SUPER_ADMIN";
+export type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN";
 
 export interface User {
   /** Internal record id (uuid) — kept internal, not shown in the UI. */
@@ -10,6 +10,8 @@ export interface User {
   avatarUrl?: string;
   specialty?: string;
   role: UserRole;
+  /** Assigned custom RBAC role key, or null when using the built-in role. */
+  roleKey?: string | null;
   createdAt: string;
   deviceFingerprint?: string;
 }

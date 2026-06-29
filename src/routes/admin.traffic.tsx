@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import {
   Area,
@@ -41,6 +42,7 @@ const TrafficGlobe = lazy(() =>
 );
 
 export const Route = createFileRoute("/admin/traffic")({
+  beforeLoad: () => requirePermission("traffic.read"),
   head: () => ({
     meta: [{ title: "Admin · Traffic — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

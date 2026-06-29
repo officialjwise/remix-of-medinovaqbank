@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -40,6 +41,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/notes/$noteId")({
+  beforeLoad: () => requirePermission("notes.read"),
   head: () => ({
     meta: [
       { title: "Admin · Manage Note — Medinovaqbank" },

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminPlan, useUpdatePlan, toPlanWritePayload } from "@/api/plans.api";
@@ -6,6 +7,7 @@ import { useFeatureIdByKey } from "@/api/features.api";
 import { SubscriptionPlanForm } from "@/components/admin/SubscriptionPlanForm";
 
 export const Route = createFileRoute("/admin/subscriptions/plans/$planId/edit")({
+  beforeLoad: () => requirePermission("plans.update"),
   head: () => ({
     meta: [{ title: "Admin · Edit Plan — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),

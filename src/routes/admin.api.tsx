@@ -1,4 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { useState } from "react";
 import { Check, Copy, Key, Plus, RotateCcw, Trash2, Webhook as WebhookIcon } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
@@ -18,12 +19,7 @@ import {
 } from "@/api/api-keys.api";
 
 export const Route = createFileRoute("/admin/api")({
-  beforeLoad: () => {
-    if (typeof window === "undefined") return;
-    if (useAuthStore.getState().user?.role !== "SUPER_ADMIN") {
-      throw redirect({ to: "/admin/dashboard" });
-    }
-  },
+  beforeLoad: () => requirePermission("api-keys.read"),
   head: () => ({
     meta: [
       { title: "Admin · API Management — Medinovaqbank" },
