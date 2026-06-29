@@ -60,6 +60,7 @@ import { renderBrandedEmail, fillVars } from "@/lib/emailRender";
 import { DEFAULT_EMAIL_TEMPLATES } from "@/lib/emailTemplateDefaults";
 import { emailTemplatesApi } from "@/api/email-templates.api";
 import { useAuthStore } from "@/stores/authStore";
+import { RolesPermissionsManager } from "@/components/admin/RolesPermissionsManager";
 import { ApiError } from "@/api/client";
 import {
   useSettingsMap,
@@ -80,8 +81,28 @@ import {
   type Branding,
 } from "@/api/branding.api";
 
+const TAB_KEYS: TabKey[] = [
+  "general",
+  "integrations",
+  "email",
+  "trial",
+  "protection",
+  "roles",
+  "branding",
+  "cms",
+];
+
 export const Route = createFileRoute("/admin/settings/system")({
   beforeLoad: () => requirePermission("settings.read"),
+  // `?tab=` deep-links a specific settings tab (e.g. the redirect from /admin/roles).
+  validateSearch: (search: Record<string, unknown>): { tab?: TabKey } => {
+    const tab = search.tab;
+    return {
+      tab: typeof tab === "string" && (TAB_KEYS as string[]).includes(tab)
+        ? (tab as TabKey)
+        : undefined,
+    };
+  },
   head: () => ({
     meta: [{ title: "Admin · Settings — Medinovaqbank" }, { name: "robots", content: "noindex" }],
   }),
@@ -110,7 +131,8 @@ const TABS: { key: TabKey; label: string; icon: typeof Sliders }[] = [
 ];
 
 function AdminSettings() {
-  const [tab, setTab] = useState<TabKey>("general");
+  const { tab: initialTab } = Route.useSearch();
+  const [tab, setTab] = useState<TabKey>(initialTab ?? "general");
 
   return (
     <div className="space-y-6">
@@ -1346,121 +1368,23 @@ function ProtectionTab() {
   );
 }
 
-/* ───────────── Tab 5 — Roles & Permissions ───────────── */
+/* ───────────── Tab 5 — Roles & Permissions ─────────────
+ * The source-of-truth RBAC editor (resource × CRUD matrix, create/delete custom
+ * roles) lives in RolesPermissionsManager and is wired to the backend RBAC API.
+ */
 function RolesTab() {
-  const roles = useSettingsStore((s) => s.settings.roles);
-  const setRoles = useSettingsStore((s) => s.setRoles);
-  const [draft, setDraft] = useState<AdminRole[]>(roles);
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
-
-  const groups = [...new Set(PERMISSION_CATALOG.map((p) => p.group))];
-
-  function setPerm(roleId: string, key: string, value: boolean) {
-    setDraft(
-      draft.map((r) =>
-        r.id === roleId ? { ...r, permissions: { ...r.permissions, [key]: value } } : r,
-      ),
-    );
-  }
-
   return (
-    <div className="space-y-5">
-      <Card title="Super Admin" desc="Reserved role with unrestricted access — cannot be edited.">
-        <div className="flex items-center justify-between rounded-lg bg-surface-alt/60 p-4 text-sm">
-          <div>
-            <p className="font-semibold text-foreground">Capabilities: Everything</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Full control including API keys, deletion, and system settings.
-            </p>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-xs font-bold text-accent">
-            <Lock className="h-3 w-3" /> Locked
-          </span>
-        </div>
-      </Card>
-
-      {draft
-        .filter((r) => !r.system)
-        .map((role) => (
-          <Card key={role.id} title={role.name} desc={role.description}>
-            <div className="space-y-4">
-              {groups.map((g) => (
-                <div key={g}>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    {g}
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    {PERMISSION_CATALOG.filter((p) => p.group === g).map((p) => (
-                      <div
-                        key={p.key}
-                        className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground"
-                      >
-                        <span>{p.label}</span>
-                        <ToggleSwitch
-                          checked={role.permissions[p.key] ?? false}
-                          onChange={(v) => setPerm(role.id, p.key, v)}
-                          ariaLabel={`${role.name}: ${p.label}`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        ))}
-
-      {creating ? (
-        <Card title="New custom role" desc="Create a role with a specific permission set.">
-          <Field label="Role name">
-            <Input value={newName} onChange={setNewName} />
-          </Field>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => setCreating(false)}
-              className="h-10 rounded-lg border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-alt"
-            >
-              Cancel
-            </button>
-            <button
-              disabled={!newName.trim()}
-              onClick={() => {
-                setDraft([
-                  ...draft,
-                  {
-                    id: `role_${Date.now()}`,
-                    name: newName.trim(),
-                    description: "Custom role",
-                    permissions: Object.fromEntries(PERMISSION_CATALOG.map((p) => [p.key, false])),
-                  },
-                ]);
-                setNewName("");
-                setCreating(false);
-                toast.success("Role added — configure its permissions, then save");
-              }}
-              className="h-10 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground disabled:opacity-50"
-            >
-              Add role
-            </button>
-          </div>
-        </Card>
-      ) : (
-        <button
-          onClick={() => setCreating(true)}
-          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-dashed border-border bg-surface px-4 text-sm font-semibold text-foreground hover:bg-surface-alt"
-        >
-          <Plus className="h-4 w-4" /> Create custom role
-        </button>
-      )}
-
-      <SaveBar
-        label="Save Permission Matrix"
-        onSave={() => {
-          setRoles(draft);
-          toast.success("Roles & permissions saved");
-        }}
-      />
+    <div className="space-y-2">
+      <div>
+        <h3 className="text-base font-bold text-foreground">Roles &amp; Permissions</h3>
+        <p className="text-sm text-muted-foreground">
+          Toggle exactly what each role can do, per resource and CRUD operation.
+          These grants are the source of truth — they decide what each role sees
+          and can do across the admin app. Create custom roles with their own
+          permission set; assign them to users from User Management.
+        </p>
+      </div>
+      <RolesPermissionsManager />
     </div>
   );
 }

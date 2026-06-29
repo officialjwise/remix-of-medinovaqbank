@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
+import { useRoles } from "@/api/rbac.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   EditUserModal,
@@ -131,18 +132,20 @@ function StatusPill({ status }: { status: AdminUserStatus }) {
   );
 }
 
-function RolePill({ role }: { role: DisplayRole }) {
+function RolePill({ role, roleKey }: { role: DisplayRole; roleKey?: string | null }) {
   const tone =
     role === "SUPER_ADMIN"
       ? "bg-primary/10 text-primary border border-primary/20"
       : role === "ADMIN"
         ? "bg-accent/10 text-accent border border-accent/20"
         : "bg-surface-alt text-muted-foreground border border-border";
+  // A custom role keeps ADMIN rank but shows its own name.
+  const label = roleKey ? roleKey.replace(/[-_]/g, " ") : role.replace("_", " ");
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tone}`}
     >
-      {role.replace("_", " ")}
+      {label}
     </span>
   );
 }
@@ -169,6 +172,7 @@ function UserDetail() {
 
   const updateUser = useUpdateAdminUser();
   const updateRole = useUpdateAdminUserRole();
+  const { data: rbacRoles = [] } = useRoles();
   const deleteUser = useDeleteAdminUser();
   const suspendUser = useSuspendUser();
   const reactivateUser = useReactivateUser();
@@ -253,12 +257,15 @@ function UserDetail() {
     );
   }
 
-  function handleRoleChange(role: DisplayRole) {
-    if (role === user.role) return;
+  // Assign any role: a built-in key ("user" | "admin") or a custom role key.
+  function handleAssignRole(roleValue: string, label: string) {
+    const current = user.roleKey ?? user.role.toLowerCase();
+    if (roleValue === current) return;
     updateRole.mutate(
-      { id: userId, role: toBackendRole(role) },
+      { id: userId, role: roleValue },
       {
-        onSuccess: () => toast.success(`Role changed to ${role.replace("_", " ")}`),
+        onSuccess: () =>
+          toast.success(`Role changed to ${label}. The user must sign in again.`),
         onError: (e) => toast.error(e instanceof Error ? e.message : "Role change failed"),
       },
     );
@@ -287,7 +294,7 @@ function UserDetail() {
             <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
 
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <RolePill role={user.role} />
+              <RolePill role={user.role} roleKey={user.roleKey} />
               <StatusPill status={user.displayStatus} />
               {user.isEmailVerified ? (
                 <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-success">
@@ -356,14 +363,35 @@ function UserDetail() {
                     Super admin — managed outside the dashboard.
                   </p>
                 ) : (
-                  <ActionBtn
-                    icon={Shield}
-                    onClick={() =>
-                      handleRoleChange(user.role === "ADMIN" ? "USER" : "ADMIN")
-                    }
-                  >
-                    {user.role === "ADMIN" ? "Demote to user" : "Promote to admin"}
-                  </ActionBtn>
+                  <div className="rounded-lg border border-border bg-surface-alt/40 px-3 py-2.5">
+                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                      <Shield className="h-3.5 w-3.5" /> Role
+                    </label>
+                    <select
+                      value={user.roleKey ?? user.role.toLowerCase()}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        const opt = e.target.selectedOptions[0];
+                        handleAssignRole(value, opt?.text ?? value);
+                      }}
+                      disabled={updateRole.isPending}
+                      className="h-9 w-full rounded-lg border border-border bg-surface px-2.5 text-sm font-medium text-foreground outline-none focus:border-accent disabled:opacity-60"
+                    >
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                      {rbacRoles
+                        .filter((r) => !r.builtIn)
+                        .map((r) => (
+                          <option key={r.key} value={r.key}>
+                            {r.name} (custom)
+                          </option>
+                        ))}
+                    </select>
+                    <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                      Custom roles are configured in System Settings → Roles &amp; Permissions.
+                      Changing a role signs the user out so they pick up new permissions.
+                    </p>
+                  </div>
                 )}
                 <ActionBtn
                   icon={Flag}
@@ -494,7 +522,8 @@ function UserDetail() {
             });
             // Role lives behind its own endpoint — fire it when it changed.
             if (patch.role && patch.role !== user.role) {
-              handleRoleChange(patch.role as DisplayRole);
+              const display = patch.role as DisplayRole;
+              handleAssignRole(toBackendRole(display), display.replace("_", " "));
             }
           }}
         />

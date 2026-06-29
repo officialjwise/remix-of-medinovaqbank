@@ -54,6 +54,8 @@ export interface BackendUser {
   name: string;
   avatar: string | null;
   role: BackendUserRole;
+  /** Assigned custom RBAC role key, or null for the built-in role. */
+  roleKey?: string | null;
   provider: BackendAuthProvider;
   specialty: string | null;
   institution: string | null;
@@ -140,6 +142,8 @@ export interface AdminUserVM {
   initials: string;
   avatar: string | null;
   role: DisplayRole;
+  /** Assigned custom RBAC role key, or null for the built-in role. */
+  roleKey: string | null;
   provider: BackendAuthProvider;
   specialty: string;
   institution: string;
@@ -200,6 +204,7 @@ export function mapUser(u: BackendUser): AdminUserVM {
     initials: initialsOf(u.name),
     avatar: u.avatar,
     role: ROLE_TO_DISPLAY[u.role] ?? "USER",
+    roleKey: u.roleKey ?? null,
     provider: u.provider,
     specialty: u.specialty ?? "",
     institution: u.institution ?? "",
@@ -313,7 +318,8 @@ export const adminUsersApi = {
     return mapUser(data);
   },
 
-  async updateRole(id: string, role: BackendUserRole): Promise<AdminUserVM> {
+  // `role` is a built-in key ("user" | "admin") or a custom RBAC role key.
+  async updateRole(id: string, role: string): Promise<AdminUserVM> {
     const data = await apiClient.patch<BackendUser>(`/admin/users/${id}/role`, { role });
     return mapUser(data);
   },
@@ -527,7 +533,7 @@ export function useUpdateAdminUser() {
 export function useUpdateAdminUserRole() {
   const invalidate = useInvalidateAdminUsers();
   return useMutation({
-    mutationFn: ({ id, role }: { id: string; role: BackendUserRole }) =>
+    mutationFn: ({ id, role }: { id: string; role: string }) =>
       adminUsersApi.updateRole(id, role),
     onSuccess: invalidate,
   });
