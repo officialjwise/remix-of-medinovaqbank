@@ -22,6 +22,8 @@ import { usePaidPlans, useTrialPlan } from "@/api/plans.api";
 import { useCmsStore } from "@/stores/cmsStore";
 import { useExamTypes } from "@/api/exam-types.api";
 import { usePublicBanks } from "@/api/banks.api";
+import { useAuthStore } from "@/stores/authStore";
+import { isAdminRole } from "@/lib/roles";
 
 const heroAvatars = ["AM", "KO", "EA", "YB", "AD"];
 
@@ -74,6 +76,10 @@ function LandingPage() {
   const { data: paid = [] } = usePaidPlans();
   const { data: trial } = useTrialPlan();
   const { cms } = useCmsStore();
+  // Auth-aware primary CTA: already-signed-in users shouldn't be sent to the
+  // signup page — send them into the app instead.
+  const { isAuthenticated, user } = useAuthStore();
+  const appHref = isAdminRole(user?.role) ? "/admin/dashboard" : "/dashboard";
   const { data: activeExams = [] } = useExamTypes();
   const { data: banksData } = usePublicBanks({ limit: 100 });
   const banks = banksData?.banks ?? [];
@@ -134,10 +140,10 @@ function LandingPage() {
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
-                to="/register"
+                to={isAuthenticated ? appHref : "/register"}
                 className="rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-[#0E7C7B] shadow-[0_10px_30px_-8px_rgb(0_0_0_/_0.4)] transition-transform hover:-translate-y-0.5"
               >
-                Start free trial
+                {isAuthenticated ? "Go to dashboard" : "Start free trial"}
               </Link>
               <Link
                 to="/pricing"
@@ -672,10 +678,10 @@ function LandingPage() {
             </p>
           </div>
           <Link
-            to="/register"
+            to={isAuthenticated ? appHref : "/register"}
             className="rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-[#0E7C7B] shadow-[0_10px_30px_-8px_rgb(0_0_0_/_0.4)] transition-transform hover:-translate-y-0.5"
           >
-            Start free trial
+            {isAuthenticated ? "Go to dashboard" : "Start free trial"}
           </Link>
         </div>
       </section>
