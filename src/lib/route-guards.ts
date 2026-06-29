@@ -18,7 +18,6 @@ export function requirePermission(permission: string): void {
 export function requireAnyPermission(perms: string[]): void {
   if (typeof window === "undefined") return;
   const { user, permissions } = useAuthStore.getState();
-  const ok =
-    user?.role === "SUPER_ADMIN" || perms.some((p) => permissions.includes(p));
+  const ok = user?.role === "SUPER_ADMIN" || perms.some((p) => permissions.includes(p));
   if (!ok) throw redirect({ to: "/admin/dashboard" });
 }

@@ -534,7 +534,11 @@ function ProtectionViolationsTab() {
                     </tr>
                   ) : (
                     pageRows.map((e) => (
-                      <ViolationRow key={e.id} e={e} onClick={() => goToUser(e.userPublicId ?? e.userId)} />
+                      <ViolationRow
+                        key={e.id}
+                        e={e}
+                        onClick={() => goToUser(e.userPublicId ?? e.userId)}
+                      />
                     ))
                   )}
                 </tbody>

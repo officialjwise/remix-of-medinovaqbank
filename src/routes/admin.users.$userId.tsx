@@ -264,8 +264,7 @@ function UserDetail() {
     updateRole.mutate(
       { id: userId, role: roleValue },
       {
-        onSuccess: () =>
-          toast.success(`Role changed to ${label}. The user must sign in again.`),
+        onSuccess: () => toast.success(`Role changed to ${label}. The user must sign in again.`),
         onError: (e) => toast.error(e instanceof Error ? e.message : "Role change failed"),
       },
     );

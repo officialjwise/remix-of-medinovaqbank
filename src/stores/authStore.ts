@@ -13,12 +13,7 @@ interface AuthState {
   /** Effective RBAC permission keys (from /auth/me) — drives permission UI. */
   permissions: string[];
   /** Establish a session from a token pair + the user/permissions from /auth/me. */
-  login: (
-    accessToken: string,
-    refreshToken: string,
-    user: User,
-    permissions?: string[],
-  ) => void;
+  login: (accessToken: string, refreshToken: string, user: User, permissions?: string[]) => void;
   /** Rotate tokens (used by the client's refresh flow). */
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;

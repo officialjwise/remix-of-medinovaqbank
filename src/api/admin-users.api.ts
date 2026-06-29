@@ -533,8 +533,7 @@ export function useUpdateAdminUser() {
 export function useUpdateAdminUserRole() {
   const invalidate = useInvalidateAdminUsers();
   return useMutation({
-    mutationFn: ({ id, role }: { id: string; role: string }) =>
-      adminUsersApi.updateRole(id, role),
+    mutationFn: ({ id, role }: { id: string; role: string }) => adminUsersApi.updateRole(id, role),
     onSuccess: invalidate,
   });
 }

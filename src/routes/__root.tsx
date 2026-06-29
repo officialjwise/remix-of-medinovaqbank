@@ -136,12 +136,17 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
 
   // Re-sync role/permissions from /auth/me once on load so permission-gated UI
   // is correct after a role change and older persisted sessions get upgraded.
+  // If anything changed, invalidate the router so guarded routes re-evaluate
+  // against the fresh permissions (avoids a stale redirect on hard-refresh).
   useEffect(() => {
-    void refreshSession();
-  }, []);
+    void refreshSession().then((changed) => {
+      if (changed) void router.invalidate();
+    });
+  }, [router]);
 
   return (
     <QueryClientProvider client={queryClient}>

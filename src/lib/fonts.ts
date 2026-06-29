@@ -31,15 +31,31 @@ export const FONTS: FontDef[] = [
   // ── Sans-serif ──
   { name: "Inter", stack: `"Inter", ${SANS}`, google: "Inter:wght@400;500;600;700;800" },
   { name: "Roboto", stack: `"Roboto", ${SANS}`, google: "Roboto:wght@400;500;700" },
-  { name: "Open Sans", stack: `"Open Sans", ${SANS}`, google: "Open+Sans:wght@400;500;600;700;800" },
+  {
+    name: "Open Sans",
+    stack: `"Open Sans", ${SANS}`,
+    google: "Open+Sans:wght@400;500;600;700;800",
+  },
   { name: "Lato", stack: `"Lato", ${SANS}`, google: "Lato:wght@400;700" },
-  { name: "Montserrat", stack: `"Montserrat", ${SANS}`, google: "Montserrat:wght@400;500;600;700;800" },
+  {
+    name: "Montserrat",
+    stack: `"Montserrat", ${SANS}`,
+    google: "Montserrat:wght@400;500;600;700;800",
+  },
   { name: "Poppins", stack: `"Poppins", ${SANS}`, google: "Poppins:wght@400;500;600;700;800" },
   { name: "Nunito", stack: `"Nunito", ${SANS}`, google: "Nunito:wght@400;500;600;700;800" },
-  { name: "Work Sans", stack: `"Work Sans", ${SANS}`, google: "Work+Sans:wght@400;500;600;700;800" },
+  {
+    name: "Work Sans",
+    stack: `"Work Sans", ${SANS}`,
+    google: "Work+Sans:wght@400;500;600;700;800",
+  },
   { name: "system-ui", stack: SANS },
   // ── Serif ──
-  { name: "Cambria", stack: `"Cambria", "Gelasio", ${SERIF}`, google: "Gelasio:wght@400;500;600;700" },
+  {
+    name: "Cambria",
+    stack: `"Cambria", "Gelasio", ${SERIF}`,
+    google: "Gelasio:wght@400;500;600;700",
+  },
   { name: "Gelasio", stack: `"Gelasio", ${SERIF}`, google: "Gelasio:wght@400;500;600;700" },
   { name: "Merriweather", stack: `"Merriweather", ${SERIF}`, google: "Merriweather:wght@400;700" },
   { name: "Lora", stack: `"Lora", ${SERIF}`, google: "Lora:wght@400;500;600;700" },

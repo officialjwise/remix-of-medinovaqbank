@@ -171,9 +171,9 @@ export function EditUserModal({
         </Labeled>
       </div>
       <p className="text-xs text-muted-foreground">
-        Super admin is provisioned outside the dashboard and can&apos;t be set here.
-        Account status (suspend / ban / reactivate) is managed from the dedicated
-        actions on the user&apos;s profile.
+        Super admin is provisioned outside the dashboard and can&apos;t be set here. Account status
+        (suspend / ban / reactivate) is managed from the dedicated actions on the user&apos;s
+        profile.
       </p>
     </Shell>
   );

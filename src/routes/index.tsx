@@ -463,8 +463,8 @@ function LandingPage() {
             {banks.length > 0 ? ` across ${banks.length} specialties` : ""}
           </h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            Board-style cases across every core rotation — each with an expert clinical breakdown and
-            analytics.
+            Board-style cases across every core rotation — each with an expert clinical breakdown
+            and analytics.
           </p>
         </div>
 

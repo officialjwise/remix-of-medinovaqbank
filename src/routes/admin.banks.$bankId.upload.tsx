@@ -76,7 +76,7 @@ function splitOptionLines(cell: string): string[] {
   if (byLine.length >= 2) return byLine;
   const single = byLine[0] ?? cell.trim();
   const inline = single
-    .split(/\s+(?=\(?[A-Ea-e][).:\-]\s)/)
+    .split(/\s+(?=\(?[A-Ea-e][).:-]\s)/)
     .map((line) => line.trim())
     .filter(Boolean);
   return inline.length >= 2 ? inline : byLine;

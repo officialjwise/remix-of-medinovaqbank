@@ -184,10 +184,7 @@ export function useSettingsMap() {
   // revert whatever the admin types (fields appear "frozen"). React Query keeps
   // `query.data` referentially stable until it actually changes, so this makes
   // `map` stable and the form editable.
-  const data = useMemo(
-    () => (query.data ? flattenSettings(query.data) : undefined),
-    [query.data],
-  );
+  const data = useMemo(() => (query.data ? flattenSettings(query.data) : undefined), [query.data]);
   return { ...query, data };
 }
 

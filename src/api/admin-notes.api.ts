@@ -331,9 +331,7 @@ export function useAdminNotes(params: AdminNoteListParams = {}) {
     queryFn: () => adminNotesApi.list(params),
     staleTime: 30_000,
     refetchInterval: (query) =>
-      (query.state.data?.notes ?? []).some((n) => n.status === "processing")
-        ? 1500
-        : false,
+      (query.state.data?.notes ?? []).some((n) => n.status === "processing") ? 1500 : false,
   });
 }
 
@@ -343,8 +341,7 @@ export function useAdminNote(id: string) {
     queryKey: adminNoteKeys.detail(id),
     queryFn: () => adminNotesApi.getById(id),
     enabled: !!id,
-    refetchInterval: (query) =>
-      query.state.data?.status === "processing" ? 1500 : false,
+    refetchInterval: (query) => (query.state.data?.status === "processing" ? 1500 : false),
   });
 }
 

@@ -98,9 +98,10 @@ export const Route = createFileRoute("/admin/settings/system")({
   validateSearch: (search: Record<string, unknown>): { tab?: TabKey } => {
     const tab = search.tab;
     return {
-      tab: typeof tab === "string" && (TAB_KEYS as string[]).includes(tab)
-        ? (tab as TabKey)
-        : undefined,
+      tab:
+        typeof tab === "string" && (TAB_KEYS as string[]).includes(tab)
+          ? (tab as TabKey)
+          : undefined,
     };
   },
   head: () => ({
@@ -1378,10 +1379,10 @@ function RolesTab() {
       <div>
         <h3 className="text-base font-bold text-foreground">Roles &amp; Permissions</h3>
         <p className="text-sm text-muted-foreground">
-          Toggle exactly what each role can do, per resource and CRUD operation.
-          These grants are the source of truth — they decide what each role sees
-          and can do across the admin app. Create custom roles with their own
-          permission set; assign them to users from User Management.
+          Toggle exactly what each role can do, per resource and CRUD operation. These grants are
+          the source of truth — they decide what each role sees and can do across the admin app.
+          Create custom roles with their own permission set; assign them to users from User
+          Management.
         </p>
       </div>
       <RolesPermissionsManager />

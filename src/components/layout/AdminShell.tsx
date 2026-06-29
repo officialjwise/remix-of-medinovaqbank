@@ -55,7 +55,12 @@ const sectionPlatform = [
   { to: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
   { to: "/admin/analytics", label: "Platform Analytics", icon: BarChart3, perm: "analytics.read" },
   { to: "/admin/traffic", label: "Traffic & Geography", icon: Globe2, perm: "traffic.read" },
-  { to: "/admin/quiz-analytics", label: "Quiz Analytics", icon: TrendingUp, perm: "quiz-sessions.read" },
+  {
+    to: "/admin/quiz-analytics",
+    label: "Quiz Analytics",
+    icon: TrendingUp,
+    perm: "quiz-sessions.read",
+  },
 ] as const;
 
 const sectionContent = [
@@ -75,8 +80,18 @@ const sectionUsers = [
 ] as const;
 
 const sectionBilling = [
-  { to: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard, perm: "subscriptions.read" },
-  { to: "/admin/subscriptions/plans", label: "Subscription Plans", icon: Folder, perm: "plans.read" },
+  {
+    to: "/admin/subscriptions",
+    label: "Subscriptions",
+    icon: CreditCard,
+    perm: "subscriptions.read",
+  },
+  {
+    to: "/admin/subscriptions/plans",
+    label: "Subscription Plans",
+    icon: Folder,
+    perm: "plans.read",
+  },
   { to: "/admin/settings/features", label: "Feature Catalog", icon: Layers, perm: "features.read" },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt, perm: "transactions.read" },
   { to: "/admin/reports", label: "Revenue Reports", icon: FileText, perm: "reports.read" },
@@ -84,7 +99,12 @@ const sectionBilling = [
 
 const sectionSystem = [
   { to: "/admin/settings/system", label: "System Settings", icon: Settings, perm: "settings.read" },
-  { to: "/admin/restrictions", label: "Restrictions", icon: ShieldAlert, perm: "restrictions.read" },
+  {
+    to: "/admin/restrictions",
+    label: "Restrictions",
+    icon: ShieldAlert,
+    perm: "restrictions.read",
+  },
   { to: "/admin/api", label: "API Keys", icon: Key, perm: "api-keys.read" },
   { to: "/admin/notifications", label: "Notifications", icon: Bell, perm: "notifications.read" },
   { to: "/admin/audit-logs", label: "Activity Logs", icon: Activity, perm: "audit-logs.read" },
@@ -432,11 +452,31 @@ function QuickActionsMenu() {
   const { has } = useMyPermissions();
   const actions = (
     [
-      { label: "Add Question Bank", to: "/admin/banks/create", icon: Library, perm: "question-banks.create" },
-      { label: "Add Question", to: "/admin/questions/create", icon: BookOpen, perm: "questions.create" },
+      {
+        label: "Add Question Bank",
+        to: "/admin/banks/create",
+        icon: Library,
+        perm: "question-banks.create",
+      },
+      {
+        label: "Add Question",
+        to: "/admin/questions/create",
+        icon: BookOpen,
+        perm: "questions.create",
+      },
       { label: "Bulk Upload", to: "/admin/uploads", icon: UploadCloud, perm: "questions.create" },
-      { label: "Create Plan", to: "/admin/subscriptions/plans/create", icon: Folder, perm: "plans.create" },
-      { label: "Add Exam Type", to: "/admin/exam-types", icon: GraduationCap, perm: "exam-types.create" },
+      {
+        label: "Create Plan",
+        to: "/admin/subscriptions/plans/create",
+        icon: Folder,
+        perm: "plans.create",
+      },
+      {
+        label: "Add Exam Type",
+        to: "/admin/exam-types",
+        icon: GraduationCap,
+        perm: "exam-types.create",
+      },
     ] as { label: string; to: string; icon: typeof Plus; perm: string }[]
   ).filter((a) => has(a.perm));
   // Nothing to create → hide the menu entirely.

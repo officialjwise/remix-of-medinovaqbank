@@ -112,10 +112,7 @@ export const rbacApi = {
   },
 
   /** Rename / re-describe a custom role (key is immutable). */
-  async updateRole(
-    key: string,
-    input: { name?: string; description?: string },
-  ): Promise<Role> {
+  async updateRole(key: string, input: { name?: string; description?: string }): Promise<Role> {
     const data = await apiClient.patch<BackendRole>(`/admin/roles/${key}`, input);
     return mapRole(data);
   },

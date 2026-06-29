@@ -775,7 +775,11 @@ function QuizSessionsView({ onView }: { onView: (s: AdminQuizSession) => void })
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <SearchBox value={searchRaw} onChange={setSearchRaw} placeholder="Search by user or bank…" />
+        <SearchBox
+          value={searchRaw}
+          onChange={setSearchRaw}
+          placeholder="Search by user or bank…"
+        />
         <FilterSelect
           value={status}
           onChange={setStatus}

@@ -15,8 +15,7 @@ export function useMyPermissions() {
   const role = useAuthStore((s) => s.user?.role);
   const isSuperAdmin = role === "SUPER_ADMIN";
 
-  const has = (permission: string): boolean =>
-    isSuperAdmin || permissions.includes(permission);
+  const has = (permission: string): boolean => isSuperAdmin || permissions.includes(permission);
   const hasAny = (perms: string[]): boolean =>
     isSuperAdmin || perms.some((p) => permissions.includes(p));
   const hasAll = (perms: string[]): boolean =>

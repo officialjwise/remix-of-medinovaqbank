@@ -43,11 +43,7 @@ import {
   useChangePassword,
 } from "@/api/profile.api";
 import { useSpecialties } from "@/api/specialties.api";
-import {
-  useActiveSessions,
-  useTerminateSession,
-  type DeviceSession,
-} from "@/api/sessions.api";
+import { useActiveSessions, useTerminateSession, type DeviceSession } from "@/api/sessions.api";
 import { TwoFactorCard } from "@/components/shared/TwoFactorCard";
 
 export const Route = createFileRoute("/_app/profile")({

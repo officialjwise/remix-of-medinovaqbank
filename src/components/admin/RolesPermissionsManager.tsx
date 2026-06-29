@@ -46,10 +46,7 @@ export function RolesPermissionsManager() {
   const deleteRole = useDeleteRole();
 
   const allRoles = rolesQuery.data ?? [];
-  const matrix = useMemo(
-    () => buildResourceMatrix(permsQuery.data ?? []),
-    [permsQuery.data],
-  );
+  const matrix = useMemo(() => buildResourceMatrix(permsQuery.data ?? []), [permsQuery.data]);
 
   // Editable roles = everything except super_admin (shown locked separately).
   const editableRoles = allRoles.filter((r) => r.key !== "super_admin");
@@ -93,7 +90,11 @@ export function RolesPermissionsManager() {
           <div>
             <p className="text-sm font-bold text-foreground">Super Admin</p>
             <p className="text-xs text-muted-foreground">
-              Full, unrestricted access{superAdmin ? ` · ${superAdmin.members} member${superAdmin.members === 1 ? "" : "s"}` : ""}. Provisioned out-of-band and not editable.
+              Full, unrestricted access
+              {superAdmin
+                ? ` · ${superAdmin.members} member${superAdmin.members === 1 ? "" : "s"}`
+                : ""}
+              . Provisioned out-of-band and not editable.
             </p>
           </div>
         </div>
@@ -202,8 +203,7 @@ export function RolesPermissionsManager() {
               setConfirmDelete(null);
               setActiveKey(null);
             },
-            onError: (e) =>
-              toast.error(e instanceof Error ? e.message : "Failed to delete role"),
+            onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete role"),
           });
         }}
       />
@@ -285,14 +285,21 @@ function CategoryGroup({
         </td>
       </tr>
       {rows.map((row) => (
-        <tr key={row.resource} className="border-b border-border/60 last:border-0 hover:bg-surface-alt/30">
+        <tr
+          key={row.resource}
+          className="border-b border-border/60 last:border-0 hover:bg-surface-alt/30"
+        >
           <td className="px-4 py-2.5 font-medium text-foreground">{row.label}</td>
           {CRUD_ACTIONS.map((action) => {
             const key = row.cells[action];
             return (
               <td key={action} className="px-3 py-2.5 text-center">
                 {key ? (
-                  <Checkbox checked={selected.has(key)} onClick={() => onToggle(key)} label={`${row.label} ${ACTION_LABEL[action]}`} />
+                  <Checkbox
+                    checked={selected.has(key)}
+                    onClick={() => onToggle(key)}
+                    label={`${row.label} ${ACTION_LABEL[action]}`}
+                  />
                 ) : (
                   <span className="text-muted-foreground/30">—</span>
                 )}
@@ -362,7 +369,8 @@ function RoleEditor({
   const toggle = (key: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
 
@@ -444,7 +452,8 @@ function CreateRoleForm({
   const toggle = (key: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
 

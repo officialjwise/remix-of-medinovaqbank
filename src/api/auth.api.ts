@@ -113,9 +113,7 @@ export async function establishSession(tokens: AuthTokens): Promise<User> {
   // Set tokens first so the /auth/me request is authenticated.
   store.setTokens(tokens.accessToken, tokens.refreshToken);
   const { user, permissions } = await authApi.getMe();
-  useAuthStore
-    .getState()
-    .login(tokens.accessToken, tokens.refreshToken, user, permissions);
+  useAuthStore.getState().login(tokens.accessToken, tokens.refreshToken, user, permissions);
 
   // Subscription is best-effort — a failure must never block sign-in.
   try {
@@ -133,15 +131,25 @@ export async function establishSession(tokens: AuthTokens): Promise<User> {
  * a role/permission change, and upgrades older persisted sessions that predate
  * the ADMIN role / permission set. Silent best-effort: never throws.
  */
-export async function refreshSession(): Promise<void> {
+export async function refreshSession(): Promise<boolean> {
   const store = useAuthStore.getState();
-  if (!store.isAuthenticated || !store.accessToken) return;
+  if (!store.isAuthenticated || !store.accessToken) return false;
   try {
     const { user, permissions } = await authApi.getMe();
-    const s = useAuthStore.getState();
-    s.setUser(user);
-    s.setPermissions(permissions);
+    const prev = useAuthStore.getState();
+    // Did role/roleKey/permissions actually change? If so the caller should
+    // re-evaluate route guards (otherwise a guarded page already resolved
+    // against stale/empty persisted permissions stays wrongly redirected).
+    const changed =
+      prev.user?.role !== user.role ||
+      (prev.user?.roleKey ?? null) !== (user.roleKey ?? null) ||
+      prev.permissions.length !== permissions.length ||
+      permissions.some((p) => !prev.permissions.includes(p));
+    prev.setUser(user);
+    prev.setPermissions(permissions);
+    return changed;
   } catch {
     /* leave the persisted session as-is; the client handles 401 refresh/logout */
+    return false;
   }
 }

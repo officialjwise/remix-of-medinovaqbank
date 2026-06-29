@@ -86,8 +86,8 @@ export function AuthSplit({
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
               <p className="text-sm font-semibold text-white">Built for serious exam prep</p>
               <p className="mt-2 text-sm leading-relaxed text-white/75">
-                Detailed clinical breakdowns, tutor and quiz modes, and real-time analytics —
-                so every question doubles as a lesson.
+                Detailed clinical breakdowns, tutor and quiz modes, and real-time analytics — so
+                every question doubles as a lesson.
               </p>
             </div>
           )}

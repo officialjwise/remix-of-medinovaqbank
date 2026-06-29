@@ -70,8 +70,7 @@ export function useBreakdownStatus(
     queryFn: () => adminExplanationsApi.status(bankId),
     enabled,
     staleTime: 5_000,
-    refetchInterval: (query) =>
-      poll && (query.state.data?.missing ?? 0) > 0 ? 2000 : false,
+    refetchInterval: (query) => (poll && (query.state.data?.missing ?? 0) > 0 ? 2000 : false),
   });
 }
 
