@@ -29,6 +29,18 @@ export interface GenerateBreakdownsInput {
   limit?: number;
 }
 
+/** Live progress for a background breakdown run (one per bank). */
+export interface BreakdownJob {
+  bankId: string;
+  bankName: string;
+  total: number;
+  done: number;
+  failed: number;
+  status: "running" | "done";
+  startedAt: string;
+  updatedAt: string;
+}
+
 // ── Endpoint functions ──
 export const adminExplanationsApi = {
   /** Kick off the background backfill. Resolves on the 202 (work continues server-side). */
@@ -46,12 +58,18 @@ export const adminExplanationsApi = {
       params: { bankId },
     });
   },
+
+  /** In-flight (and just-finished) background generation jobs with live progress. */
+  async jobs(): Promise<BreakdownJob[]> {
+    return apiClient.get<BreakdownJob[]>("/admin/explanations/jobs");
+  },
 };
 
 // ── Query keys ──
 export const adminExplanationKeys = {
   all: ["admin-explanations"] as const,
   status: (bankId?: string) => [...adminExplanationKeys.all, "status", bankId ?? "all"] as const,
+  jobs: () => [...adminExplanationKeys.all, "jobs"] as const,
 };
 
 // ── Hooks ──
@@ -71,6 +89,23 @@ export function useBreakdownStatus(
     enabled,
     staleTime: 5_000,
     refetchInterval: (query) => (poll && (query.state.data?.missing ?? 0) > 0 ? 2000 : false),
+  });
+}
+
+/**
+ * Poll active breakdown-generation jobs (live progress). Refetches every ~2s
+ * while any job is still running, so admins see progress after leaving the
+ * upload page. Pass enabled:false to stop (e.g. for non-admins).
+ */
+export function useBreakdownJobs(options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: adminExplanationKeys.jobs(),
+    queryFn: () => adminExplanationsApi.jobs(),
+    enabled,
+    staleTime: 1_000,
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((j) => j.status === "running") ? 2000 : false,
   });
 }
 

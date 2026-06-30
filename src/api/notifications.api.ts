@@ -24,7 +24,8 @@ export type BackendNotificationType =
   | "rank_change"
   | "achievement"
   | "new_bank"
-  | "system_error";
+  | "system_error"
+  | "breakdown_generation";
 
 export type BackendNotificationAudience = "user" | "admin";
 
@@ -77,7 +78,8 @@ export type NotifType =
   | "trial"
   | "rank"
   | "new_bank"
-  | "achievement";
+  | "achievement"
+  | "breakdown";
 
 export interface AppNotification {
   id: string;
@@ -114,6 +116,7 @@ const TYPE_MAP: Record<BackendNotificationType, NotifType> = {
   achievement: "achievement",
   new_bank: "new_bank",
   system_error: "api_error",
+  breakdown_generation: "breakdown",
 };
 
 function mapType(t: BackendNotificationType): NotifType {

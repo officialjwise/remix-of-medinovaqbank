@@ -13,6 +13,7 @@ import {
   type NotifType,
 } from "@/api/notifications.api";
 import { useRealtimeStream } from "@/lib/realtime";
+import { useBreakdownJobs } from "@/api/admin-explanations.api";
 
 const toneDot: Record<NotifType, string> = {
   signup: "bg-success",
@@ -26,6 +27,7 @@ const toneDot: Record<NotifType, string> = {
   rank: "bg-primary",
   new_bank: "bg-accent",
   achievement: "bg-success",
+  breakdown: "bg-primary",
 };
 
 function timeAgo(iso: string) {
@@ -61,6 +63,10 @@ export function NotificationsBell({
   const { data: unreadCount } = useUnreadCount();
   // Only fetch the recent list while the dropdown is open.
   const { data } = useNotifications({ limit: 6 }, { enabled: open });
+  // Live background-breakdown progress (admin bell only; polled while open).
+  const isAdmin = _audience === "admin";
+  const { data: jobs } = useBreakdownJobs({ enabled: open && isAdmin });
+  const activeJobs = jobs ?? [];
   const markReadMut = useMarkNotificationRead();
   const markAllReadMut = useMarkAllNotificationsRead();
   const markRead = (id: string) => markReadMut.mutate(id);
@@ -106,6 +112,36 @@ export function NotificationsBell({
               </button>
             )}
           </div>
+          {activeJobs.length > 0 && (
+            <div className="border-b border-border bg-surface-alt/40 px-4 py-3">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                Generating breakdowns
+              </p>
+              <div className="space-y-2.5">
+                {activeJobs.map((j) => {
+                  const pct = j.total ? Math.round((j.done / j.total) * 100) : 0;
+                  return (
+                    <div key={j.bankId}>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="truncate font-medium text-foreground">{j.bankName}</span>
+                        <span className="ml-2 flex-shrink-0 text-muted-foreground">
+                          {j.done}/{j.total}
+                          {j.status === "done" ? " ✓" : ""}
+                          {j.failed > 0 ? ` · ${j.failed} failed` : ""}
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-alt">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="max-h-96 overflow-y-auto">
             {recent.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-muted-foreground">

@@ -23,6 +23,7 @@ const TYPE_META: Record<NotifType, { label: string; dot: string; chip: string }>
   rank: { label: "Leaderboard", dot: "bg-primary", chip: "bg-primary/10 text-primary" },
   new_bank: { label: "New content", dot: "bg-accent", chip: "bg-accent/10 text-accent" },
   achievement: { label: "Achievements", dot: "bg-success", chip: "bg-success/10 text-success" },
+  breakdown: { label: "Breakdowns", dot: "bg-primary", chip: "bg-primary/10 text-primary" },
 };
 
 function timeAgo(iso: string) {
