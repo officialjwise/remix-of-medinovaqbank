@@ -9,7 +9,7 @@ import {
 } from "@/components/admin/QuestionForm";
 import {
   questionsApi,
-  useAdminQuestions,
+  useAdminQuestion,
   useQuestionBanksLite,
   useUpdateQuestion,
   type AdminQuestion,
@@ -51,9 +51,9 @@ function EditQuestionPage() {
   const bank = banks?.find((b) => b.id === bankId);
   const update = useUpdateQuestion();
 
-  // No single-question admin endpoint exists; pull the bank's questions and find by id.
-  const { data, isLoading } = useAdminQuestions({ bankId, limit: 100 });
-  const q = data?.data.find((x) => x.id === questionId);
+  // Fetch the specific question directly (works no matter which server page it's
+  // on now that the lists are truly paginated).
+  const { data: q, isLoading } = useAdminQuestion(questionId);
 
   const back = () => navigate({ to: "/admin/banks/$bankId/questions", params: { bankId } });
 

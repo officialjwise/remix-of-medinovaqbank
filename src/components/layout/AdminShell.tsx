@@ -28,6 +28,7 @@ import {
   NotebookText,
   Stethoscope,
   ShieldAlert,
+  Sparkles,
   Menu,
   PanelLeftClose,
   PanelLeft,
@@ -70,6 +71,7 @@ const sectionContent = [
   { to: "/admin/exam-types", label: "Exam Types", icon: GraduationCap, perm: "exam-types.read" },
   { to: "/admin/specialties", label: "Specialties", icon: Stethoscope, perm: "specialties.read" },
   { to: "/admin/notes", label: "High-Yield Notes", icon: NotebookText, perm: "notes.read" },
+  { to: "/admin/breakdowns", label: "AI Breakdowns", icon: Sparkles, perm: "questions.update" },
   { to: "/admin/uploads", label: "Bulk Uploads", icon: UploadCloud, perm: "questions.create" },
   { to: "/admin/flags", label: "Flagged Questions", icon: Flag, perm: "flags.read" },
 ] as const;

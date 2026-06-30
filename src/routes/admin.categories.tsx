@@ -5,20 +5,18 @@ import { Plus, Search, Tag, Trash2, Edit3, ChevronDown, X, Check, FolderTree } f
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useSubcategoriesStore, type Subcategory } from "@/stores/categoriesStore";
+import { ApiError } from "@/api/client";
 import {
   useAdminCategories,
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
+  useCreateSubcategory,
+  useUpdateSubcategory,
+  useDeleteSubcategory,
   slugify,
   type Category,
 } from "@/api/categories.api";
-
-// Stable reference for "no subcategories" — returning a fresh [] from the
-// Zustand selector each render makes useSyncExternalStore think the store
-// changed every render → "Maximum update depth exceeded". Reuse one array.
-const EMPTY_SUBS: Subcategory[] = [];
 
 export const Route = createFileRoute("/admin/categories")({
   beforeLoad: () => requirePermission("categories.read"),
@@ -33,7 +31,6 @@ function CategoriesPage() {
   const createMut = useCreateCategory();
   const updateMut = useUpdateCategory();
   const deleteMut = useDeleteCategory();
-  const subsByCategory = useSubcategoriesStore((s) => s.byCategory);
 
   const [query, setQuery] = useState("");
   const debounced = useDebounce(query, 250);
@@ -47,11 +44,11 @@ function CategoriesPage() {
       (c) =>
         !q ||
         c.name.toLowerCase().includes(q) ||
-        (subsByCategory[c.id] ?? []).some((s) => s.name.toLowerCase().includes(q)),
+        c.subcategories.some((s) => s.name.toLowerCase().includes(q)),
     );
-  }, [categories, subsByCategory, debounced]);
+  }, [categories, debounced]);
 
-  const totalSubs = categories.reduce((acc, c) => acc + (subsByCategory[c.id]?.length ?? 0), 0);
+  const totalSubs = categories.reduce((acc, c) => acc + c.subcategories.length, 0);
 
   return (
     <div className="space-y-6">
@@ -155,8 +152,8 @@ function CategoriesPage() {
           <span>
             This category has <strong>{deleting?.bankCount}</strong> banks,{" "}
             <strong>{deleting?.questionCount.toLocaleString()}</strong> questions and{" "}
-            <strong>{deleting ? (subsByCategory[deleting.id]?.length ?? 0) : 0}</strong>{" "}
-            subcategories. They will become uncategorised.
+            <strong>{deleting?.subcategories.length ?? 0}</strong> subcategories. They will become
+            uncategorised.
           </span>
         }
         variant="destructive"
@@ -187,22 +184,63 @@ function CategoryCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const subcategories = useSubcategoriesStore((s) => s.byCategory[category.id] ?? EMPTY_SUBS);
-  const addSubcategory = useSubcategoriesStore((s) => s.addSubcategory);
-  const updateSubcategory = useSubcategoriesStore((s) => s.updateSubcategory);
-  const removeSubcategory = useSubcategoriesStore((s) => s.removeSubcategory);
+  const subcategories = category.subcategories;
+  const createSub = useCreateSubcategory();
+  const updateSub = useUpdateSubcategory();
+  const deleteSub = useDeleteSubcategory();
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
+  function subErrorMessage(e: unknown, fallback: string): string {
+    if (e instanceof ApiError) {
+      // 409 → duplicate slug within this category.
+      if (e.statusCode === 409) return e.message || "A subcategory with that name already exists.";
+      return e.message;
+    }
+    return e instanceof Error ? e.message : fallback;
+  }
+
   function submitNew() {
-    if (!newName.trim()) return;
-    addSubcategory(category.id, newName.trim());
-    toast.success(`Added "${newName.trim()}"`);
-    setNewName("");
-    setAdding(false);
+    const name = newName.trim();
+    if (!name) return;
+    createSub.mutate(
+      { categoryId: category.id, body: { name } },
+      {
+        onSuccess: () => {
+          toast.success(`Added "${name}"`);
+          setNewName("");
+          setAdding(false);
+        },
+        onError: (e) => toast.error(subErrorMessage(e, "Failed to add subcategory")),
+      },
+    );
+  }
+
+  function saveEdit(subId: string, currentName: string) {
+    const name = editName.trim() || currentName;
+    updateSub.mutate(
+      { categoryId: category.id, subId, body: { name } },
+      {
+        onSuccess: () => {
+          toast.success("Subcategory updated");
+          setEditId(null);
+        },
+        onError: (e) => toast.error(subErrorMessage(e, "Failed to update subcategory")),
+      },
+    );
+  }
+
+  function removeSub(subId: string) {
+    deleteSub.mutate(
+      { categoryId: category.id, subId },
+      {
+        onSuccess: () => toast.success("Subcategory removed"),
+        onError: (e) => toast.error(subErrorMessage(e, "Failed to remove subcategory")),
+      },
+    );
   }
 
   return (
@@ -272,23 +310,12 @@ function CategoryCard({
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            updateSubcategory(category.id, s.id, editName.trim() || s.name);
-                            setEditId(null);
-                            toast.success("Subcategory updated");
-                          }
+                          if (e.key === "Enter") saveEdit(s.id, s.name);
                           if (e.key === "Escape") setEditId(null);
                         }}
                         className="w-28 bg-transparent text-xs font-semibold text-foreground outline-none"
                       />
-                      <button
-                        onClick={() => {
-                          updateSubcategory(category.id, s.id, editName.trim() || s.name);
-                          setEditId(null);
-                          toast.success("Subcategory updated");
-                        }}
-                        className="text-accent"
-                      >
+                      <button onClick={() => saveEdit(s.id, s.name)} className="text-accent">
                         <Check className="h-3.5 w-3.5" />
                       </button>
                     </span>
@@ -309,10 +336,7 @@ function CategoryCard({
                         <Edit3 className="h-3 w-3" />
                       </button>
                       <button
-                        onClick={() => {
-                          removeSubcategory(category.id, s.id);
-                          toast.success("Subcategory removed");
-                        }}
+                        onClick={() => removeSub(s.id)}
                         className="text-muted-foreground hover:text-error"
                         aria-label="Remove subcategory"
                       >

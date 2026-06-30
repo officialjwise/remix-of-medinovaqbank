@@ -43,21 +43,26 @@ function AdminQuestions() {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 250);
   const [bankFilter, setBankFilter] = useState("All");
-  const [imageFilter, setImageFilter] = useState<"All" | "Yes" | "No">("All");
-  const [rateBucket, setRateBucket] = useState<"All" | "high" | "mid" | "low">("All");
   const [topicFilter, setTopicFilter] = useState("All");
-  const [perPage, setPerPage] = useState(50);
+  const [perPage, setPerPage] = useState(25);
+  const [page, setPage] = useState(1);
 
   const { data: banks } = useQuestionBanksLite();
   // Active only — deleted/deactivated questions are hidden here (manage/restore
-  // them from the per-bank questions page's "Inactive" filter). Search runs
-  // SERVER-side (word-order-independent over stem/topic/subject) so it spans all
-  // questions, not just the fetched page; the page-size selector sets how many
-  // matches to pull (up to 500).
-  const { data: questionsData } = useAdminQuestions({
+  // them from the per-bank questions page's "Inactive" filter). Search, bank,
+  // and topic all run SERVER-side, with TRUE server pagination: the request
+  // pulls exactly one page (`page`/`limit`) and the footer navigates pages.
+  const {
+    data: questionsData,
+    isLoading,
+    isFetching,
+  } = useAdminQuestions({
+    page,
     limit: perPage,
     isActive: true,
     search: debouncedQuery.trim() || undefined,
+    bankId: bankFilter !== "All" ? bankFilter : undefined,
+    topic: topicFilter !== "All" ? topicFilter : undefined,
   });
   const toggleActive = useToggleQuestionActive();
   const bulkDeleteMut = useBulkDeleteQuestions();
@@ -91,21 +96,28 @@ function AdminQuestions() {
   const [preview, setPreview] = useState<Row | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
-  const rows = useMemo(() => {
-    return allQuestions
-      .filter((q) => !deleted.has(q.id))
-      .filter((q) => q.isActive)
-      .filter((q) => {
-        if (bankFilter !== "All" && q.bankId !== bankFilter) return false;
-        if (imageFilter !== "All" && q.hasImage !== (imageFilter === "Yes")) return false;
-        if (topicFilter !== "All" && q.topic !== topicFilter) return false;
-        if (rateBucket === "high" && q.rate < 70) return false;
-        if (rateBucket === "mid" && (q.rate < 40 || q.rate >= 70)) return false;
-        if (rateBucket === "low" && q.rate >= 40) return false;
-        // Search is applied server-side (see useAdminQuestions above).
-        return true;
-      });
-  }, [allQuestions, deleted, bankFilter, imageFilter, topicFilter, rateBucket]);
+  // Any filter / page-size change restarts pagination at the first page.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery, bankFilter, topicFilter, perPage]);
+
+  // Render the SERVER page directly — search, bank, topic, pagination and
+  // active-only are all applied server-side. The only client-side adjustment is
+  // hiding rows the user just optimistically deleted.
+  const rows = useMemo(
+    () => allQuestions.filter((q) => !deleted.has(q.id)),
+    [allQuestions, deleted],
+  );
+
+  // Prefer the server's totalPages; fall back to deriving it from total/limit.
+  const totalPages = Math.max(
+    1,
+    questionsData?.meta.totalPages ?? Math.ceil((questionsData?.meta.total ?? 0) / perPage),
+  );
+  // Step back if the result set shrank below the current page (e.g. after a delete).
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const visibleIds = rows.map((q) => q.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
@@ -185,8 +197,8 @@ function AdminQuestions() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Questions</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {(allQuestions.length - deleted.size).toLocaleString()} questions across{" "}
-            {bankList.length} banks
+            {(questionsData?.meta.total ?? 0).toLocaleString()} questions across {bankList.length}{" "}
+            banks
           </p>
         </div>
         <Link
@@ -209,18 +221,6 @@ function AdminQuestions() {
             className="h-10 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
         </div>
-        <select
-          value={perPage}
-          onChange={(e) => setPerPage(Number(e.target.value))}
-          title="How many to fetch"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-foreground"
-        >
-          {[10, 20, 50, 100, 500].map((n) => (
-            <option key={n} value={n}>
-              Show {n}
-            </option>
-          ))}
-        </select>
         <div className="relative">
           <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <select
@@ -237,18 +237,6 @@ function AdminQuestions() {
           </select>
         </div>
         <Select value={topicFilter} onChange={setTopicFilter} options={topics} />
-        <Select
-          value={imageFilter}
-          onChange={(v) => setImageFilter(v as typeof imageFilter)}
-          options={["All", "Yes", "No"]}
-          labels={{ All: "Image: any", Yes: "Has image", No: "No image" }}
-        />
-        <Select
-          value={rateBucket}
-          onChange={(v) => setRateBucket(v as typeof rateBucket)}
-          options={["All", "high", "mid", "low"]}
-          labels={{ All: "Correct: any", high: "≥ 70%", mid: "40–69%", low: "< 40%" }}
-        />
       </div>
 
       {/* Bulk action bar */}
@@ -286,7 +274,12 @@ function AdminQuestions() {
       )}
 
       <section className="mt-6 overflow-x-auto rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)]">
-        {rows.length === 0 ? (
+        {isLoading || (isFetching && rows.length === 0) ? (
+          <div className="flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-accent" />
+            Loading questions…
+          </div>
+        ) : rows.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-sm font-semibold text-foreground">No questions found</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -318,7 +311,7 @@ function AdminQuestions() {
             </thead>
             <tbody className="divide-y divide-border">
               {rows.map((q) => {
-                const bankName = bankNameById.get(q.bankId);
+                const bankName = q.bankName || bankNameById.get(q.bankId) || "—";
                 const isInactive = inactive.has(q.id);
                 const isSelected = selected.has(q.id);
                 return (
@@ -351,7 +344,7 @@ function AdminQuestions() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{bankName ?? "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{bankName}</td>
                     <td className="px-4 py-3 text-foreground/80">{q.topic || "—"}</td>
                     <td className="px-4 py-3">
                       <DiffBadge d={q.difficulty} />
@@ -400,6 +393,46 @@ function AdminQuestions() {
           </table>
         )}
       </section>
+
+      {/* Pagination footer — TRUE server-side paging. */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          Show
+          <select
+            value={perPage}
+            onChange={(e) => setPerPage(Number(e.target.value))}
+            className="h-9 rounded-lg border border-border bg-surface px-2 text-sm text-foreground"
+          >
+            {[10, 25, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          per page
+        </label>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            Page {questionsData?.meta.page ?? page} of {totalPages}
+          </span>
+          <div className="inline-flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || isFetching}
+              className="inline-flex h-9 items-center rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-foreground hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages || isFetching}
+              className="inline-flex h-9 items-center rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-foreground hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
 
       {preview && <StudentPreview q={preview} onClose={() => setPreview(null)} />}
 

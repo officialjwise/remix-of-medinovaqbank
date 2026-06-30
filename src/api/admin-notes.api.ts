@@ -31,7 +31,7 @@
  * so the "Page Preview" shows per-page number + the note's processing status +
  * topic/trial assignment, never synthesized text.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 
 // ── Backend enums (mirror src/database/entities/enums.ts). ──
@@ -251,7 +251,7 @@ export const adminNotesApi = {
   /** Admin paginated list. */
   async list(params: AdminNoteListParams = {}): Promise<AdminNoteListResult> {
     const { data, meta } = await apiClient.getPaginated<BackendAdminNote>("/admin/notes", {
-      params: toQuery({ limit: 100, ...params }),
+      params: toQuery(params),
     });
     return {
       notes: data.map(mapAdminNote),
@@ -329,6 +329,7 @@ export function useAdminNotes(params: AdminNoteListParams = {}) {
   return useQuery({
     queryKey: adminNoteKeys.list(params),
     queryFn: () => adminNotesApi.list(params),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
     refetchInterval: (query) =>
       (query.state.data?.notes ?? []).some((n) => n.status === "processing") ? 1500 : false,

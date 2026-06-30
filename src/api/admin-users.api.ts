@@ -28,7 +28,7 @@
  *   The CSV export endpoints return a text/csv body, NOT the JSON envelope, so they
  *   must be hit with a raw fetch carrying the bearer token (apiClient unwraps JSON).
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, BASE_URL, type QueryParams } from "@/api/client";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -470,6 +470,9 @@ export function useAdminUsers(params: AdminUserListParams = {}) {
     queryKey: adminUserKeys.list(params),
     queryFn: () => adminUsersApi.list(params),
     staleTime: 30_000,
+    // Server-side filtering re-keys this query on every filter change; keep the
+    // previous rows visible instead of flashing "No users found" while loading.
+    placeholderData: keepPreviousData,
   });
 }
 

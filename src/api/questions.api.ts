@@ -24,7 +24,7 @@
  *   (sorted) for display, and on write map FE options -> rows with `isCorrect`
  *   derived from `correctKey`.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, BASE_URL, ApiError } from "@/api/client";
 import { useAuthStore } from "@/stores/authStore";
 import type { Difficulty } from "@/types";
@@ -76,6 +76,7 @@ export interface BackendQuestionOption {
 export interface BackendQuestion {
   id: string;
   bankId: string;
+  bankName: string | null;
   text: string;
   imageUrl: string | null;
   difficulty: BackendDifficulty;
@@ -131,6 +132,8 @@ export interface AdminQuestionOption {
 export interface AdminQuestion {
   id: string;
   bankId: string;
+  /** Bank name for the all-questions list column ("" when unknown). */
+  bankName: string;
   stem: string;
   imageUrl: string;
   difficulty: Difficulty;
@@ -168,6 +171,7 @@ export function mapQuestion(q: BackendQuestion): AdminQuestion {
   return {
     id: q.id,
     bankId: q.bankId,
+    bankName: q.bankName ?? "",
     stem: q.text,
     imageUrl: q.imageUrl ?? "",
     difficulty: toFeDifficulty(q.difficulty),
@@ -314,6 +318,9 @@ export interface AdminQuestionQuery {
   isFlagged?: boolean;
   /** Word-order-independent partial search over stem/topic/subject (server-side). */
   search?: string;
+  /** Allowlisted server sort column (createdAt | orderIndex | ...). */
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 // ── Endpoint functions ──
@@ -329,11 +336,20 @@ export const questionsApi = {
       isActive: params.isActive,
       isFlagged: params.isFlagged,
       search: params.search?.trim() || undefined,
+      sortBy: params.sortBy,
+      sortOrder: params.sortOrder,
     };
     const res = await apiClient.getPaginated<BackendQuestion>("/admin/questions", {
       params: query,
     });
     return { data: res.data.map(mapQuestion), meta: res.meta };
+  },
+
+  /** Single question by id (publicId or uuid) — used by the edit screen so it
+   *  works regardless of which server page the question lives on. */
+  async getById(id: string): Promise<AdminQuestion> {
+    const data = await apiClient.get<BackendQuestion>(`/admin/questions/${id}`);
+    return mapQuestion(data);
   },
 
   async create(body: CreateQuestionBody): Promise<AdminQuestion> {
@@ -449,6 +465,18 @@ export function useAdminQuestions(params: AdminQuestionQuery = {}) {
     queryKey: questionKeys.list(params),
     queryFn: () => questionsApi.list(params),
     staleTime: 30_000,
+    // Keep the current page visible while the next page/filter loads (no
+    // "No questions found" flash between server pages).
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Single question (for the edit screen). */
+export function useAdminQuestion(id: string) {
+  return useQuery({
+    queryKey: [...questionKeys.all, "detail", id],
+    queryFn: () => questionsApi.getById(id),
+    enabled: !!id,
   });
 }
 

@@ -13,7 +13,7 @@ import {
   type NotifType,
 } from "@/api/notifications.api";
 import { useRealtimeStream } from "@/lib/realtime";
-import { useBreakdownJobs } from "@/api/admin-explanations.api";
+import { useBreakdownJobs, useGenerateBreakdowns } from "@/api/admin-explanations.api";
 
 const toneDot: Record<NotifType, string> = {
   signup: "bg-success",
@@ -67,6 +67,13 @@ export function NotificationsBell({
   const isAdmin = _audience === "admin";
   const { data: jobs } = useBreakdownJobs({ enabled: open && isAdmin });
   const activeJobs = jobs ?? [];
+  const generateBreakdowns = useGenerateBreakdowns();
+  const resumeJob = (bankId: string) =>
+    generateBreakdowns.mutate({
+      // jobKey 'all' means the cross-bank run; otherwise it's the bank id.
+      bankId: bankId === "all" ? undefined : bankId,
+      limit: 1000,
+    });
   const markReadMut = useMarkNotificationRead();
   const markAllReadMut = useMarkAllNotificationsRead();
   const markRead = (id: string) => markReadMut.mutate(id);
@@ -120,6 +127,7 @@ export function NotificationsBell({
               <div className="space-y-2.5">
                 {activeJobs.map((j) => {
                   const pct = j.total ? Math.round((j.done / j.total) * 100) : 0;
+                  const isStale = j.status === "stale";
                   return (
                     <div key={j.bankId}>
                       <div className="flex items-center justify-between text-xs">
@@ -127,15 +135,26 @@ export function NotificationsBell({
                         <span className="ml-2 flex-shrink-0 text-muted-foreground">
                           {j.done}/{j.total}
                           {j.status === "done" ? " ✓" : ""}
+                          {isStale ? " · stalled" : ""}
                           {j.failed > 0 ? ` · ${j.failed} failed` : ""}
                         </span>
                       </div>
                       <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-alt">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+                          className={`h-full rounded-full transition-all duration-500 ${isStale ? "bg-warning" : "bg-gradient-to-r from-primary to-accent"}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
+                      {isStale && (
+                        <button
+                          type="button"
+                          onClick={() => resumeJob(j.bankId)}
+                          disabled={generateBreakdowns.isPending}
+                          className="mt-1.5 inline-flex h-6 items-center rounded-md border border-border bg-surface px-2 text-[11px] font-semibold text-foreground hover:bg-surface-alt disabled:opacity-50"
+                        >
+                          Resume generation
+                        </button>
+                      )}
                     </div>
                   );
                 })}

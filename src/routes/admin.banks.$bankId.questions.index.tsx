@@ -6,8 +6,8 @@ import {
   Download,
   Edit,
   Eye,
-  GripVertical,
   ImageIcon,
+  Loader2,
   Plus,
   Search,
   Trash2,
@@ -27,6 +27,7 @@ import {
   useDeleteQuestion,
   useQuestionBanksLite,
   useToggleQuestionActive,
+  toBeDifficulty,
   type AdminQuestion,
 } from "@/api/questions.api";
 
@@ -38,7 +39,16 @@ export const Route = createFileRoute("/admin/banks/$bankId/questions/")({
   component: AdminBankQuestions,
 });
 
-type Sort = "manual" | "newest" | "oldest" | "rate-desc" | "rate-asc";
+type Sort = "manual" | "newest" | "oldest";
+
+/** Maps the sort dropdown to a server-side, column-backed order. */
+const SORT_PARAM: Record<Sort, { sortBy: string; sortOrder: "asc" | "desc" }> = {
+  manual: { sortBy: "orderIndex", sortOrder: "asc" },
+  newest: { sortBy: "createdAt", sortOrder: "desc" },
+  oldest: { sortBy: "createdAt", sortOrder: "asc" },
+};
+
+const PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
 /** Row view-model: the mapped admin question plus convenience aliases. */
 interface Row extends AdminQuestion {
@@ -67,104 +77,73 @@ function AdminBankQuestions() {
   const [status, setStatus] = useState<"All" | "Active" | "Inactive">("Active");
   const statusActive: boolean | undefined =
     status === "Active" ? true : status === "Inactive" ? false : undefined;
-  const { data: questionsData } = useAdminQuestions({
+
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounce(query, 250);
+  const [difficulty, setDifficulty] = useState("All");
+  const [topic, setTopic] = useState("All");
+  const [sort, setSort] = useState<Sort>("manual");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const resetPage = () => setPage(1);
+
+  // TRUE server-side pagination: the backend filters + pages across the WHOLE
+  // bank (which can exceed any single page), so we render exactly the page it
+  // returns and drive navigation from the response metadata.
+  const sortParam = SORT_PARAM[sort];
+  const {
+    data: questionsData,
+    isLoading,
+    isFetching,
+  } = useAdminQuestions({
     bankId,
-    limit: 500,
+    page,
+    limit: perPage,
     isActive: statusActive,
+    search: debouncedQuery.trim() || undefined,
+    difficulty: difficulty !== "All" ? toBeDifficulty(difficulty as Difficulty) : undefined,
+    topic: topic !== "All" ? topic : undefined,
+    sortBy: sortParam.sortBy,
+    sortOrder: sortParam.sortOrder,
   });
   const toggleActive = useToggleQuestionActive();
   const deleteQuestion = useDeleteQuestion();
   const bulkDeleteMut = useBulkDeleteQuestions();
   const bulkSetActiveMut = useBulkSetActiveQuestions();
 
+  const [deleted, setDeleted] = useState<Set<string>>(new Set());
   const all: Row[] = useMemo(
     () => (questionsData?.data ?? []).map((q) => ({ ...q, answered: q.timesAnswered })),
     [questionsData],
   );
-
-  const [query, setQuery] = useState("");
-  const debouncedQuery = useDebounce(query, 250);
-  const [difficulty, setDifficulty] = useState("All");
-  const [topic, setTopic] = useState("All");
-  const [imageFilter, setImageFilter] = useState<"All" | "Yes" | "No">("All");
-  const [rateBucket, setRateBucket] = useState<"All" | "high" | "mid" | "low">("All");
-  const [sort, setSort] = useState<Sort>("manual");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(50);
-
-  const [order, setOrder] = useState<string[]>(() => all.map((q) => q.id));
+  // What's actually shown: the server page minus anything just-deleted (optimistic).
+  const rows = useMemo(() => all.filter((q) => !deleted.has(q.id)), [all, deleted]);
+  const total = questionsData?.meta.total ?? 0;
+  const totalPages = Math.max(1, questionsData?.meta.totalPages ?? 1);
+  // If the result set shrinks (e.g. deleting the last row on the last page),
+  // step back so we never sit on an out-of-range empty page.
   useEffect(() => {
-    setOrder(all.map((q) => q.id));
-  }, [all]);
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   // Active state is server-driven; mirror it locally so toggles feel instant.
   const [inactive, setInactive] = useState<Set<string>>(new Set());
   useEffect(() => {
     setInactive(new Set(all.filter((q) => !q.isActive).map((q) => q.id)));
   }, [all]);
-  const [deleted, setDeleted] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<Row | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Row | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
-  const [dragId, setDragId] = useState<string | null>(null);
 
-  const byId = useMemo(() => new Map(all.map((q) => [q.id, q])), [all]);
-  const topics = useMemo(() => ["All", ...Array.from(new Set(all.map((q) => q.topic)))], [all]);
+  // Topic options come from the current page (the bank's topics span pages —
+  // search also matches topic for anything not listed here).
+  const topics = useMemo(
+    () => ["All", ...Array.from(new Set(rows.map((q) => q.topic).filter(Boolean)))],
+    [rows],
+  );
 
-  const filtered = useMemo(() => {
-    let rows = order.map((id) => byId.get(id)).filter((q): q is Row => !!q && !deleted.has(q.id));
-    if (debouncedQuery.trim()) {
-      const s = debouncedQuery.toLowerCase();
-      rows = rows.filter(
-        (q) => q.stem.toLowerCase().includes(s) || q.topic.toLowerCase().includes(s),
-      );
-    }
-    if (difficulty !== "All") rows = rows.filter((q) => q.difficulty === difficulty);
-    if (topic !== "All") rows = rows.filter((q) => q.topic === topic);
-    if (status !== "All")
-      rows = rows.filter((q) => (status === "Active" ? !inactive.has(q.id) : inactive.has(q.id)));
-    if (imageFilter !== "All") rows = rows.filter((q) => q.hasImage === (imageFilter === "Yes"));
-    if (rateBucket === "high") rows = rows.filter((q) => q.correctRate >= 70);
-    if (rateBucket === "mid") rows = rows.filter((q) => q.correctRate >= 40 && q.correctRate < 70);
-    if (rateBucket === "low") rows = rows.filter((q) => q.correctRate < 40);
-    if (sort !== "manual") {
-      rows = [...rows].sort((a, b) => {
-        if (sort === "rate-desc") return b.correctRate - a.correctRate;
-        if (sort === "rate-asc") return a.correctRate - b.correctRate;
-        if (sort === "oldest") return a.id.localeCompare(b.id);
-        return b.id.localeCompare(a.id);
-      });
-    }
-    return rows;
-  }, [
-    order,
-    byId,
-    deleted,
-    debouncedQuery,
-    difficulty,
-    topic,
-    status,
-    imageFilter,
-    rateBucket,
-    sort,
-    inactive,
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageRows = filtered.slice((page - 1) * perPage, page * perPage);
-  const resetPage = () => setPage(1);
-  // Manual reordering only makes sense on an unfiltered, manually-sorted, single page view.
-  const canDrag =
-    sort === "manual" &&
-    !debouncedQuery.trim() &&
-    difficulty === "All" &&
-    topic === "All" &&
-    status !== "Inactive" &&
-    imageFilter === "All" &&
-    rateBucket === "All";
-
-  const visibleIds = pageRows.map((q) => q.id);
+  const visibleIds = rows.map((q) => q.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
   const someSelected = selected.size > 0;
 
@@ -235,22 +214,6 @@ function AdminBankQuestions() {
     setSelected(new Set());
     setConfirmBulkDelete(false);
   }
-  function onDrop(targetId: string) {
-    if (!dragId || dragId === targetId) {
-      setDragId(null);
-      return;
-    }
-    setOrder((prev) => {
-      const next = [...prev];
-      const from = next.indexOf(dragId);
-      const to = next.indexOf(targetId);
-      if (from === -1 || to === -1) return prev;
-      next.splice(to, 0, next.splice(from, 1)[0]);
-      return next;
-    });
-    setDragId(null);
-    toast.success("Question order updated");
-  }
 
   return (
     <div>
@@ -274,7 +237,7 @@ function AdminBankQuestions() {
             )}
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {filtered.length} of {all.length - deleted.size} questions
+            {total.toLocaleString()} {total === 1 ? "question" : "questions"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -342,33 +305,16 @@ function AdminBankQuestions() {
           options={["All", "Active", "Inactive"]}
         />
         <FilterSelect
-          value={imageFilter}
-          onChange={(v) => {
-            setImageFilter(v as typeof imageFilter);
-            resetPage();
-          }}
-          options={["All", "Yes", "No"]}
-          labels={{ All: "Image: any", Yes: "Has image", No: "No image" }}
-        />
-        <FilterSelect
-          value={rateBucket}
-          onChange={(v) => {
-            setRateBucket(v as typeof rateBucket);
-            resetPage();
-          }}
-          options={["All", "high", "mid", "low"]}
-          labels={{ All: "Correct: any", high: "≥ 70%", mid: "40–69%", low: "< 40%" }}
-        />
-        <FilterSelect
           value={sort}
-          onChange={(v) => setSort(v as Sort)}
-          options={["manual", "newest", "oldest", "rate-desc", "rate-asc"]}
+          onChange={(v) => {
+            setSort(v as Sort);
+            resetPage();
+          }}
+          options={["manual", "newest", "oldest"]}
           labels={{
             manual: "Manual order",
             newest: "Newest",
             oldest: "Oldest",
-            "rate-desc": "Highest correct %",
-            "rate-asc": "Lowest correct %",
           }}
         />
       </div>
@@ -409,7 +355,7 @@ function AdminBankQuestions() {
 
       {/* Table */}
       <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface">
-        <div className="hidden min-w-[860px] grid-cols-[32px_28px_1fr_64px_110px_84px_84px_70px_120px] gap-3 border-b border-border bg-surface-alt/40 px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground lg:grid">
+        <div className="hidden min-w-[840px] grid-cols-[32px_1fr_64px_110px_84px_84px_70px_120px] gap-3 border-b border-border bg-surface-alt/40 px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground lg:grid">
           <span>
             <input
               type="checkbox"
@@ -419,7 +365,6 @@ function AdminBankQuestions() {
               className="h-4 w-4 accent-[var(--color-accent)]"
             />
           </span>
-          <span></span>
           <span>Question</span>
           <span className="text-center">Correct</span>
           <span>Difficulty</span>
@@ -429,7 +374,11 @@ function AdminBankQuestions() {
           <span className="text-right">Actions</span>
         </div>
 
-        {pageRows.length === 0 ? (
+        {isLoading || (isFetching && rows.length === 0) ? (
+          <div className="grid place-items-center px-4 py-16 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : rows.length === 0 ? (
           <div className="px-4 py-16 text-center">
             <p className="text-sm font-semibold text-foreground">No questions found</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -437,19 +386,13 @@ function AdminBankQuestions() {
             </p>
           </div>
         ) : (
-          pageRows.map((q) => {
+          rows.map((q) => {
             const isInactive = inactive.has(q.id);
             const isSelected = selected.has(q.id);
             return (
               <div
                 key={q.id}
-                draggable={canDrag}
-                onDragStart={() => canDrag && setDragId(q.id)}
-                onDragOver={(e) => {
-                  if (canDrag) e.preventDefault();
-                }}
-                onDrop={() => canDrag && onDrop(q.id)}
-                className={`grid grid-cols-1 items-center gap-2 border-b border-border px-4 py-3 last:border-b-0 hover:bg-surface-alt/30 lg:grid-cols-[32px_28px_1fr_64px_110px_84px_84px_70px_120px] lg:gap-3 ${dragId === q.id ? "opacity-50" : ""} ${isSelected ? "bg-accent/5" : ""}`}
+                className={`grid grid-cols-1 items-center gap-2 border-b border-border px-4 py-3 last:border-b-0 hover:bg-surface-alt/30 lg:grid-cols-[32px_1fr_64px_110px_84px_84px_70px_120px] lg:gap-3 ${isSelected ? "bg-accent/5" : ""}`}
               >
                 <span>
                   <input
@@ -459,14 +402,6 @@ function AdminBankQuestions() {
                     aria-label="Select question"
                     className="h-4 w-4 accent-[var(--color-accent)]"
                   />
-                </span>
-                <span
-                  className={`flex items-center ${canDrag ? "cursor-grab text-muted-foreground active:cursor-grabbing" : "cursor-not-allowed text-muted-foreground/40"}`}
-                  title={
-                    canDrag ? "Drag to reorder" : "Clear filters & use Manual order to reorder"
-                  }
-                >
-                  <GripVertical className="h-4 w-4" />
                 </span>
                 <span className="flex min-w-0 items-center gap-2">
                   {q.hasImage && (
@@ -536,8 +471,8 @@ function AdminBankQuestions() {
         )}
       </div>
 
-      {/* Pagination */}
-      {filtered.length > 0 && (
+      {/* Pagination (server-driven) */}
+      {total > 0 && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <span>Show</span>
@@ -549,25 +484,27 @@ function AdminBankQuestions() {
               }}
               className="h-8 rounded-md border border-border bg-surface px-2 text-sm text-foreground"
             >
-              {[10, 20, 50, 100, 500].map((n) => (
+              {PER_PAGE_OPTIONS.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
             </select>
-            <span>per page · Page {page} of {totalPages}</span>
+            <span>
+              per page · Page {page} of {totalPages} · {total.toLocaleString()} total
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
+              disabled={page <= 1 || isFetching}
               className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface hover:bg-surface-alt disabled:opacity-50"
             >
               ‹
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
+              disabled={page >= totalPages || isFetching}
               className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface hover:bg-surface-alt disabled:opacity-50"
             >
               ›

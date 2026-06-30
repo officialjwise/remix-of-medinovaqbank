@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -40,7 +40,7 @@ export const Route = createFileRoute("/admin/notes/")({
   component: AdminNotes,
 });
 
-const PAGE_SIZE = 10;
+const PER_PAGE_OPTIONS = [10, 20, 25, 50, 100] as const;
 
 const TIER_PILL: Record<NoteTier, string> = {
   trial_and_paid: "bg-success/10 text-success",
@@ -55,60 +55,59 @@ const STATUS_PILL: Record<NoteStatus, string> = {
 };
 
 function AdminNotes() {
-  const { data, isLoading, isError } = useAdminNotes();
-  const updateNote = useUpdateNote();
-  const reprocess = useReprocessNote();
-  const deleteNote = useDeleteNote();
-  const { data: categories = [] } = useCategories();
-
-  const notes = useMemo(() => data?.notes ?? [], [data]);
-
-  const categoryName = useMemo(() => {
-    const map = new Map(categories.map((c) => [c.id, c.name]));
-    return (id: string | null) => (id ? (map.get(id) ?? "Uncategorised") : "Uncategorised");
-  }, [categories]);
-
   const [search, setSearch] = useState("");
   const [tierFilter, setTierFilter] = useState<"All" | NoteTier>("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<"All" | NoteStatus>("All");
   const [activeFilter, setActiveFilter] = useState<"All" | "active" | "inactive">("All");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const [confirmDelete, setConfirmDelete] = useState<AdminNoteListItem | null>(null);
 
   const debounced = useDebounce(search, 250);
 
-  // Distinct category ids present on the loaded notes.
-  const categoryOptions = useMemo(() => {
-    const ids = Array.from(new Set(notes.map((n) => n.categoryId).filter((x): x is string => !!x)));
-    return ids
-      .map((id) => ({ id, name: categoryName(id) }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [notes, categoryName]);
+  // Reset to page 1 whenever the page size, search, or any filter changes so the
+  // server-side window always starts from the top of the new result set.
+  useEffect(() => {
+    setPage(1);
+  }, [perPage, debounced, tierFilter, categoryFilter, statusFilter, activeFilter]);
 
-  const filtered = useMemo(() => {
-    const q = debounced.trim().toLowerCase();
-    return notes.filter((n) => {
-      if (tierFilter !== "All" && n.tier !== tierFilter) return false;
-      if (categoryFilter !== "All" && n.categoryId !== categoryFilter) return false;
-      if (statusFilter !== "All" && n.status !== statusFilter) return false;
-      if (activeFilter === "active" && !n.active) return false;
-      if (activeFilter === "inactive" && n.active) return false;
-      if (
-        q &&
-        !n.title.toLowerCase().includes(q) &&
-        !categoryName(n.categoryId).toLowerCase().includes(q)
-      )
-        return false;
-      return true;
-    });
-  }, [notes, debounced, tierFilter, categoryFilter, statusFilter, activeFilter, categoryName]);
+  const { data, isLoading, isFetching, isError } = useAdminNotes({
+    page,
+    limit: perPage,
+    search: debounced.trim() || undefined,
+    accessTier: tierFilter === "All" ? undefined : tierFilter,
+    status: statusFilter === "All" ? undefined : statusFilter,
+    isActive: activeFilter === "All" ? undefined : activeFilter === "active",
+    categoryId: categoryFilter === "All" ? undefined : categoryFilter,
+  });
+  const updateNote = useUpdateNote();
+  const reprocess = useReprocessNote();
+  const deleteNote = useDeleteNote();
+  const { data: categories = [] } = useCategories();
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const notes = useMemo(() => data?.notes ?? [], [data]);
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const currentPage = data?.page ?? page;
+  // Step back if the result set shrank below the current page (e.g. after a delete).
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
-  const resetPage = () => setPage(1);
+  const categoryName = useMemo(() => {
+    const map = new Map(categories.map((c) => [c.id, c.name]));
+    return (id: string | null) => (id ? (map.get(id) ?? "Uncategorised") : "Uncategorised");
+  }, [categories]);
+
+  // Full category list (filtering is server-side; do not derive from the page).
+  const categoryOptions = useMemo(
+    () =>
+      [...categories]
+        .map((c) => ({ id: c.id, name: c.name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [categories],
+  );
 
   const toggleActive = (n: AdminNoteListItem) => {
     updateNote.mutate(
@@ -150,8 +149,7 @@ function AdminNotes() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">High-Yield Notes</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{notes.length} notes</span> ·{" "}
-            {notes.filter((n) => n.active).length} active
+            <span className="font-semibold text-foreground">{total} notes</span>
           </p>
         </div>
         <Link
@@ -167,20 +165,14 @@ function AdminNotes() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              resetPage();
-            }}
-            placeholder="Search by title or category…"
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title…"
             className="h-10 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
         </div>
         <select
           value={tierFilter}
-          onChange={(e) => {
-            setTierFilter(e.target.value as typeof tierFilter);
-            resetPage();
-          }}
+          onChange={(e) => setTierFilter(e.target.value as typeof tierFilter)}
           className="h-10 rounded-lg border border-border bg-surface px-3 text-sm"
         >
           <option value="All">All tiers</option>
@@ -192,10 +184,7 @@ function AdminNotes() {
         </select>
         <select
           value={categoryFilter}
-          onChange={(e) => {
-            setCategoryFilter(e.target.value);
-            resetPage();
-          }}
+          onChange={(e) => setCategoryFilter(e.target.value)}
           className="h-10 rounded-lg border border-border bg-surface px-3 text-sm"
         >
           <option value="All">All categories</option>
@@ -207,10 +196,7 @@ function AdminNotes() {
         </select>
         <select
           value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value as typeof statusFilter);
-            resetPage();
-          }}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
           className="h-10 rounded-lg border border-border bg-surface px-3 text-sm"
         >
           <option value="All">All statuses</option>
@@ -220,30 +206,43 @@ function AdminNotes() {
         </select>
         <select
           value={activeFilter}
-          onChange={(e) => {
-            setActiveFilter(e.target.value as typeof activeFilter);
-            resetPage();
-          }}
+          onChange={(e) => setActiveFilter(e.target.value as typeof activeFilter)}
           className="h-10 rounded-lg border border-border bg-surface px-3 text-sm"
         >
           <option value="All">All</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
+        <select
+          value={perPage}
+          onChange={(e) => setPerPage(Number(e.target.value))}
+          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm"
+          aria-label="Notes per page"
+        >
+          {PER_PAGE_OPTIONS.map((n) => (
+            <option key={n} value={n}>
+              Show {n} per page
+            </option>
+          ))}
+        </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {notes.length === 0 && isFetching ? (
+        <div className="flex items-center justify-center py-24 text-muted-foreground">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading notes…
+        </div>
+      ) : notes.length === 0 ? (
         <div className="mt-12 rounded-2xl border border-dashed border-border bg-surface p-12 text-center shadow-[var(--shadow-card)]">
           <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/50" />
           <p className="mt-3 text-sm font-semibold text-foreground">
-            {notes.length === 0 ? "No notes yet" : "No notes match those filters"}
+            {total === 0 ? "No notes yet" : "No notes match those filters"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {notes.length === 0
+            {total === 0
               ? "Upload a PDF to publish your first high-yield note."
               : "Try adjusting your search or filters."}
           </p>
-          {notes.length === 0 && (
+          {total === 0 && (
             <Link
               to="/admin/notes/upload"
               className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-sm font-semibold text-white shadow-md hover:opacity-95"
@@ -254,7 +253,7 @@ function AdminNotes() {
         </div>
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {pageItems.map((n) => {
+          {notes.map((n) => {
             const togglingThis = updateNote.isPending && updateNote.variables?.id === n.id;
             const reprocessingThis = reprocess.isPending && reprocess.variables === n.id;
             return (
@@ -371,28 +370,28 @@ function AdminNotes() {
         </div>
       )}
 
-      {filtered.length > PAGE_SIZE && (
+      {total > 0 && (
         <div className="mt-6 flex items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            Showing {(safePage - 1) * PAGE_SIZE + 1}–
-            {Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+            Showing {(currentPage - 1) * perPage + 1}–{Math.min(currentPage * perPage, total)} of{" "}
+            {total}
           </p>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={safePage <= 1}
+              disabled={currentPage <= 1 || isFetching}
               className="inline-flex h-9 items-center rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-foreground hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50"
             >
               Previous
             </button>
             <span className="text-sm font-semibold text-foreground">
-              {safePage} / {pageCount}
+              {currentPage} / {totalPages}
             </span>
             <button
               type="button"
-              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-              disabled={safePage >= pageCount}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages || isFetching}
               className="inline-flex h-9 items-center rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-foreground hover:bg-surface-alt disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next

@@ -45,6 +45,7 @@ import { Route as AdminFlagsRouteImport } from './routes/admin.flags'
 import { Route as AdminExamTypesRouteImport } from './routes/admin.exam-types'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
+import { Route as AdminBreakdownsRouteImport } from './routes/admin.breakdowns'
 import { Route as AdminAuditLogsRouteImport } from './routes/admin.audit-logs'
 import { Route as AdminApiRouteImport } from './routes/admin.api'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
@@ -269,6 +270,11 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
 const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
   id: '/categories',
   path: '/categories',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBreakdownsRoute = AdminBreakdownsRouteImport.update({
+  id: '/breakdowns',
+  path: '/breakdowns',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAuditLogsRoute = AdminAuditLogsRouteImport.update({
@@ -540,6 +546,7 @@ export interface FileRoutesByFullPath {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/api': typeof AdminApiRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/breakdowns': typeof AdminBreakdownsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/exam-types': typeof AdminExamTypesRoute
@@ -622,6 +629,7 @@ export interface FileRoutesByTo {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/api': typeof AdminApiRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/breakdowns': typeof AdminBreakdownsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/exam-types': typeof AdminExamTypesRoute
@@ -704,6 +712,7 @@ export interface FileRoutesById {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/api': typeof AdminApiRoute
   '/admin/audit-logs': typeof AdminAuditLogsRoute
+  '/admin/breakdowns': typeof AdminBreakdownsRoute
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/exam-types': typeof AdminExamTypesRoute
@@ -789,6 +798,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/api'
     | '/admin/audit-logs'
+    | '/admin/breakdowns'
     | '/admin/categories'
     | '/admin/dashboard'
     | '/admin/exam-types'
@@ -871,6 +881,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/api'
     | '/admin/audit-logs'
+    | '/admin/breakdowns'
     | '/admin/categories'
     | '/admin/dashboard'
     | '/admin/exam-types'
@@ -952,6 +963,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/api'
     | '/admin/audit-logs'
+    | '/admin/breakdowns'
     | '/admin/categories'
     | '/admin/dashboard'
     | '/admin/exam-types'
@@ -1281,6 +1293,13 @@ declare module '@tanstack/react-router' {
       path: '/categories'
       fullPath: '/admin/categories'
       preLoaderRoute: typeof AdminCategoriesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/breakdowns': {
+      id: '/admin/breakdowns'
+      path: '/breakdowns'
+      fullPath: '/admin/breakdowns'
+      preLoaderRoute: typeof AdminBreakdownsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/audit-logs': {
@@ -1692,6 +1711,7 @@ interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminApiRoute: typeof AdminApiRoute
   AdminAuditLogsRoute: typeof AdminAuditLogsRoute
+  AdminBreakdownsRoute: typeof AdminBreakdownsRoute
   AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminExamTypesRoute: typeof AdminExamTypesRoute
@@ -1734,6 +1754,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminApiRoute: AdminApiRoute,
   AdminAuditLogsRoute: AdminAuditLogsRoute,
+  AdminBreakdownsRoute: AdminBreakdownsRoute,
   AdminCategoriesRoute: AdminCategoriesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminExamTypesRoute: AdminExamTypesRoute,

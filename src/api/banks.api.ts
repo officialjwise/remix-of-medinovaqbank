@@ -258,10 +258,12 @@ export const banksApi = {
     return mapBank(data);
   },
 
-  /** Soft delete (deactivate). */
-  async remove(id: string): Promise<Bank> {
-    const data = await apiClient.delete<BackendBank>(`/admin/question-banks/${id}`);
-    return mapBank(data);
+  /**
+   * PERMANENTLY delete a bank. Guarded server-side: 409 if the bank is still
+   * active, or has questions / quiz history (the error message says which).
+   */
+  async remove(id: string): Promise<void> {
+    await apiClient.delete<{ id: string }>(`/admin/question-banks/${id}`);
   },
 };
 

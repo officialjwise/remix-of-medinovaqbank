@@ -239,14 +239,25 @@ function AdminBanks() {
 
       {/* Delete confirmation */}
       {confirmDelete && (
-        <Modal title="Delete bank?" onClose={() => setConfirmDelete(null)}>
+        <Modal title="Permanently delete bank?" onClose={() => setConfirmDelete(null)}>
           <p className="text-sm text-muted-foreground">
-            This will deactivate{" "}
+            This permanently deletes{" "}
             <span className="font-semibold text-foreground">
               {pendingDelete?.name ?? "this bank"}
-            </span>{" "}
-            so it no longer appears to learners. You can re-activate it later.
+            </span>
+            . This cannot be undone.
           </p>
+          {pendingDelete?.isActive ? (
+            <p className="mt-2 rounded-lg bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
+              This bank is still <strong>Active</strong> — turn off the Active toggle first. To
+              merely hide it from learners, just deactivate it instead of deleting.
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Only an empty bank with no quiz history can be deleted — otherwise keep it deactivated
+              to preserve records.
+            </p>
+          )}
           <div className="mt-6 flex justify-end gap-2">
             <button
               onClick={() => setConfirmDelete(null)}
@@ -260,10 +271,11 @@ function AdminBanks() {
                 const id = confirmDelete;
                 deleteBank.mutate(id, {
                   onSuccess: () => {
-                    toast.success("Bank deleted");
+                    toast.success("Bank permanently deleted");
                     setConfirmDelete(null);
                   },
-                  onError: () => toast.error("Could not delete bank"),
+                  onError: (err) =>
+                    toast.error(err instanceof Error ? err.message : "Could not delete bank"),
                 });
               }}
               className="inline-flex h-10 items-center rounded-lg bg-error px-4 text-sm font-semibold text-white hover:bg-error/90 disabled:opacity-60"

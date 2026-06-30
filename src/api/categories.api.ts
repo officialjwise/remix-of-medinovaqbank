@@ -14,10 +14,20 @@
  *
  * GAPS (backend does not provide these — see store/route notes):
  *   - bankCount / questionCount: not in CategoryResponseDto → defaulted to 0.
- *   - subcategories: no backend support → kept on local Zustand store state.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "./client";
+
+// ── Backend wire shape (SubcategoryResponseDto) ──
+export interface BackendSubcategory {
+  id: string;
+  categoryId: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+}
 
 // ── Backend wire shape (CategoryResponseDto) ──
 export interface BackendCategory {
@@ -29,6 +39,20 @@ export interface BackendCategory {
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
+  subcategories: BackendSubcategory[];
+}
+
+export interface CreateSubcategoryBody {
+  name: string;
+  slug?: string;
+  sortOrder?: number;
+}
+
+export interface UpdateSubcategoryBody {
+  name?: string;
+  slug?: string;
+  sortOrder?: number;
+  isActive?: boolean;
 }
 
 export interface CreateCategoryBody {
@@ -49,6 +73,16 @@ export interface UpdateCategoryBody {
 }
 
 // ── Frontend domain shape (what the UI consumes) ──
+export interface Subcategory {
+  id: string;
+  categoryId: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -60,6 +94,8 @@ export interface Category {
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
+  /** Server-provided subcategories for this category. */
+  subcategories: Subcategory[];
   /** Not provided by the backend yet — defaulted to 0 (GAP). */
   bankCount: number;
   /** Not provided by the backend yet — defaulted to 0 (GAP). */
@@ -76,6 +112,18 @@ export function slugify(s: string): string {
 }
 
 // ── Boundary mapper ──
+export function mapSubcategory(s: BackendSubcategory): Subcategory {
+  return {
+    id: s.id,
+    categoryId: s.categoryId,
+    name: s.name,
+    slug: s.slug,
+    sortOrder: s.sortOrder,
+    isActive: s.isActive,
+    createdAt: s.createdAt,
+  };
+}
+
 export function mapCategory(c: BackendCategory): Category {
   return {
     id: c.id,
@@ -87,6 +135,7 @@ export function mapCategory(c: BackendCategory): Category {
     isActive: c.isActive,
     sortOrder: c.sortOrder,
     createdAt: c.createdAt,
+    subcategories: (c.subcategories ?? []).map(mapSubcategory),
     bankCount: 0,
     questionCount: 0,
   };
@@ -119,6 +168,33 @@ export const categoriesApi = {
   async remove(id: string): Promise<Category> {
     const data = await apiClient.delete<BackendCategory>(`/admin/categories/${id}`);
     return mapCategory(data);
+  },
+
+  // ── Subcategories — `categoryId` is the internal category UUID. ──
+  async createSubcategory(categoryId: string, body: CreateSubcategoryBody): Promise<Subcategory> {
+    const data = await apiClient.post<BackendSubcategory>(
+      `/admin/categories/${categoryId}/subcategories`,
+      body,
+    );
+    return mapSubcategory(data);
+  },
+
+  async updateSubcategory(
+    categoryId: string,
+    subId: string,
+    body: UpdateSubcategoryBody,
+  ): Promise<Subcategory> {
+    const data = await apiClient.patch<BackendSubcategory>(
+      `/admin/categories/${categoryId}/subcategories/${subId}`,
+      body,
+    );
+    return mapSubcategory(data);
+  },
+
+  async deleteSubcategory(categoryId: string, subId: string): Promise<{ id: string }> {
+    return apiClient.delete<{ id: string }>(
+      `/admin/categories/${categoryId}/subcategories/${subId}`,
+    );
   },
 };
 
@@ -174,6 +250,46 @@ export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => categoriesApi.remove(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: categoryKeys.all });
+    },
+  });
+}
+
+export function useCreateSubcategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ categoryId, body }: { categoryId: string; body: CreateSubcategoryBody }) =>
+      categoriesApi.createSubcategory(categoryId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: categoryKeys.all });
+    },
+  });
+}
+
+export function useUpdateSubcategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      categoryId,
+      subId,
+      body,
+    }: {
+      categoryId: string;
+      subId: string;
+      body: UpdateSubcategoryBody;
+    }) => categoriesApi.updateSubcategory(categoryId, subId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: categoryKeys.all });
+    },
+  });
+}
+
+export function useDeleteSubcategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ categoryId, subId }: { categoryId: string; subId: string }) =>
+      categoriesApi.deleteSubcategory(categoryId, subId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: categoryKeys.all });
     },

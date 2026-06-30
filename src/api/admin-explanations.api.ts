@@ -36,7 +36,8 @@ export interface BreakdownJob {
   total: number;
   done: number;
   failed: number;
-  status: "running" | "done";
+  /** `stale` = a run whose worker died (crash/deploy); offer "Resume". */
+  status: "running" | "done" | "stale";
   startedAt: string;
   updatedAt: string;
 }
@@ -104,8 +105,12 @@ export function useBreakdownJobs(options: { enabled?: boolean } = {}) {
     queryFn: () => adminExplanationsApi.jobs(),
     enabled,
     staleTime: 1_000,
+    // Keep polling while anything is running OR stale (a just-resumed run flips
+    // from stale back to running on the next poll).
     refetchInterval: (query) =>
-      (query.state.data ?? []).some((j) => j.status === "running") ? 2000 : false,
+      (query.state.data ?? []).some((j) => j.status === "running" || j.status === "stale")
+        ? 2000
+        : false,
   });
 }
 
@@ -114,7 +119,9 @@ export function useGenerateBreakdowns() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: GenerateBreakdownsInput) => adminExplanationsApi.generate(input),
-    onSuccess: (_data, input) =>
-      void qc.invalidateQueries({ queryKey: adminExplanationKeys.status(input.bankId) }),
+    onSuccess: (_data, input) => {
+      void qc.invalidateQueries({ queryKey: adminExplanationKeys.status(input.bankId) });
+      void qc.invalidateQueries({ queryKey: adminExplanationKeys.jobs() });
+    },
   });
 }
