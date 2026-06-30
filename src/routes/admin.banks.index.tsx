@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import { Edit, Plus, Trash2, FileText, Upload, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { useViewMode } from "@/hooks/useViewMode";
+import { ViewToggle, viewGridClass } from "@/components/shared/ViewToggle";
+import { CardGridSkeleton } from "@/components/shared/CardGridSkeleton";
 import {
   useAdminBanks,
   useToggleBankActive,
@@ -26,6 +29,7 @@ function AdminBanks() {
   const [query, setQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("All");
   const [difficultyFilter, setDifficultyFilter] = useState<"All" | DisplayDifficulty>("All");
+  const [view, setView] = useViewMode("banks");
 
   const { data, isLoading, isError } = useAdminBanks();
   const toggleActive = useToggleBankActive();
@@ -106,17 +110,15 @@ function AdminBanks() {
             </option>
           ))}
         </select>
+        <div className="ml-auto">
+          <ViewToggle value={view} onChange={setView} />
+        </div>
       </div>
 
       {/* Bank cards grid */}
       {isLoading ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-64 animate-pulse rounded-2xl border border-border bg-surface-alt/40"
-            />
-          ))}
+        <div className="mt-6">
+          <CardGridSkeleton count={6} mode={view} />
         </div>
       ) : isError ? (
         <div className="mt-12 rounded-2xl border border-dashed border-error/40 bg-surface p-12 text-center text-sm text-error">
@@ -127,7 +129,7 @@ function AdminBanks() {
           No banks match those filters.
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={`mt-6 ${viewGridClass(view)}`}>
           {filtered.map((b) => {
             const isActive = b.isActive;
             const difficultyPct =

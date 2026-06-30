@@ -27,6 +27,9 @@ import {
 import { useCategories } from "@/api/categories.api";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ViewToggle, viewGridClass } from "@/components/shared/ViewToggle";
+import { CardGridSkeleton } from "@/components/shared/CardGridSkeleton";
+import { useViewMode } from "@/hooks/useViewMode";
 import { useDebounce } from "@/hooks/useDebounce";
 
 export const Route = createFileRoute("/admin/notes/")({
@@ -72,6 +75,7 @@ function AdminNotes() {
     setPage(1);
   }, [perPage, debounced, tierFilter, categoryFilter, statusFilter, activeFilter]);
 
+  const [view, setView] = useViewMode("notes");
   const { data, isLoading, isFetching, isError } = useAdminNotes({
     page,
     limit: perPage,
@@ -225,12 +229,13 @@ function AdminNotes() {
             </option>
           ))}
         </select>
+        <div className="ml-auto">
+          <ViewToggle value={view} onChange={setView} />
+        </div>
       </div>
 
-      {notes.length === 0 && isFetching ? (
-        <div className="flex items-center justify-center py-24 text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading notes…
-        </div>
+      {(isLoading || isFetching) && notes.length === 0 ? (
+        <CardGridSkeleton count={6} mode={view} />
       ) : notes.length === 0 ? (
         <div className="mt-12 rounded-2xl border border-dashed border-border bg-surface p-12 text-center shadow-[var(--shadow-card)]">
           <BookOpen className="mx-auto h-10 w-10 text-muted-foreground/50" />
@@ -252,7 +257,7 @@ function AdminNotes() {
           )}
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className={`mt-6 ${viewGridClass(view)}`}>
           {notes.map((n) => {
             const togglingThis = updateNote.isPending && updateNote.variables?.id === n.id;
             const reprocessingThis = reprocess.isPending && reprocess.variables === n.id;

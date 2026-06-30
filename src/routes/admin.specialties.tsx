@@ -4,8 +4,11 @@ import { useMemo, useState } from "react";
 import { Plus, Search, Stethoscope, Trash2, Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ViewToggle, viewGridClass } from "@/components/shared/ViewToggle";
+import { CardGridSkeleton } from "@/components/shared/CardGridSkeleton";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useViewMode } from "@/hooks/useViewMode";
 import {
   useAdminSpecialties,
   useCreateSpecialty,
@@ -27,7 +30,8 @@ export const Route = createFileRoute("/admin/specialties")({
 });
 
 function SpecialtiesPage() {
-  const { data: specialties = [], isLoading } = useAdminSpecialties();
+  const { data: specialties = [], isLoading, isFetching } = useAdminSpecialties();
+  const [view, setView] = useViewMode("specialties");
   const createMutation = useCreateSpecialty();
   const updateMutation = useUpdateSpecialty();
   const toggleMutation = useToggleSpecialty();
@@ -73,14 +77,12 @@ function SpecialtiesPage() {
           >
             <Plus className="h-4 w-4" /> Add Specialty
           </button>
+          <ViewToggle value={view} onChange={setView} />
         </div>
       </header>
 
-      {isLoading ? (
-        <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
-          <Stethoscope className="mx-auto h-8 w-8 animate-pulse text-muted-foreground" />
-          <p className="mt-3 text-sm font-semibold text-foreground">Loading specialties…</p>
-        </div>
+      {isLoading || (isFetching && filtered.length === 0) ? (
+        <CardGridSkeleton count={6} mode={view} />
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
           <Stethoscope className="mx-auto h-8 w-8 text-muted-foreground" />
@@ -90,7 +92,7 @@ function SpecialtiesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={viewGridClass(view)}>
           {filtered.map((sp) => (
             <article
               key={sp.id}

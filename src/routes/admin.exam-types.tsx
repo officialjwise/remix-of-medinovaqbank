@@ -20,8 +20,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ViewToggle, viewGridClass } from "@/components/shared/ViewToggle";
+import { CardGridSkeleton } from "@/components/shared/CardGridSkeleton";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useViewMode } from "@/hooks/useViewMode";
 import {
   useAdminExamTypes,
   useCreateExamType,
@@ -65,11 +68,12 @@ const COLOR_OPTIONS = [
 ];
 
 function ExamTypesPage() {
-  const { data: examTypes = [], isLoading } = useAdminExamTypes();
+  const { data: examTypes = [], isLoading, isFetching } = useAdminExamTypes();
   const createMutation = useCreateExamType();
   const updateMutation = useUpdateExamType();
   const toggleMutation = useToggleExamType();
   const deleteMutation = useDeleteExamType();
+  const [view, setView] = useViewMode("exam-types");
   const [query, setQuery] = useState("");
   const debounced = useDebounce(query, 250);
   const [editing, setEditing] = useState<ExamTypeRecord | null>(null);
@@ -112,14 +116,12 @@ function ExamTypesPage() {
           >
             <Plus className="h-4 w-4" /> Add Exam Type
           </button>
+          <ViewToggle value={view} onChange={setView} />
         </div>
       </header>
 
-      {isLoading ? (
-        <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
-          <GraduationCap className="mx-auto h-8 w-8 animate-pulse text-muted-foreground" />
-          <p className="mt-3 text-sm font-semibold text-foreground">Loading exam types…</p>
-        </div>
+      {isLoading || (isFetching && examTypes.length === 0) ? (
+        <CardGridSkeleton count={6} mode={view} />
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
           <GraduationCap className="mx-auto h-8 w-8 text-muted-foreground" />
@@ -129,7 +131,7 @@ function ExamTypesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={viewGridClass(view)}>
           {filtered.map((et) => {
             const Icon = EXAM_TYPE_ICONS[et.icon] ?? GraduationCap;
             return (

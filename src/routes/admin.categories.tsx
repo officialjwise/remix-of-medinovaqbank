@@ -3,6 +3,9 @@ import { requirePermission } from "@/lib/route-guards";
 import { useMemo, useState } from "react";
 import { Plus, Search, Tag, Trash2, Edit3, ChevronDown, X, Check, FolderTree } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ViewToggle, viewGridClass } from "@/components/shared/ViewToggle";
+import { CardGridSkeleton } from "@/components/shared/CardGridSkeleton";
+import { useViewMode } from "@/hooks/useViewMode";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ApiError } from "@/api/client";
@@ -28,6 +31,7 @@ export const Route = createFileRoute("/admin/categories")({
 
 function CategoriesPage() {
   const { data: categories = [], isLoading, isError } = useAdminCategories();
+  const [view, setView] = useViewMode("categories", "large");
   const createMut = useCreateCategory();
   const updateMut = useUpdateCategory();
   const deleteMut = useDeleteCategory();
@@ -72,6 +76,7 @@ function CategoriesPage() {
               className="h-10 w-60 rounded-lg border border-border bg-surface pl-9 pr-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>
+          <ViewToggle value={view} onChange={setView} />
           <button
             onClick={() => setCreating(true)}
             className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#0E7C7B] to-[#2BC97F] px-4 text-sm font-semibold text-white shadow-md hover:opacity-95"
@@ -82,9 +87,7 @@ function CategoriesPage() {
       </header>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
-          <p className="text-sm text-muted-foreground">Loading categories…</p>
-        </div>
+        <CardGridSkeleton count={4} mode={view} />
       ) : isError ? (
         <div className="rounded-2xl border border-dashed border-error/40 bg-error/5 p-12 text-center">
           <p className="text-sm font-semibold text-error">Failed to load categories</p>
@@ -99,7 +102,7 @@ function CategoriesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className={viewGridClass(view)}>
           {filtered.map((cat) => (
             <CategoryCard
               key={cat.id}
