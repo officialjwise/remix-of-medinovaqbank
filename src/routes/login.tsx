@@ -36,6 +36,9 @@ function LoginPage() {
   // 2FA challenge step: set once /auth/login signals it needs a code.
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
   const [code, setCode] = useState("");
+  // Toggle to enter a one-time backup/recovery code instead of the TOTP code
+  // (for when the authenticator device is lost). Same verify endpoint accepts both.
+  const [useBackup, setUseBackup] = useState(false);
 
   function routeByRole(user: User) {
     navigate({ to: isAdminRole(user.role) ? "/admin/dashboard" : "/dashboard" });
@@ -96,7 +99,16 @@ function LoginPage() {
     setChallengeToken(null);
     setCode("");
     setError(null);
+    setUseBackup(false);
   }
+
+  function toggleBackup() {
+    setUseBackup((v) => !v);
+    setCode("");
+    setError(null);
+  }
+
+  const canSubmitCode = useBackup ? code.trim().length >= 6 : code.length === 6;
 
   // ── 2FA code-entry step ──
   if (challengeToken) {
@@ -107,28 +119,44 @@ function LoginPage() {
         </span>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Two-step verification</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Enter the 6-digit code from your authenticator app to finish signing in.
+          {useBackup
+            ? "Enter one of your saved backup codes to recover access."
+            : "Enter the 6-digit code from your authenticator app to finish signing in."}
         </p>
 
         <form onSubmit={handleVerify} className="mt-8 space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground" htmlFor="code">
-              Verification code
+              {useBackup ? "Backup code" : "Verification code"}
             </label>
-            <input
-              id="code"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              autoFocus
-              required
-              maxLength={6}
-              pattern="\d{6}"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="mt-1.5 block w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-center text-lg font-semibold tracking-[0.4em] focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-              placeholder="000000"
-            />
+            {useBackup ? (
+              <input
+                id="code"
+                type="text"
+                autoComplete="one-time-code"
+                autoFocus
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="mt-1.5 block w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-center font-mono text-base focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                placeholder="maple-river-tiger-cloud"
+              />
+            ) : (
+              <input
+                id="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                required
+                maxLength={6}
+                pattern="\d{6}"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="mt-1.5 block w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-center text-lg font-semibold tracking-[0.4em] focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                placeholder="000000"
+              />
+            )}
           </div>
 
           {error && (
@@ -137,7 +165,7 @@ function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || code.length !== 6}
+            disabled={loading || !canSubmitCode}
             className="inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-light disabled:opacity-60"
           >
             {loading ? (
@@ -148,6 +176,15 @@ function LoginPage() {
             ) : (
               "Verify & continue"
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleBackup}
+            disabled={loading}
+            className="w-full text-center text-sm font-medium text-accent hover:underline disabled:opacity-60"
+          >
+            {useBackup ? "Use your authenticator app instead" : "Lost your device? Use a backup code"}
           </button>
 
           <button

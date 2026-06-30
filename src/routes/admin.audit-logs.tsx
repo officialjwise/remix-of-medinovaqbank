@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useActivityLogs } from "@/api/activity-logs.api";
 import {
   useProtectionEvents,
   useProtectionSummary,
@@ -46,28 +47,29 @@ export const Route = createFileRoute("/admin/audit-logs")({
   component: AuditLogsPage,
 });
 
-/* GAP: there is no admin activity-log API assigned to this work item. The
- * "Activity Log" tab below stays on a static seed until that endpoint is wired
- * (the user activity-log lives at GET /admin/users/:id/activity, which is
- * per-user, not a global feed). */
-interface AuditEntry {
+type Severity = "info" | "warning" | "critical";
+
+interface ActivityRow {
   id: string;
   actor: string;
-  actorRole: "SUPER_ADMIN" | "SYSTEM";
+  actorRole: string;
   action: string;
   target: string;
   ip: string;
   at: string;
-  severity: "info" | "warning" | "critical";
+  severity: Severity;
 }
 
-// No global admin activity-log feed endpoint exists yet (per-user history lives
-// at GET /admin/users/:id/activity, and the real global view is /admin/activity-logs),
-// so this tab renders no fabricated rows — it shows an empty state until a global
-// feed is wired.
-const seed: AuditEntry[] = [];
+/** The activity_logs table has no severity column; derive it from the action
+ *  verb so destructive actions stand out. */
+function severityFor(action: string): Severity {
+  const a = action.toLowerCase();
+  if (/(delete|remove|ban|revoke|terminate|purge)/.test(a)) return "critical";
+  if (/(update|role|suspend|disable|reset|deactivat|reject)/.test(a)) return "warning";
+  return "info";
+}
 
-const sevStyle: Record<AuditEntry["severity"], string> = {
+const sevStyle: Record<Severity, string> = {
   info: "bg-surface-alt text-muted-foreground",
   warning: "bg-warning-light text-warning",
   critical: "bg-error-light text-error",
@@ -145,25 +147,49 @@ function AuditLogsPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Tab 1 — Activity Log (GAP: still on static seed, see note above)    */
+/* Tab 1 — Activity Log (global admin/system audit feed)               */
 /* ------------------------------------------------------------------ */
 
 function ActivityLogTab() {
   const [query, setQuery] = useState("");
-  const [sev, setSev] = useState<"all" | AuditEntry["severity"]>("all");
+  const [sev, setSev] = useState<"all" | Severity>("all");
+  const { data, isLoading, isError, error } = useActivityLogs({
+    limit: 100,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
 
-  const filtered = seed.filter(
-    (e) =>
-      (sev === "all" || e.severity === sev) &&
-      (query === "" ||
-        e.action.includes(query.toLowerCase()) ||
-        e.target.includes(query.toLowerCase()) ||
-        e.actor.toLowerCase().includes(query.toLowerCase())),
+  const rows: ActivityRow[] = useMemo(
+    () =>
+      (data?.logs ?? []).map((l) => ({
+        id: l.id,
+        actor: l.actorName ?? (l.actorId ? shortId(l.actorId) : "System"),
+        actorRole: l.actorId ? "ADMIN" : "SYSTEM",
+        action: l.action,
+        target: l.entityId ? `${l.entityType}:${shortId(l.entityId)}` : l.entityType,
+        ip: l.ipAddress ?? "—",
+        at: l.createdAt,
+        severity: severityFor(l.action),
+      })),
+    [data],
   );
+
+  const filtered = rows.filter((e) => {
+    const q = query.trim().toLowerCase();
+    return (
+      (sev === "all" || e.severity === sev) &&
+      (q === "" ||
+        e.action.toLowerCase().includes(q) ||
+        e.target.toLowerCase().includes(q) ||
+        e.actor.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div>
-      <p className="text-sm text-muted-foreground">{seed.length} events in the last 30 days.</p>
+      <p className="text-sm text-muted-foreground">
+        {data?.total ?? 0} event{(data?.total ?? 0) === 1 ? "" : "s"} recorded.
+      </p>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 items-center gap-2">
@@ -233,11 +259,17 @@ function ActivityLogTab() {
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && (
+        {isLoading ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">Loading activity…</p>
+        ) : isError ? (
+          <p className="py-12 text-center text-sm text-error">
+            {(error as Error)?.message ?? "Failed to load activity."}
+          </p>
+        ) : filtered.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">
             No events match these filters.
           </p>
-        )}
+        ) : null}
       </div>
     </div>
   );

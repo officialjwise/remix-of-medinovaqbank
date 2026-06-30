@@ -44,7 +44,7 @@ import {
   type AdminRole,
   type BrandingSettings,
 } from "@/stores/settingsStore";
-import { useFeatureCatalogStore } from "@/stores/featureCatalogStore";
+import { useFeatures } from "@/api/features.api";
 import {
   useCmsStore,
   type FaqEntry,
@@ -1135,7 +1135,7 @@ function TrialTab() {
   const { save, isSaving } = useSaveSettings();
   const trial = useSettingsStore((s) => s.settings.trial);
   const updateLocal = useSettingsStore((s) => s.update);
-  const catalog = useFeatureCatalogStore((s) => s.features);
+  const { data: catalog = [] } = useFeatures();
   const [days, setDays] = useState(0);
   const [limit, setLimit] = useState(0);
   const [grace, setGrace] = useState(0);
