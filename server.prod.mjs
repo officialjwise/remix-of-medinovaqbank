@@ -89,6 +89,13 @@ const server = createServer(async (req, res) => {
     const response = await ssr.fetch(request, {}, {});
     res.statusCode = response.status;
     response.headers.forEach((value, key) => res.setHeader(key, value));
+    // SSR HTML/data must revalidate so a deploy's new (hashed) asset URLs are
+    // picked up immediately — without this, browsers heuristically cache the
+    // document and keep loading the previous build. Hashed /assets/* stay
+    // immutable (set above).
+    if (!res.getHeader("cache-control")) {
+      res.setHeader("cache-control", "no-cache");
+    }
     if (response.body) {
       Readable.fromWeb(response.body).pipe(res);
     } else {

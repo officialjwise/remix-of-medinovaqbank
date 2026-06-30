@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
-import { Check, Clock, Layers, Pencil, Plus, Users, X } from "lucide-react";
+import { Check, Layers, Pencil, Plus, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminPlans, useTogglePlan, type Plan } from "@/api/plans.api";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
@@ -21,7 +21,6 @@ function SubscriptionPlansPage() {
   const { data: plans = [] } = useAdminPlans();
   const togglePlan = useTogglePlan();
 
-  const trial = plans.find((p) => p.isTrial);
   const paid = plans.filter((p) => !p.isTrial).sort((a, b) => a.sortOrder - b.sortOrder);
   const totalSubs = plans.reduce((s, p) => s + p.subscribers, 0);
 
@@ -61,56 +60,18 @@ function SubscriptionPlansPage() {
         </div>
       </div>
 
-      {/* Free Trial card */}
-      {trial && (
-        <section className="overflow-hidden rounded-2xl border border-warning/30 bg-gradient-to-br from-warning/5 to-accent/5 p-5 shadow-[var(--shadow-card)]">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-warning/15 text-warning">
-                <Clock className="h-5 w-5" />
-              </span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-foreground">{trial.name}</h3>
-                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning">
-                    Managed trial
-                  </span>
-                </div>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {trial.trialDays ?? 7} days · {trial.questionCap ?? 10} questions ·{" "}
-                  {trial.subscribers.toLocaleString()} on trial now
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <ToggleSwitch
-                checked={trial.active}
-                onChange={() => onToggle(trial)}
-                ariaLabel="Toggle trial active"
-              />
-              <Link
-                to="/admin/subscriptions/plans/$planId/edit"
-                params={{ planId: trial.id }}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-foreground hover:bg-surface-alt"
-              >
-                <Pencil className="h-3.5 w-3.5" /> Configure
-              </Link>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {trial.bullets
-              .filter((b) => b.included)
-              .map((b) => (
-                <span
-                  key={b.id}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-semibold text-success"
-                >
-                  <Check className="h-3 w-3" /> {b.text}
-                </span>
-              ))}
-          </div>
-        </section>
-      )}
+      {/* The free trial is configured in System Settings → Trial & Access (single
+          source of truth), not here. */}
+      <div className="rounded-xl border border-border bg-surface-alt/40 px-4 py-3 text-sm text-muted-foreground">
+        The free trial (duration, question limit, included features) is managed in{" "}
+        <Link
+          to="/admin/settings/system"
+          className="font-semibold text-primary hover:underline"
+        >
+          System Settings → Trial &amp; Access
+        </Link>
+        .
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {paid.map((p) => (
