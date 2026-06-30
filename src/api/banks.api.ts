@@ -50,6 +50,7 @@ export interface BackendBank {
   examTypes: Array<{ id: string; name: string }>;
   coverImageUrl: string | null;
   totalQuestions: number;
+  sessionsCount: number | null;
   difficulty: BackendDifficulty;
   isActive: boolean;
   isPublic: boolean;
@@ -108,7 +109,7 @@ export interface Bank {
   isFree: boolean;
   createdById: string;
   createdAt: string;
-  /** GAP: no backend session count -> 0. */
+  /** Quiz sessions taken on this bank (from the list query; 0 elsewhere). */
   sessionsCount: number;
   /** GAP: no backend topics field -> []. */
   topics: string[];
@@ -145,7 +146,7 @@ export function mapBank(b: BackendBank): Bank {
     isFree: !b.isPublic,
     createdById: b.createdById,
     createdAt: b.createdAt,
-    sessionsCount: 0,
+    sessionsCount: b.sessionsCount ?? 0,
     topics: [],
   };
 }

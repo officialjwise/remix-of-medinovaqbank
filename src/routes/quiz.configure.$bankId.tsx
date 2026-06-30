@@ -12,7 +12,7 @@ import {
   Users,
   Timer,
 } from "lucide-react";
-import { useBank } from "@/api/banks.api";
+import { useBank, toBackendDifficulty } from "@/api/banks.api";
 import { useCreateSession } from "@/api/quiz.api";
 import { useAuthStore } from "@/stores/authStore";
 import { subjectTheme } from "@/data/subjectColors";
@@ -79,6 +79,10 @@ function ConfigurePage() {
         questionCount: count,
         // Backend takes a minute-based time limit; the timer pills are seconds.
         timeLimitMinutes: timer ? Math.round(timer / 60) : undefined,
+        // Convert the display taxonomy to the stored enum; omit for "All".
+        ...(difficulty !== "All"
+          ? { difficulty: toBackendDifficulty(difficulty) }
+          : {}),
       },
       {
         onSuccess: (state) => {

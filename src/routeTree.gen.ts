@@ -57,6 +57,7 @@ import { Route as AppNotificationsRouteImport } from './routes/_app.notification
 import { Route as AppNotesRouteImport } from './routes/_app.notes'
 import { Route as AppLeaderboardRouteImport } from './routes/_app.leaderboard'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppBookmarksRouteImport } from './routes/_app.bookmarks'
 import { Route as AppBanksRouteImport } from './routes/_app.banks'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as QuizSessionIdIndexRouteImport } from './routes/quiz.$sessionId.index'
@@ -330,6 +331,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBookmarksRoute = AppBookmarksRouteImport.update({
+  id: '/bookmarks',
+  path: '/bookmarks',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBanksRoute = AppBanksRouteImport.update({
   id: '/banks',
   path: '/banks',
@@ -521,6 +527,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/analytics': typeof AppAnalyticsRoute
   '/banks': typeof AppBanksRoute
+  '/bookmarks': typeof AppBookmarksRoute
   '/dashboard': typeof AppDashboardRoute
   '/leaderboard': typeof AppLeaderboardRoute
   '/notes': typeof AppNotesRouteWithChildren
@@ -603,6 +610,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/analytics': typeof AppAnalyticsRoute
   '/banks': typeof AppBanksRoute
+  '/bookmarks': typeof AppBookmarksRoute
   '/dashboard': typeof AppDashboardRoute
   '/leaderboard': typeof AppLeaderboardRoute
   '/notifications': typeof AppNotificationsRoute
@@ -683,6 +691,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/banks': typeof AppBanksRoute
+  '/_app/bookmarks': typeof AppBookmarksRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/leaderboard': typeof AppLeaderboardRoute
   '/_app/notes': typeof AppNotesRouteWithChildren
@@ -767,6 +776,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/analytics'
     | '/banks'
+    | '/bookmarks'
     | '/dashboard'
     | '/leaderboard'
     | '/notes'
@@ -849,6 +859,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/analytics'
     | '/banks'
+    | '/bookmarks'
     | '/dashboard'
     | '/leaderboard'
     | '/notifications'
@@ -928,6 +939,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_app/analytics'
     | '/_app/banks'
+    | '/_app/bookmarks'
     | '/_app/dashboard'
     | '/_app/leaderboard'
     | '/_app/notes'
@@ -1355,6 +1367,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/bookmarks': {
+      id: '/_app/bookmarks'
+      path: '/bookmarks'
+      fullPath: '/bookmarks'
+      preLoaderRoute: typeof AppBookmarksRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/banks': {
       id: '/_app/banks'
       path: '/banks'
@@ -1606,6 +1625,7 @@ const AppNotesRouteWithChildren = AppNotesRoute._addFileChildren(
 interface AppRouteChildren {
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppBanksRoute: typeof AppBanksRoute
+  AppBookmarksRoute: typeof AppBookmarksRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppLeaderboardRoute: typeof AppLeaderboardRoute
   AppNotesRoute: typeof AppNotesRouteWithChildren
@@ -1619,6 +1639,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppBanksRoute: AppBanksRoute,
+  AppBookmarksRoute: AppBookmarksRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppLeaderboardRoute: AppLeaderboardRoute,
   AppNotesRoute: AppNotesRouteWithChildren,

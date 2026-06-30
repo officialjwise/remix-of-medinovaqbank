@@ -69,7 +69,7 @@ function AdminBankQuestions() {
     status === "Active" ? true : status === "Inactive" ? false : undefined;
   const { data: questionsData } = useAdminQuestions({
     bankId,
-    limit: 100,
+    limit: 500,
     isActive: statusActive,
   });
   const toggleActive = useToggleQuestionActive();
@@ -90,7 +90,7 @@ function AdminBankQuestions() {
   const [rateBucket, setRateBucket] = useState<"All" | "high" | "mid" | "low">("All");
   const [sort, setSort] = useState<Sort>("manual");
   const [page, setPage] = useState(1);
-  const perPage = 8;
+  const [perPage, setPerPage] = useState(50);
 
   const [order, setOrder] = useState<string[]>(() => all.map((q) => q.id));
   useEffect(() => {
@@ -537,11 +537,26 @@ function AdminBankQuestions() {
       </div>
 
       {/* Pagination */}
-      {filtered.length > perPage && (
-        <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-          <span>
-            Page {page} of {totalPages}
-          </span>
+      {filtered.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={perPage}
+              onChange={(e) => {
+                setPerPage(Number(e.target.value));
+                resetPage();
+              }}
+              className="h-8 rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+            >
+              {[10, 20, 50, 100, 500].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <span>per page · Page {page} of {totalPages}</span>
+          </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}

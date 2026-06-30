@@ -26,6 +26,7 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { apiClient } from "./client";
 import type { QuizMode } from "@/types";
+import { toDisplayDifficulty, type BackendDifficulty } from "@/api/banks.api";
 
 // ── Option labels used across the runtime (A–E). ──
 export type OptionLabel = "A" | "B" | "C" | "D" | "E";
@@ -395,7 +396,16 @@ function mapResults(r: BackendResults): SessionResults {
     startedAt: r.startedAt,
     completedAt: r.completedAt,
     bySubject: (r.bySubject ?? []).map(mapBucket),
-    byDifficulty: (r.byDifficulty ?? []).map(mapBucket),
+    // Translate the difficulty bucket key (easy/medium/hard) to the display
+    // taxonomy (Beginner/Intermediate/Advanced) so results match the rest of the
+    // UI; non-difficulty keys (e.g. "unknown") pass through unchanged.
+    byDifficulty: (r.byDifficulty ?? []).map((b) => {
+      const mapped = mapBucket(b);
+      const isDifficulty = b.key === "easy" || b.key === "medium" || b.key === "hard";
+      return isDifficulty
+        ? { ...mapped, name: toDisplayDifficulty(b.key as BackendDifficulty) }
+        : mapped;
+    }),
     timeline: (r.timeline ?? []).map((t) => ({
       questionId: t.questionId,
       answerId: t.answerId,
@@ -453,6 +463,8 @@ export interface CreateSessionInput {
   mode: QuizMode;
   questionCount: number;
   timeLimitMinutes?: number;
+  /** Restrict the session to one difficulty (easy/medium/hard). Omit for all. */
+  difficulty?: BackendDifficulty;
 }
 
 export interface SubmitAnswerInput {
@@ -471,6 +483,7 @@ export const quizApi = {
       mode: toBackendMode(input.mode),
       questionCount: input.questionCount,
       ...(input.timeLimitMinutes ? { timeLimitMinutes: input.timeLimitMinutes } : {}),
+      ...(input.difficulty ? { difficulty: input.difficulty } : {}),
     });
     return mapSessionState(data);
   },

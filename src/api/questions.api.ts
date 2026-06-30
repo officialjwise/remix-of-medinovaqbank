@@ -39,6 +39,8 @@ export interface BackendQuestionFlag {
   questionId: string;
   type: FlagType;
   note: string | null;
+  /** Question stem (left-joined by the backend) — for the bookmarks list. */
+  questionText: string | null;
   createdAt: string;
 }
 
@@ -48,6 +50,7 @@ export interface QuestionFlag {
   questionId: string;
   type: FlagType;
   note: string | null;
+  questionText: string | null;
   createdAt: string;
 }
 
@@ -57,6 +60,7 @@ export function mapFlag(f: BackendQuestionFlag): QuestionFlag {
     questionId: f.questionId,
     type: f.type,
     note: f.note ?? null,
+    questionText: f.questionText ?? null,
     createdAt: f.createdAt,
   };
 }
@@ -308,6 +312,8 @@ export interface AdminQuestionQuery {
   topic?: string;
   isActive?: boolean;
   isFlagged?: boolean;
+  /** Word-order-independent partial search over stem/topic/subject (server-side). */
+  search?: string;
 }
 
 // ── Endpoint functions ──
@@ -322,6 +328,7 @@ export const questionsApi = {
       topic: params.topic,
       isActive: params.isActive,
       isFlagged: params.isFlagged,
+      search: params.search?.trim() || undefined,
     };
     const res = await apiClient.getPaginated<BackendQuestion>("/admin/questions", {
       params: query,

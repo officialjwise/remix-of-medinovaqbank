@@ -46,11 +46,19 @@ function AdminQuestions() {
   const [imageFilter, setImageFilter] = useState<"All" | "Yes" | "No">("All");
   const [rateBucket, setRateBucket] = useState<"All" | "high" | "mid" | "low">("All");
   const [topicFilter, setTopicFilter] = useState("All");
+  const [perPage, setPerPage] = useState(50);
 
   const { data: banks } = useQuestionBanksLite();
   // Active only — deleted/deactivated questions are hidden here (manage/restore
-  // them from the per-bank questions page's "Inactive" filter).
-  const { data: questionsData } = useAdminQuestions({ limit: 100, isActive: true });
+  // them from the per-bank questions page's "Inactive" filter). Search runs
+  // SERVER-side (word-order-independent over stem/topic/subject) so it spans all
+  // questions, not just the fetched page; the page-size selector sets how many
+  // matches to pull (up to 500).
+  const { data: questionsData } = useAdminQuestions({
+    limit: perPage,
+    isActive: true,
+    search: debouncedQuery.trim() || undefined,
+  });
   const toggleActive = useToggleQuestionActive();
   const bulkDeleteMut = useBulkDeleteQuestions();
   const bulkSetActiveMut = useBulkSetActiveQuestions();
@@ -94,13 +102,10 @@ function AdminQuestions() {
         if (rateBucket === "high" && q.rate < 70) return false;
         if (rateBucket === "mid" && (q.rate < 40 || q.rate >= 70)) return false;
         if (rateBucket === "low" && q.rate >= 40) return false;
-        if (debouncedQuery.trim()) {
-          const s = debouncedQuery.toLowerCase();
-          return q.stem.toLowerCase().includes(s) || q.topic.toLowerCase().includes(s);
-        }
+        // Search is applied server-side (see useAdminQuestions above).
         return true;
       });
-  }, [allQuestions, deleted, bankFilter, imageFilter, topicFilter, rateBucket, debouncedQuery]);
+  }, [allQuestions, deleted, bankFilter, imageFilter, topicFilter, rateBucket]);
 
   const visibleIds = rows.map((q) => q.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
@@ -200,10 +205,22 @@ function AdminQuestions() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search questions, topics…"
+            placeholder="Search questions, topics… (any words, any order)"
             className="h-10 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
         </div>
+        <select
+          value={perPage}
+          onChange={(e) => setPerPage(Number(e.target.value))}
+          title="How many to fetch"
+          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-foreground"
+        >
+          {[10, 20, 50, 100, 500].map((n) => (
+            <option key={n} value={n}>
+              Show {n}
+            </option>
+          ))}
+        </select>
         <div className="relative">
           <Filter className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <select
