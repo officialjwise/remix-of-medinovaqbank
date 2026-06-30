@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -44,7 +44,6 @@ import {
   type AdminRole,
   type BrandingSettings,
 } from "@/stores/settingsStore";
-import { useFeatures } from "@/api/features.api";
 import {
   useCmsStore,
   type FaqEntry,
@@ -1133,14 +1132,9 @@ function TemplateEditor({
 function TrialTab() {
   const { data: map, isLoading } = useSettingsMap();
   const { save, isSaving } = useSaveSettings();
-  const trial = useSettingsStore((s) => s.settings.trial);
-  const updateLocal = useSettingsStore((s) => s.update);
-  const { data: catalog = [] } = useFeatures();
   const [days, setDays] = useState(0);
   const [limit, setLimit] = useState(0);
   const [grace, setGrace] = useState(0);
-  const [binding, setBinding] = useState(trial.deviceBinding);
-  const [features, setFeatures] = useState(trial.features);
 
   useEffect(() => {
     if (!map) return;
@@ -1154,8 +1148,8 @@ function TrialTab() {
   return (
     <div className="space-y-5">
       <Card
-        title="Trial Configuration"
-        desc="How long the free trial lasts and how much it includes."
+        title="Trial Limits"
+        desc="The single source of truth for how long the free trial lasts and how many questions it includes. Question limit applies immediately; duration applies to newly-created trials."
       >
         <div className="grid gap-4 md:grid-cols-3">
           <Field label="Trial Duration (days)">
@@ -1168,57 +1162,38 @@ function TrialTab() {
             <NumberInput value={grace} onChange={setGrace} />
           </Field>
         </div>
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-alt/40 px-4 py-3 text-sm font-medium text-foreground">
-          <span>
-            Device binding — lock trial accounts to the device they signed up on
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
-              Prevents trial account sharing.
-            </span>
-          </span>
-          <ToggleSwitch checked={binding} onChange={setBinding} ariaLabel="Device binding" />
-        </div>
       </Card>
 
       <Card
-        title="Trial Feature Access"
-        desc="Choose which features are available during the free trial. Unchecked features prompt an upgrade."
+        title="Trial Feature Access & Device Binding"
+        desc="Configured outside this tab — see below."
       >
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {catalog
-            .filter((f) => f.type === "boolean")
-            .map((f) => (
-              <div
-                key={f.key}
-                className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">{f.name}</span>
-                  <span className="block text-xs text-muted-foreground">{f.description}</span>
-                </span>
-                <ToggleSwitch
-                  checked={features[f.key] ?? false}
-                  onChange={(v) => setFeatures({ ...features, [f.key]: v })}
-                  ariaLabel={f.name}
-                />
-              </div>
-            ))}
-        </div>
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          <li>
+            <span className="font-semibold text-foreground">Which features the trial includes</span>{" "}
+            is set on the <span className="font-semibold text-foreground">Free Trial plan</span> —
+            open <Link to="/admin/subscriptions" className="font-semibold text-primary hover:underline">Subscription Plans</Link>{" "}
+            → Starter → Configure → Platform features.
+          </li>
+          <li>
+            <span className="font-semibold text-foreground">Device binding</span> (trial accounts
+            locked to one device, plus anti-farming on re-signup) is enforced server-side and toggled
+            via the <code className="rounded bg-surface-alt px-1 py-0.5 text-xs">TRIAL_DEVICE_ANTIFARMING</code> setting.
+          </li>
+        </ul>
       </Card>
 
       <SaveBar
-        label="Save Trial & Access"
+        label="Save Trial Limits"
         saving={isSaving}
         onSave={() => {
-          // Device-binding + per-feature access have no backend catalog key yet,
-          // so they persist locally; the numeric limits persist to the backend.
-          updateLocal("trial", { deviceBinding: binding, features });
           save(
             [
               { key: "trial.durationDays", value: String(days) },
               { key: "trial.questionLimit", value: String(limit) },
               { key: "trial.gracePeriodDays", value: String(grace) },
             ],
-            "Trial & access control saved",
+            "Trial limits saved",
           );
         }}
       />
