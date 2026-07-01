@@ -41,10 +41,13 @@ export function BrandingProvider() {
     const specs = Array.from(
       new Set([fontGoogleSpec(b.fontHeading), fontGoogleSpec(b.fontBody)].filter(Boolean)),
     );
-    if (specs.length > 0) {
-      const href = `https://fonts.googleapis.com/css2?${specs
-        .map((s) => `family=${s}`)
-        .join("&")}&display=swap`;
+    const fontHref =
+      specs.length > 0
+        ? `https://fonts.googleapis.com/css2?${specs
+            .map((s) => `family=${s}`)
+            .join("&")}&display=swap`
+        : "";
+    if (fontHref) {
       let link = document.getElementById("branding-fonts") as HTMLLinkElement | null;
       if (!link) {
         link = document.createElement("link");
@@ -52,7 +55,7 @@ export function BrandingProvider() {
         link.rel = "stylesheet";
         document.head.appendChild(link);
       }
-      if (link.href !== href) link.href = href;
+      if (link.href !== fontHref) link.href = fontHref;
     }
 
     // Favicon.
@@ -64,6 +67,26 @@ export function BrandingProvider() {
         document.head.appendChild(icon);
       }
       icon.href = b.faviconUrl;
+    }
+
+    // Cache the COMPUTED branding so the inline <head> script (see __root's
+    // RootShell) can apply the admin's font + colors synchronously on the next
+    // load — before first paint — eliminating the flash of the default font.
+    try {
+      window.localStorage.setItem(
+        "medinova-branding",
+        JSON.stringify({
+          fontSans: bodyStack ?? "",
+          fontHeading: headingStack ?? "",
+          fontHref,
+          primary: b.colorPrimary ?? "",
+          accent: b.colorAccent ?? "",
+          success: b.colorSuccess ?? "",
+          warning: b.colorWarning ?? "",
+        }),
+      );
+    } catch {
+      /* storage unavailable — the runtime effect above still applies branding */
     }
   }, [b]);
 

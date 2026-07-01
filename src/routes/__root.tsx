@@ -124,6 +124,14 @@ function RootShell({ children }: { children: ReactNode }) {
             __html: `(function(){try{var s=localStorage.getItem('medinova-theme');var d=s==='dark'||(!s&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');}}catch(e){}})();`,
           }}
         />
+        {/* Apply the admin's cached branding font + colors before first paint so
+            the configured font renders immediately (no flash of the default
+            font). BrandingProvider refreshes this cache from the API. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var b=JSON.parse(localStorage.getItem('medinova-branding')||'null');if(!b)return;var r=document.documentElement;if(b.fontSans)r.style.setProperty('--font-sans',b.fontSans);if(b.fontHeading)r.style.setProperty('--font-heading',b.fontHeading);if(b.primary){r.style.setProperty('--primary',b.primary);r.style.setProperty('--primary-light',b.primary);}if(b.accent)r.style.setProperty('--accent',b.accent);if(b.success)r.style.setProperty('--success',b.success);if(b.warning)r.style.setProperty('--warning',b.warning);if(b.fontHref&&!document.getElementById('branding-fonts')){var l=document.createElement('link');l.id='branding-fonts';l.rel='stylesheet';l.href=b.fontHref;document.head.appendChild(l);}}catch(e){}})();`,
+          }}
+        />
         <HeadContent />
       </head>
       <body>
