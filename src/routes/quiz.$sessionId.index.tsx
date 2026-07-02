@@ -64,6 +64,16 @@ function QuizPage() {
   // Per-question submit results held in-memory so tutor mode can render the
   // correct option + fetch the breakdown. Keyed by questionId.
   const [results, setResults] = useState<Record<string, AnswerResult>>({});
+  // Elimination-strategy: option ids the learner has crossed out, per question.
+  const [eliminated, setEliminated] = useState<Record<string, string[]>>({});
+  const toggleEliminated = (questionId: string, optionId: string) =>
+    setEliminated((prev) => {
+      const current = prev[questionId] ?? [];
+      const next = current.includes(optionId)
+        ? current.filter((id) => id !== optionId)
+        : [...current, optionId];
+      return { ...prev, [questionId]: next };
+    });
 
   const questions = state?.questions ?? [];
   const total = questions.length;
@@ -319,6 +329,7 @@ function QuizPage() {
   }
 
   const showTutorReveal = isTutor && isSubmitted && !!result;
+  const eliminatedIds = new Set(qid ? (eliminated[qid] ?? []) : []);
   const answeredCount = state.answeredQuestionIds.length;
   const progressPct = total === 0 ? 0 : Math.round((answeredCount / total) * 100);
   const limitSec = state.session.timeLimitMinutes ? state.session.timeLimitMinutes * 60 : null;
@@ -478,6 +489,7 @@ function QuizPage() {
                 <div className="mt-5 space-y-3">
                   {question.options.map((opt, i) => {
                     const chosen = selectedOptionId === opt.id;
+                    const isEliminated = !isSubmitted && eliminatedIds.has(opt.id);
                     let cls =
                       "border-border bg-surface text-foreground hover:border-primary/50 hover:bg-primary/5";
                     let badge = "border-border bg-surface-alt text-foreground";
@@ -502,41 +514,69 @@ function QuizPage() {
                     }
 
                     return (
-                      <button
+                      <div
                         key={opt.id}
-                        type="button"
-                        disabled={isSubmitted}
-                        onClick={() => qid && selectOption(sessionId, qid, opt.id)}
-                        className={`group relative flex w-full items-start gap-4 rounded-xl border p-4 text-left transition-all duration-200 animate-in fade-in slide-in-from-bottom-1 disabled:cursor-default ${cls}`}
+                        className="relative animate-in fade-in slide-in-from-bottom-1"
                         style={{ animationDelay: `${i * 40}ms` }}
                       >
-                        <span
-                          className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border text-xs font-bold transition-all duration-200 ${badge}`}
+                        <button
+                          type="button"
+                          disabled={isSubmitted}
+                          onClick={() => {
+                            if (!qid) return;
+                            // Selecting a crossed-out option restores it.
+                            if (isEliminated) toggleEliminated(qid, opt.id);
+                            selectOption(sessionId, qid, opt.id);
+                          }}
+                          className={`group relative flex w-full items-start gap-4 rounded-xl border p-4 text-left transition-all duration-200 disabled:cursor-default ${cls} ${!isSubmitted ? "pr-12" : ""} ${isEliminated ? "opacity-60" : ""}`}
                         >
-                          {showTutorReveal && opt.id === correctOptionId ? (
-                            <Check className="h-4 w-4" />
-                          ) : showTutorReveal && chosen ? (
-                            <X className="h-4 w-4" />
-                          ) : (
-                            opt.label
-                          )}
-                        </span>
-                        <span className="flex-1 pt-0.5">
-                          <span className="block text-[15px] leading-relaxed">{opt.text}</span>
-                          {opt.imageUrl && (
-                            <img
-                              src={opt.imageUrl}
-                              alt={`Option ${opt.label}`}
-                              className="mt-2 max-h-40 rounded-lg border border-border object-contain"
-                            />
-                          )}
-                        </span>
-                        {!isSubmitted && (
-                          <span className="mt-1 hidden flex-shrink-0 rounded border border-border px-1.5 text-[10px] font-bold text-muted-foreground/70 sm:block">
-                            {opt.label}
+                          <span
+                            className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border text-xs font-bold transition-all duration-200 ${badge}`}
+                          >
+                            {showTutorReveal && opt.id === correctOptionId ? (
+                              <Check className="h-4 w-4" />
+                            ) : showTutorReveal && chosen ? (
+                              <X className="h-4 w-4" />
+                            ) : (
+                              opt.label
+                            )}
                           </span>
+                          <span className="flex-1 pt-0.5">
+                            <span
+                              className={`block text-[15px] leading-relaxed ${isEliminated ? "text-muted-foreground line-through decoration-2" : ""}`}
+                            >
+                              {opt.text}
+                            </span>
+                            {opt.imageUrl && (
+                              <img
+                                src={opt.imageUrl}
+                                alt={`Option ${opt.label}`}
+                                className={`mt-2 max-h-40 rounded-lg border border-border object-contain ${isEliminated ? "opacity-50 grayscale" : ""}`}
+                              />
+                            )}
+                          </span>
+                        </button>
+                        {!isSubmitted && (
+                          <button
+                            type="button"
+                            onClick={() => qid && toggleEliminated(qid, opt.id)}
+                            aria-label={
+                              isEliminated
+                                ? `Restore option ${opt.label}`
+                                : `Cross out option ${opt.label}`
+                            }
+                            aria-pressed={isEliminated}
+                            title={isEliminated ? "Restore option" : "Cross out (eliminate)"}
+                            className={`absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border transition-colors ${
+                              isEliminated
+                                ? "border-error/50 bg-error/10 text-error"
+                                : "border-border bg-surface text-muted-foreground/70 hover:border-error/50 hover:bg-error/10 hover:text-error"
+                            }`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
