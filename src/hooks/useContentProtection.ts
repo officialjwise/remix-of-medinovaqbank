@@ -35,6 +35,28 @@ const TO_BACKEND_EVENT: Record<ProtectionEventType, BackendProtectionEventType> 
 };
 
 /**
+ * Per-event user-facing message. Only genuine capture/copy/print actions warn the
+ * user — benign or ambiguous signals (tab blur, right-click) are still logged if
+ * the admin counts them, but never accuse the user of "taking a screenshot".
+ */
+const TOAST_BY_TYPE: Partial<
+  Record<ProtectionEventType, { title: string; description?: string }>
+> = {
+  screenshot_key: {
+    title: "Screen capture isn't allowed here",
+    description: "This attempt was logged and may restrict your account.",
+  },
+  screen_recording: {
+    title: "Screen recording isn't allowed here",
+    description: "This attempt was logged and may restrict your account.",
+  },
+  print_attempt: { title: "Printing is disabled for this content" },
+  clipboard_copy: { title: "Copying is disabled for this content" },
+  // tab_blur / context_menu: no toast — switching tabs or right-clicking must
+  // never pop a "screenshot" warning.
+};
+
+/**
  * Best-effort content protection (deterrence + detection, NOT guaranteed
  * prevention — you can't truly block OS screenshots from a browser). Disables
  * the easy copy paths, detects what the browser can observe, blurs on
@@ -61,7 +83,6 @@ export function useContentProtection({ context, contextId, page }: Options) {
 
   const lastByType = useRef<Record<string, number>>({});
   const lastToast = useRef(0);
-  const devtoolsReported = useRef(false);
 
   const reportMutate = report.mutate;
   const fire = useCallback(
@@ -81,11 +102,15 @@ export function useContentProtection({ context, contextId, page }: Options) {
         pageNumber: page,
       });
 
-      if (now - lastToast.current > 4000) {
+      // Only warn for events that are actually the user's deliberate action, and
+      // with wording that matches what happened (never a generic "screenshot").
+      const message = TOAST_BY_TYPE[type];
+      if (message && now - lastToast.current > 4000) {
         lastToast.current = now;
-        toast.warning("Screen capture is not permitted", {
-          description: "This attempt has been logged and may restrict your account.",
-        });
+        toast.warning(
+          message.title,
+          message.description ? { description: message.description } : undefined,
+        );
       }
     },
     [user, reportMutate, context, contextId, page, countedEvents],
@@ -162,18 +187,9 @@ export function useContentProtection({ context, contextId, page }: Options) {
     window.addEventListener("blur", onWinBlur);
     window.addEventListener("focus", onWinFocus);
 
-    // Best-effort devtools heuristic — report once to avoid false lockouts.
-    const dt = window.setInterval(() => {
-      const gap = 170;
-      const open =
-        window.outerWidth - window.innerWidth > gap ||
-        window.outerHeight - window.innerHeight > gap;
-      if (open && !devtoolsReported.current) {
-        devtoolsReported.current = true;
-        fire("devtools_open");
-      }
-      if (!open) devtoolsReported.current = false;
-    }, 1500);
+    // NOTE: the old window-dimension DevTools heuristic was removed — it
+    // false-fired on browser zoom, a docked sidebar, or resizing (accusing users
+    // who did nothing). Browsers can't reliably detect DevTools anyway.
 
     return () => {
       el?.removeEventListener("contextmenu", onContext);
@@ -185,7 +201,6 @@ export function useContentProtection({ context, contextId, page }: Options) {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onWinBlur);
       window.removeEventListener("focus", onWinFocus);
-      window.clearInterval(dt);
     };
   }, [enabled, fire, countedEvents]);
 

@@ -47,7 +47,9 @@ const DEFAULT_SETTINGS: ProtectionSettings = {
   strikeThreshold: 3,
   strikeWindowMin: 60,
   lockoutHours: 24,
-  countedEvents: ["screenshot_key", "clipboard_copy", "print_attempt", "devtools_open"],
+  // devtools_open intentionally excluded — the browser heuristic false-fires on
+  // zoom/resize/sidebars; it's no longer detected client-side.
+  countedEvents: ["screenshot_key", "clipboard_copy", "print_attempt"],
 };
 
 /* ------------------------------------------------------------------ */
@@ -73,14 +75,17 @@ export const useProtectionStore = create<ProtectionState>()(
     }),
     {
       name: "medinova-protection",
-      version: 2,
+      version: 3,
       // Merge persisted settings over defaults so newly-added fields (e.g. new
       // event types) always have a value and old versions hydrate cleanly.
+      // Also drop the retired `devtools_open` event from any persisted config.
       migrate: (persisted) => {
         const prev = (persisted as Partial<ProtectionState> | null)?.settings;
-        return {
-          settings: { ...DEFAULT_SETTINGS, ...(prev ?? {}) },
-        } as ProtectionState;
+        const merged = { ...DEFAULT_SETTINGS, ...(prev ?? {}) };
+        merged.countedEvents = (merged.countedEvents ?? []).filter(
+          (e) => e !== "devtools_open",
+        );
+        return { settings: merged } as ProtectionState;
       },
     },
   ),
