@@ -37,6 +37,18 @@ export const Route = createFileRoute("/quiz/$sessionId/")({
   component: QuizPage,
 });
 
+// Crossed-out (eliminated) options persist per session across reloads.
+const elimStorageKey = (sessionId: string) => `medinova-elim:${sessionId}`;
+function loadEliminated(sessionId: string): Record<string, string[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(elimStorageKey(sessionId));
+    return raw ? (JSON.parse(raw) as Record<string, string[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
 function QuizPage() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
@@ -65,8 +77,18 @@ function QuizPage() {
   // correct option + fetch the breakdown. Keyed by questionId.
   const [results, setResults] = useState<Record<string, AnswerResult>>({});
   // Elimination-strategy: option ids the learner has crossed out, per question.
-  const [eliminated, setEliminated] = useState<Record<string, string[]>>({});
-  const toggleEliminated = (questionId: string, optionId: string) =>
+  // Lazy-loaded from + persisted to localStorage so crosses survive a reload.
+  const [eliminated, setEliminated] = useState<Record<string, string[]>>(() =>
+    loadEliminated(sessionId),
+  );
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(elimStorageKey(sessionId), JSON.stringify(eliminated));
+    } catch {
+      /* storage unavailable — crosses just won't persist across reloads */
+    }
+  }, [sessionId, eliminated]);
+  const toggleEliminated = useCallback((questionId: string, optionId: string) => {
     setEliminated((prev) => {
       const current = prev[questionId] ?? [];
       const next = current.includes(optionId)
@@ -74,6 +96,14 @@ function QuizPage() {
         : [...current, optionId];
       return { ...prev, [questionId]: next };
     });
+  }, []);
+  const restoreEliminated = useCallback((questionId: string, optionId: string) => {
+    setEliminated((prev) => {
+      const current = prev[questionId] ?? [];
+      if (!current.includes(optionId)) return prev;
+      return { ...prev, [questionId]: current.filter((id) => id !== optionId) };
+    });
+  }, []);
 
   const questions = state?.questions ?? [];
   const total = questions.length;
@@ -251,7 +281,8 @@ function QuizPage() {
     go(1);
   }, [state, isTutor, isSubmitted, isLast, selectedOptionId, doSubmit, finish, go]);
 
-  // Keyboard: 1–5 / A–E select, Enter submits/advances, arrows move, b bookmarks.
+  // Keyboard: 1–5 / A–E select, Shift+A–E crosses out (eliminate), Enter
+  // submits/advances, arrows move, b bookmarks.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null;
@@ -266,7 +297,13 @@ function QuizPage() {
       if (opt) {
         if (!isSubmitted) {
           e.preventDefault();
-          selectOption(sessionId, qid, opt.id);
+          // Shift+letter crosses out (eliminates) instead of selecting.
+          if (e.shiftKey) {
+            toggleEliminated(qid, opt.id);
+          } else {
+            restoreEliminated(qid, opt.id);
+            selectOption(sessionId, qid, opt.id);
+          }
         }
         return;
       }
@@ -297,6 +334,8 @@ function QuizPage() {
     toggleServerFlag,
     bookmarkBusy,
     ui?.bookmarked,
+    toggleEliminated,
+    restoreEliminated,
   ]);
 
   if (isLoading) {
@@ -525,7 +564,7 @@ function QuizPage() {
                           onClick={() => {
                             if (!qid) return;
                             // Selecting a crossed-out option restores it.
-                            if (isEliminated) toggleEliminated(qid, opt.id);
+                            restoreEliminated(qid, opt.id);
                             selectOption(sessionId, qid, opt.id);
                           }}
                           className={`group relative flex w-full items-start gap-4 rounded-xl border p-4 text-left transition-all duration-200 disabled:cursor-default ${cls} ${!isSubmitted ? "pr-12" : ""} ${isEliminated ? "opacity-60" : ""}`}
