@@ -45,18 +45,44 @@ export function TutorBreakdown({
 }: TutorBreakdownProps) {
   const { data: breakdown, isLoading } = useExplanation(answerId);
 
-  const selectedLabel = options.find((o) => o.id === selectedOptionId)?.label ?? null;
   const correctOpt = options.find((o) => o.id === correctOptionId);
+  const selectedLabel = options.find((o) => o.id === selectedOptionId)?.label ?? null;
   const answeredWrong = selectedOptionId !== null && isCorrect === false;
 
-  // The AI sometimes returns a full "B: option text" in `label` rather than a
-  // bare letter, so normalise to the leading option letter for joining/display.
-  const letterOf = (label: string): string => label.trim().charAt(0).toUpperCase();
+  // The AI's `label` for a distractor may be a bare letter ("B"), a prefixed
+  // label ("B) …" / "B: …"), OR the option TEXT itself ("Swyer syndrome").
+  // Resolve it to the REAL option so the badge shows the correct A–E letter —
+  // not the first letter of the option text (which produced "M"/"S" badges).
+  const resolveOption = (aiLabel: string): QuizOption | null => {
+    const raw = (aiLabel ?? "").trim();
+    if (!raw) return null;
+    const prefix =
+      /^\(?\s*([A-Ea-e])\s*[).:\-–]/.exec(raw) ?? /^\s*([A-Ea-e])\s*$/.exec(raw);
+    if (prefix) {
+      const byLetter = options.find(
+        (o) => o.label.toUpperCase() === prefix[1].toUpperCase(),
+      );
+      if (byLetter) return byLetter;
+    }
+    const norm = raw.toLowerCase().replace(/\s+/g, " ");
+    const exact = options.find(
+      (o) => o.text.trim().toLowerCase().replace(/\s+/g, " ") === norm,
+    );
+    if (exact) return exact;
+    return (
+      options.find((o) => {
+        const t = o.text.trim().toLowerCase().replace(/\s+/g, " ");
+        return t.length > 3 && (t.includes(norm) || norm.includes(t));
+      }) ?? null
+    );
+  };
 
-  // Index the "when would be correct" scenarios by option letter for quick join.
-  const wouldByLetter = new Map(
-    (breakdown?.whenWouldBeCorrect ?? []).map((w) => [letterOf(w.label), w.scenario]),
-  );
+  // "When it would be correct" scenario keyed by the resolved option id.
+  const scenarioByOptId = new Map<string, string>();
+  for (const w of breakdown?.whenWouldBeCorrect ?? []) {
+    const opt = resolveOption(w.label);
+    if (opt) scenarioByOptId.set(opt.id, w.scenario);
+  }
 
   return (
     <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -180,14 +206,14 @@ export function TutorBreakdown({
                 </p>
               </div>
               <ul className="mt-3 space-y-3">
-                {breakdown.whyOthersAreWrong.map((o) => {
-                  const letter = letterOf(o.label);
-                  const opt = options.find((op) => op.label.toUpperCase() === letter);
-                  const chosenWrong = (selectedLabel ?? "").toUpperCase() === letter;
-                  const scenario = wouldByLetter.get(letter);
+                {breakdown.whyOthersAreWrong.map((o, i) => {
+                  const opt = resolveOption(o.label);
+                  const badge = opt?.label ?? "•";
+                  const chosenWrong = opt != null && opt.id === selectedOptionId;
+                  const scenario = opt ? scenarioByOptId.get(opt.id) : undefined;
                   return (
                     <li
-                      key={o.label}
+                      key={opt?.id ?? `${o.label}-${i}`}
                       className={`rounded-xl border border-l-4 p-4 transition-colors ${
                         chosenWrong
                           ? "border-error/40 border-l-error bg-error/5"
@@ -196,7 +222,7 @@ export function TutorBreakdown({
                     >
                       <div className="flex items-start gap-2.5">
                         <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-error/10 text-xs font-bold text-error">
-                          {letter}
+                          {badge}
                         </span>
                         <div className="min-w-0 flex-1 space-y-1.5 pt-0.5">
                           {opt && (
